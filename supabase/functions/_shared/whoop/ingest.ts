@@ -74,7 +74,8 @@ export async function ingestWhoopTelemetry(
       .eq("user_id", userId)
       .eq("source", "whoop")
       .eq("local_date", localDate)
-      .order("occurred_at", { ascending: true });
+      .order("occurred_at", { ascending: true })
+      .order("id", { ascending: true }); // tiebreak for equal occurred_at -- "latest wins" must be deterministic, not row-order luck
     if (readError) throw new Error(`Failed to read back WHOOP telemetry for rollup: ${readError.message}`);
 
     const patch = buildHealthDailyFromTelemetry(dayEvents ?? []);

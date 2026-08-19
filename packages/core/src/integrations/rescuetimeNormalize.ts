@@ -1,0 +1,29 @@
+import type { TelemetryEventInput } from './whoopNormalize';
+
+/**
+ * Normalizes RescueTime's Daily Summary Feed into the generic telemetry_events shape --
+ * same L10 pattern as whoopNormalize.ts. Payload shape follows RescueTime's publicly
+ * documented Daily Summary Feed API (`/anapi/daily_summary_feed`) as of this build --
+ * **recorded, not verified live** (no RescueTime API key exists in this environment).
+ * If the real shape has drifted by the time a key exists, update this from the real
+ * response, never patch a test to force it to pass.
+ */
+export interface RescueTimeDailySummaryRow {
+  date: string; // "2026-08-19"
+  total_hours: number;
+  /** RescueTime's own composite: very_productive_percentage + productive_percentage. */
+  all_productive_percentage: number;
+  /** RescueTime's own composite: distracting_percentage + very_distracting_percentage. */
+  all_distracting_percentage: number;
+}
+
+export function normalizeRescueTimeDailySummary(row: RescueTimeDailySummaryRow): TelemetryEventInput[] {
+  const occurredAt = `${row.date}T23:59:59.000Z`; // a day-level summary, timestamped at end-of-day so it always falls on the correct local_date
+  const totalMinutes = row.total_hours * 60;
+
+  return [
+    { source: 'rescuetime', type: 'screen_summary', metric: 'total_screen_min', value: Math.round(totalMinutes), unit: 'minutes', occurredAt },
+    { source: 'rescuetime', type: 'screen_summary', metric: 'productive_min', value: Math.round(totalMinutes * (row.all_productive_percentage / 100)), unit: 'minutes', occurredAt },
+    { source: 'rescuetime', type: 'screen_summary', metric: 'distracting_min', value: Math.round(totalMinutes * (row.all_distracting_percentage / 100)), unit: 'minutes', occurredAt },
+  ];
+}

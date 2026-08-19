@@ -1,0 +1,30 @@
+import type { TelemetryEventInput } from './whoopNormalize';
+
+/**
+ * Mirrors healthDailyRollup.ts's derivation exactly, for RescueTime's telemetry instead
+ * of WHOOP's: screen_daily is a derived, rebuildable ROLLUP of telemetry_events
+ * (DATA_MODEL.md §5), never the primary record.
+ */
+export interface ScreenDailyPatch {
+  totalScreenMin: number | null;
+  distractingMin: number | null;
+  productiveMin: number | null;
+}
+
+type TelemetryEventForRollup = Pick<TelemetryEventInput, 'metric' | 'value'>;
+
+/** Latest value wins per metric when a day has more than one reading -- same reasoning
+ *  as buildHealthDailyFromTelemetry (a re-sync later in the day supersedes an earlier
+ *  partial one, it never sums or averages with it). */
+export function buildScreenDailyFromTelemetry(events: TelemetryEventForRollup[]): ScreenDailyPatch {
+  const latestByMetric = new Map<string, number>();
+  for (const event of events) {
+    latestByMetric.set(event.metric, event.value);
+  }
+
+  return {
+    totalScreenMin: latestByMetric.get('total_screen_min') ?? null,
+    distractingMin: latestByMetric.get('distracting_min') ?? null,
+    productiveMin: latestByMetric.get('productive_min') ?? null,
+  };
+}

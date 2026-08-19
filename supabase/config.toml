@@ -431,6 +431,11 @@ verify_jwt = true
 [functions.whoop-webhook]
 verify_jwt = false
 
+# A real, logged-in caller connecting (or re-syncing) their own RescueTime account --
+# same trust model as whoop-oauth-callback / brightspace-sync.
+[functions.rescuetime-sync]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

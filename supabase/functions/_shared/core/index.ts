@@ -45,3 +45,5 @@ export * from './integrations/ssrfGuard.ts';
 export * from './integrations/whoopNormalize.ts';
 export * from './integrations/healthDailyRollup.ts';
 export * from './integrations/oauthTokenExpiry.ts';
+export * from './integrations/rescuetimeNormalize.ts';
+export * from './integrations/screenDailyRollup.ts';

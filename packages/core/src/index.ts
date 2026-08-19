@@ -42,3 +42,5 @@ export * from './integrations/ssrfGuard';
 export * from './integrations/whoopNormalize';
 export * from './integrations/healthDailyRollup';
 export * from './integrations/oauthTokenExpiry';
+export * from './integrations/rescuetimeNormalize';
+export * from './integrations/screenDailyRollup';

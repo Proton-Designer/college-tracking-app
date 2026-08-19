@@ -114,3 +114,16 @@ Deno.test("ingestWhoopTelemetry: two different external resource ids on the same
   const { data: rollup } = await admin.from("health_daily").select("strain").eq("user_id", userId).eq("local_date", "2026-08-19").single();
   assertEquals(Number(rollup!.strain), 11.0);
 });
+
+Deno.test("ingestWhoopTelemetry: when two readings share the exact same occurred_at, the more recently INSERTED one wins the rollup deterministically", async () => {
+  const { admin, userId } = await createThrowawayUser();
+  const SAME_INSTANT = "2026-08-19T09:00:00.000Z";
+  await ingestWhoopTelemetry(admin, userId, [{ source: "whoop", type: "workout", metric: "strain", value: 3.0, unit: null, occurredAt: SAME_INSTANT }], "same-instant-a");
+  await ingestWhoopTelemetry(admin, userId, [{ source: "whoop", type: "workout", metric: "strain", value: 18.0, unit: null, occurredAt: SAME_INSTANT }], "same-instant-b");
+
+  const { data: rollup } = await admin.from("health_daily").select("strain").eq("user_id", userId).eq("local_date", "2026-08-19").single();
+  // Without an id tiebreaker on the read-back ordering, this would be non-deterministic
+  // (Postgres does not guarantee stable order for tied occurred_at values) -- the second
+  // ingest (higher id) must reliably win.
+  assertEquals(Number(rollup!.strain), 18.0);
+});
