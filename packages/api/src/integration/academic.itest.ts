@@ -132,6 +132,34 @@ describe('deadline radar + grade scenarios against the seeded demo user', () => 
     expect(forced.ok).toBe(true);
   });
 
+  it('computes committed-vs-available capacity across a semester-scale horizon, not just one deliverable\'s window', async () => {
+    const { data: profile } = await client.from('profiles').select('sleep_baseline_hours').eq('id', userId).single();
+    const horizonEnd = addDays(today, 13);
+
+    const result = await computeCapacityHorizon(client, userId, today, horizonEnd, profile!.sleep_baseline_hours);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // Exactly one entry per day in [today, horizonEnd], inclusive, in order.
+    expect(result.data.length).toBe(14);
+    expect(result.data[0]!.date).toBe(today);
+    expect(result.data[result.data.length - 1]!.date).toBe(horizonEnd);
+    for (let i = 1; i < result.data.length; i++) {
+      expect(result.data[i]!.date > result.data[i - 1]!.date).toBe(true);
+    }
+
+    // At least one day in a two-week window has less available time than a day with no
+    // commitments at all -- proves calendar_events actually reduces capacity, not just
+    // that the shape is right. (Five courses meeting across the week make an
+    // all-completely-free 14-day span implausible; if this ever flakes, the seed's
+    // course_meetings coverage is the thing to check.)
+    const wakingMinutes = result.data.reduce((max, d) => Math.max(max, d.availableMinutes), 0);
+    expect(result.data.some((d) => d.availableMinutes < wakingMinutes)).toBe(true);
+    for (const day of result.data) {
+      expect(day.availableMinutes).toBeGreaterThanOrEqual(0);
+    }
+  });
+
   it('every persisted milestone lands on or after today, matching packages/core\'s own invariant', async () => {
     const { data: deliverables } = await client
       .from('deliverables')

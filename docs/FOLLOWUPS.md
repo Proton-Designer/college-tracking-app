@@ -18,6 +18,18 @@
 
 ---
 
+## Scope gaps caught in audit (Lead's assignment errors)
+
+| # | Item | Notes |
+|---|---|---|
+| 🔴 A1 | **Night review UI never assigned** | `MASTER_PLAN` L4 is "Today, morning check-in, **night review**, tasks." The L4 assignment specified Today + check-in and omitted the night review. `/review` exists on neither platform. This is the **Reflect** step of the closed loop — without it a user can plan a day but never close it, and friction logs, prediction scoring, calibration actuals, and **L7's nightly analysis all have no input**. Backend (`submitNightReview`) already exists. Queued to Nova after mobile Today. |
+
+**Process note:** caught by auditing built routes against `SCREEN_SPEC`, not by either engineer's
+report — both engineers correctly built exactly what they were assigned. Layer scope must be
+audited against the plan at each boundary, not assumed from assignment messages.
+
+---
+
 ## Must fix before launch 🔴
 
 | # | Item | Notes |

@@ -1,5 +1,7 @@
 import type { Deliverable, GradeCategoryRow, GradeItemRow } from "@collegeos/api";
+import { BackplanChain } from "@/components/courses/BackplanChain";
 import { daysRemainingLabel } from "@/lib/dates";
+import type { BackplanChain as BackplanChainData } from "@/lib/loadBackplanChains";
 
 function typeLabel(type: string): string {
   return type.replace(/_/g, " ");
@@ -12,18 +14,20 @@ function pointsLabel(item: GradeItemRow | undefined): string | null {
   return `${item.points_earned} / ${item.points_possible}`;
 }
 
-/** Every deliverable in the course, joined against its grade item (points) and category
- *  (weight) where linked — a deliverable with no grade_item_id yet just shows undated fields
- *  as blank rather than a fabricated weight. */
+/** Every deliverable in the course, joined against its grade item (points), category
+ *  (weight), and backplan (milestone chain) where linked — a deliverable with no
+ *  grade_item_id yet just shows blank fields rather than a fabricated weight. */
 export function AssignmentsTable({
   deliverables,
   gradeItems,
   categories,
+  backplanChains,
   today,
 }: {
   deliverables: Deliverable[];
   gradeItems: GradeItemRow[];
   categories: GradeCategoryRow[];
+  backplanChains: Map<number, BackplanChainData>;
   today: string;
 }) {
   if (deliverables.length === 0) {
@@ -50,14 +54,18 @@ export function AssignmentsTable({
           {deliverables.map((d) => {
             const item = d.grade_item_id != null ? gradeItemById.get(d.grade_item_id) : undefined;
             const category = item ? categoryById.get(item.category_id) : undefined;
+            const chain = backplanChains.get(d.id);
             return (
               <tr key={d.id} className="border-b border-hairline last:border-b-0">
-                <td className="py-3 pr-4 text-body-s text-ink">{d.title}</td>
-                <td className="py-3 pr-4 font-mono text-body-s text-ink-faint">{typeLabel(d.type)}</td>
-                <td className="py-3 pr-4 font-mono text-body-s text-ink-muted">{daysRemainingLabel(today, d.local_due_date)}</td>
-                <td className="py-3 pr-4 text-body-s text-ink-muted">{category?.name ?? "—"}</td>
-                <td className="py-3 pr-4 font-mono text-body-s tabular-nums text-ink">{pointsLabel(item) ?? "—"}</td>
-                <td className="py-3 pr-4 font-mono text-caption uppercase tracking-[0.08em] text-ink-faint">{d.status}</td>
+                <td className="py-3 pr-4 align-top text-body-s text-ink">
+                  {d.title}
+                  <BackplanChain chain={chain} />
+                </td>
+                <td className="py-3 pr-4 align-top font-mono text-body-s text-ink-faint">{typeLabel(d.type)}</td>
+                <td className="py-3 pr-4 align-top font-mono text-body-s text-ink-muted">{daysRemainingLabel(today, d.local_due_date)}</td>
+                <td className="py-3 pr-4 align-top text-body-s text-ink-muted">{category?.name ?? "—"}</td>
+                <td className="py-3 pr-4 align-top font-mono text-body-s tabular-nums text-ink">{pointsLabel(item) ?? "—"}</td>
+                <td className="py-3 pr-4 align-top font-mono text-caption uppercase tracking-[0.08em] text-ink-faint">{d.status}</td>
               </tr>
             );
           })}

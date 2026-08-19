@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BackplanChain } from "@/components/courses/BackplanChain";
 import { RiskPill } from "@/components/ui";
 import { daysRemainingLabel } from "@/lib/dates";
 import { loadCalendarHorizon, type CalendarObligation } from "./data";
@@ -28,8 +29,7 @@ export default async function CalendarPage() {
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-6 px-8 py-10">
       <h1 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">Calendar</h1>
       <p className="text-caption text-ink-faint">
-        Committed calendar time against available capacity, and backplan milestones expanded inline, are pending
-        backend reads not yet exposed — this is the obligation horizon on its own for now.
+        Committed calendar time against available capacity is pending a backend read not yet exposed.
       </p>
 
       {obligations.length === 0 ? (

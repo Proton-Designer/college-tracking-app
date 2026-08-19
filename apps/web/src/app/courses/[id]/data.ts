@@ -18,6 +18,7 @@ import {
   type GradeItemRow,
 } from "@collegeos/api";
 import type { CourseGradeResult } from "@collegeos/core";
+import { loadBackplanChains, type BackplanChain } from "@/lib/loadBackplanChains";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
 export interface CourseDetailData {
@@ -32,6 +33,7 @@ export interface CourseDetailData {
   gradeItems: GradeItemRow[];
   gradeBoundaries: GradeBoundaryRow[];
   deliverables: Deliverable[];
+  backplanChains: Map<number, BackplanChain>;
 }
 
 export type CourseDetailLoadResult = { ok: true; data: CourseDetailData } | { ok: false; error: string };
@@ -76,6 +78,8 @@ export async function loadCourseDetail(courseId: number): Promise<CourseDetailLo
   if (!gradeBoundariesResult.ok) return { ok: false, error: gradeBoundariesResult.error.message };
   if (!deliverablesResult.ok) return { ok: false, error: deliverablesResult.error.message };
 
+  const backplanChains = await loadBackplanChains(client, deliverablesResult.data.map((d) => d.id));
+
   return {
     ok: true,
     data: {
@@ -88,6 +92,7 @@ export async function loadCourseDetail(courseId: number): Promise<CourseDetailLo
       gradeItems: gradeItemsResult.data,
       gradeBoundaries: gradeBoundariesResult.data,
       deliverables: deliverablesResult.data,
+      backplanChains,
     },
   };
 }

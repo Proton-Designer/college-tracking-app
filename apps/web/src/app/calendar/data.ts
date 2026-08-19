@@ -10,11 +10,13 @@ import {
   type Deliverable,
   type DeliverableRisk,
 } from "@collegeos/api";
+import { loadBackplanChains, type BackplanChain } from "@/lib/loadBackplanChains";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
 export interface CalendarObligation {
   deliverable: Deliverable;
   risk: DeliverableRisk | null;
+  backplan: BackplanChain | undefined;
 }
 
 export interface CalendarData {
@@ -61,10 +63,12 @@ export async function loadCalendarHorizon(): Promise<CalendarLoadResult> {
 
   const riskByDeliverableId = new Map(risk.deliverableRisks.map((dr) => [dr.deliverableId, dr]));
   const allDeliverables = deliverablesByCourse.flatMap((r) => (r.ok ? r.data : []));
+  const openDeliverables = allDeliverables.filter((d) => d.status !== "completed");
 
-  const obligations: CalendarObligation[] = allDeliverables
-    .filter((d) => d.status !== "completed")
-    .map((d) => ({ deliverable: d, risk: riskByDeliverableId.get(d.id) ?? null }))
+  const backplanChains = await loadBackplanChains(client, openDeliverables.map((d) => d.id));
+
+  const obligations: CalendarObligation[] = openDeliverables
+    .map((d) => ({ deliverable: d, risk: riskByDeliverableId.get(d.id) ?? null, backplan: backplanChains.get(d.id) }))
     .sort((a, b) => (a.deliverable.local_due_date < b.deliverable.local_due_date ? -1 : a.deliverable.local_due_date > b.deliverable.local_due_date ? 1 : 0));
 
   return {

@@ -35,7 +35,8 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     );
   }
 
-  const { course, gradeResult, courseRisk, deliverableRisks, today, categories, gradeItems, gradeBoundaries, deliverables } = result.data;
+  const { course, gradeResult, courseRisk, deliverableRisks, today, categories, gradeItems, gradeBoundaries, deliverables, backplanChains } =
+    result.data;
   const weightSumIssue = gradeResult?.issues.find((i) => i.kind === "weightSumWarning");
   const categoryNameById = new Map(categories.map((c) => [String(c.id), c.name]));
 
@@ -97,7 +98,13 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
 
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Assignments &amp; exams</h2>
-        <AssignmentsTable deliverables={deliverables} gradeItems={gradeItems} categories={categories} today={today} />
+        <AssignmentsTable
+          deliverables={deliverables}
+          gradeItems={gradeItems}
+          categories={categories}
+          backplanChains={backplanChains}
+          today={today}
+        />
       </section>
 
       <section className="flex flex-col gap-3">
@@ -124,8 +131,6 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           )}
         </Panel>
       </section>
-
-      <p className="text-caption text-ink-faint">Backplan milestone chains are pending a backend read not yet exposed — tracked, not silently missing.</p>
     </main>
   );
 }
