@@ -20,10 +20,12 @@ export interface AuthError {
 
 export type AuthResult<T> = { ok: true; data: T } | { ok: false; error: AuthError };
 
+// @barrel-internal -- result-constructor helper used only within auth/, mirrors data/types.ts's dataOk.
 export function authOk<T>(data: T): AuthResult<T> {
   return { ok: true, data };
 }
 
+// @barrel-internal -- result-constructor helper used only within auth/, mirrors data/types.ts's dataErr.
 export function authErr(error: AuthError): AuthResult<never> {
   return { ok: false, error };
 }

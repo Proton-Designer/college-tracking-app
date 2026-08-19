@@ -17,7 +17,7 @@
     "build": "npm run build --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run check:imports && npm run check:core-mirror && npm run typecheck && npm run lint && npm run test",
+    "verify": "npm run check:imports && npm run check:core-mirror && npm run check:barrel-exports && npm run check:demo-clean && npm run typecheck && npm run lint && npm run test",
     "test:e2e": "npm run test:e2e --workspace=@collegeos/web",
     "sim:shot": "bash scripts/sim-shot.sh",
     "db:start": "supabase start",
@@ -28,7 +28,9 @@
     "db:test": "supabase test db",
     "check:imports": "node scripts/check-imports.mjs",
     "build:core-for-deno": "node scripts/build-core-for-deno.mjs",
-    "check:core-mirror": "node scripts/check-core-mirror.mjs"
+    "check:core-mirror": "node scripts/check-core-mirror.mjs",
+    "check:barrel-exports": "node scripts/check-barrel-exports.mjs",
+    "check:demo-clean": "node scripts/check-demo-clean.mjs"
   },
   "devDependencies": {
     "prettier": "3.9.6"

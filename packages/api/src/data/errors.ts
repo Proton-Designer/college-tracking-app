@@ -6,6 +6,7 @@ import type { DataError, DataErrorCode } from './types';
  * SQLSTATE (`error.code`), never `error.message` (raw constraint names / server text
  * that leaks schema detail and can change across migrations).
  */
+// @barrel-internal -- used only by data/ and day/ modules' own call sites, never called directly by a consumer.
 export function mapDataError(error: PostgrestError): DataError {
   const code: DataErrorCode = (() => {
     switch (error.code) {

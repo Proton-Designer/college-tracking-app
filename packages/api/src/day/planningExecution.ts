@@ -21,6 +21,8 @@ function minutesSinceMidnightUTC(iso: string): number {
  * rolling-stats table. Shared by planning-vs-execution (yesterday) and today's workload
  * capacity sizing, so both agree on the same historical baseline.
  */
+// @barrel-internal -- feeds getDayView/computeCapacityHorizon/workload internally; consumers get its
+// output through those already-exported functions, not by calling this directly.
 export async function computeHistoricalCapacityP50Min(
   client: TypedSupabaseClient,
   userId: string,
@@ -38,6 +40,8 @@ export async function computeHistoricalCapacityP50Min(
 }
 
 /** Planning-vs-execution for `today`'s previous day. */
+// @barrel-internal -- feeds getDayView internally; consumers get its output through getDayView, not
+// by calling this directly.
 export async function computeYesterdayPlanningExecution(
   client: TypedSupabaseClient,
   userId: string,

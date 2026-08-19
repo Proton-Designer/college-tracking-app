@@ -11,6 +11,7 @@ import type { AuthError, AuthErrorCode } from './types';
  * see mapSignInError, which forces every sign-in failure through this single code so the
  * response can never be used to enumerate registered emails.
  */
+// @barrel-internal -- used only by auth/auth.ts's own call sites, never called directly by a consumer.
 export function mapSupabaseAuthError(error: unknown): AuthError {
   if (!isAuthApiError(error)) {
     return { code: 'network_error', message: 'Could not reach the server. Check your connection and try again.' };
@@ -66,6 +67,7 @@ function messageFor(code: AuthErrorCode): string {
  * oracle. Every failure on those two flows is forced to `invalid_credentials`'s message,
  * regardless of what Supabase actually reported.
  */
+// @barrel-internal -- used only by auth/auth.ts's own call sites, never called directly by a consumer.
 export function mapEnumerationSafeError(error: unknown): AuthError {
   const mapped = mapSupabaseAuthError(error);
   // Rate limiting and network errors are legitimate to surface distinctly -- they don't

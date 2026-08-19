@@ -15,6 +15,8 @@ const LOOKBACK_DAYS = 180;
  * groups by task category. The full unfiltered list doubles as the "global" fallback
  * packages/core's calibration falls back to when a category has too little history.
  */
+// @barrel-internal -- feeds getDayView/computeCapacityHorizon/workload internally; consumers get its
+// output through those already-exported functions, not by calling this directly.
 export async function loadCalibrationObservations(
   client: TypedSupabaseClient,
   userId: string,
@@ -53,6 +55,8 @@ export async function loadCalibrationObservations(
   return { byCategory, global };
 }
 
+// @barrel-internal -- feeds getDayView/computeCapacityHorizon/workload internally; consumers get its
+// output through those already-exported functions, not by calling this directly.
 export function calibrateCategory(
   observations: { byCategory: Map<string, DurationObservation[]>; global: DurationObservation[] },
   category: string,

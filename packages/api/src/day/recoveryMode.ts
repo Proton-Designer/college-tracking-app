@@ -18,6 +18,8 @@ const HARD_DEADLINE_WINDOW_HOURS = 48;
 // friction logging (L6) or insights (L8).
 const OVERDUE_TASK_LOOKBACK_DAYS = 7;
 
+// @barrel-internal -- feeds getDayView's recoveryMode field internally; consumers get its output
+// through getDayView, not by calling this directly.
 export async function computeTodayRecoveryMode(
   client: TypedSupabaseClient,
   userId: string,

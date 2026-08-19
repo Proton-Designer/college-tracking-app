@@ -23,6 +23,7 @@ function wakingMinutesPerDayFor(sleepBaselineHours: number | null): number {
   return hours * 60;
 }
 
+// @barrel-internal -- a parameter type for buildTodayWorkloadItems, itself internal (see below).
 export interface CalibrationObservations {
   byCategory: Map<string, DurationObservation[]>;
   global: DurationObservation[];
@@ -45,11 +46,15 @@ function eventDurationMinutes(event: { start_at: string; end_at: string }): numb
   return Math.max(0, (new Date(event.end_at).getTime() - new Date(event.start_at).getTime()) / 60000);
 }
 
+// @barrel-internal -- an internal field type on WorkloadItemsResult (itself internal, see below);
+// rankSuggestedMits (already exported) surfaces the same multiplier/confidence pair on SuggestedMit.
 export interface ItemCalibration {
   multiplier: number;
   confidence: Confidence;
 }
 
+// @barrel-internal -- buildTodayWorkloadItems's return type; consumers get this data through
+// computeTodayWorkload/rankSuggestedMits (already exported), not by calling buildTodayWorkloadItems directly.
 export interface WorkloadItemsResult {
   items: WorkloadItem[];
   /** Multiplier + confidence behind each discretionary item's (already-calibrated)
@@ -58,6 +63,8 @@ export interface WorkloadItemsResult {
   calibrationByItemId: Map<string, ItemCalibration>;
 }
 
+// @barrel-internal -- feeds getDayView/computeTodayWorkload internally; consumers get its output
+// through those already-exported functions, not by calling this directly.
 export async function buildTodayWorkloadItems(
   client: TypedSupabaseClient,
   userId: string,
@@ -120,6 +127,8 @@ export interface TodayWorkload {
   calibrationByItemId: Map<string, ItemCalibration>;
 }
 
+// @barrel-internal -- feeds getDayView's TodayWorkload field internally; consumers get its output
+// through getDayView, not by calling this directly.
 export async function computeTodayWorkload(
   client: TypedSupabaseClient,
   userId: string,

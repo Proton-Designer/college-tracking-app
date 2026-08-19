@@ -14,6 +14,8 @@ const DEFAULT_WAKE_HOUR = 7; // 07:00, used only to derive a sleep-by time when 
  * reduction per minute the way workload/MIT selection does -- a deliberately different
  * criterion, so this does not just reuse buildTodayWorkloadItems's output.
  */
+// @barrel-internal -- feeds getDayView's MvdPlan field internally; consumers get its output through
+// getDayView, not by calling this directly.
 export async function composeMvdPlanForToday(
   client: TypedSupabaseClient,
   userId: string,

@@ -32,6 +32,12 @@ function wakingHoursPerDayFor(sleepBaselineHours: number | null): number {
  * whenever this fallback is the one actually used (see assignmentRisk.ts's
  * `usingGlobalFallback` check) — verify that still holds if this constant ever moves.
  */
+// @barrel-internal -- flagged, not a confident call: the Lead's L5 ruling emphasized this being
+// visible to a "future reader," which this file's own `export const` + comment already satisfies for
+// anyone reading the source; nothing currently consumes it from outside day/risk.ts (only
+// assignmentRisk.ts's own confidence-downgrade check references it, indirectly, via the returned
+// result). Left internal rather than assuming the ruling meant "part of the package's public
+// surface too" -- easy to promote if that's what was actually intended.
 export const GLOBAL_MEAN_START_DELAY_DAYS_PRIOR = 1.5;
 
 export interface DeliverableRisk {

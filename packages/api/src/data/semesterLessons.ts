@@ -4,6 +4,10 @@ import { dataErr, dataOk, type DataResult } from './types';
 import { mapDataError } from './errors';
 
 export type SemesterLessonRow = Database['public']['Tables']['semester_lessons']['Row'];
+// @barrel-internal -- a local convenience alias for CreateSemesterLessonInput's own type; the
+// canonical public form is Database['public']['Enums']['insight_confidence_level'] (Database is
+// already exported from index.ts), so re-exporting a second name for the same type would just add a
+// duplicate.
 export type InsightConfidenceLevel = Database['public']['Enums']['insight_confidence_level'];
 
 export interface CreateSemesterLessonInput {
