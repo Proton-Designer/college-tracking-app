@@ -62,6 +62,14 @@ audited against the plan and the schema, not inferred from assignments.
 
 ---
 
+## Found at session close
+
+| # | Item | Notes |
+|---|---|---|
+| 🟡 C1 | **Mobile sign-in email field doesn't reliably clear/retype** | Reported **deterministic** on the iPhone 16 Pro simulator once that sim has prior login history — worse than the intermittent AutoFill behaviour seen earlier the same session. Needs root-causing on a **real device** before being written off as a simulator artifact: if it reproduces there, it's a genuine sign-in bug and it sits on the very first screen a returning user touches. Likely suspects: `textContentType`/`autoComplete` config on the email `TextInput`, or controlled-input state not syncing on re-entry. |
+
+---
+
 ## Must fix before launch 🔴
 
 | # | Item | Notes |

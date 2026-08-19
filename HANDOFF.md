@@ -131,9 +131,14 @@ component (hairline border, padding, minimum tap target, press feedback, mono la
 lints clean, and the fix was verified by reading the exact code it replaces — but **not confirmed on
 a running simulator**, for the reason in §5.2.
 
-**Not reviewed this pass** (untouched, not known-bad): Insights and Settings on both platforms, and
-Review on web. Today and Courses were checked live on web and were already clean — proper `Button`,
-`RiskPill`, and hairline treatment, no bare elements.
+**Not reviewed this pass** (untouched, not known-bad): Insights on both platforms, and Review on web.
+Today and Courses were checked live on web and were already clean — proper `Button`, `RiskPill`, and
+hairline treatment, no bare elements.
+
+**Settings on mobile WAS verified live on-device** (iPhone 16 Pro simulator, real demo account) after
+the handoff was first written — all six checks pass, including the escalation-ceiling wording that
+labels L2–L4 as *"in-app message only, enforcement not yet built."* That consent surface is confirmed
+as shipped, not assumed.
 
 ### 5.2 Mobile visual rendering — under-verified
 iOS simulator text injection (`idb ui text`) is **unreliable in this environment** — silent character
