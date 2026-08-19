@@ -72,3 +72,15 @@ export function explainTopFactors(trace: TraceEntryLike[], limit = 3): string[] 
     .filter((line): line is string => line != null)
     .slice(0, limit);
 }
+
+/** What's missing, and what would fix it — turns an excluded factor into an action rather
+ *  than a silent gap. Matches packages/core's assignmentRisk.ts missingFactors keys exactly. */
+const MISSING_FACTOR_PROMPT: Record<string, string> = {
+  difficulty: "No difficulty rating set for this course — this factor is excluded, not guessed at.",
+  knowledgeGap: "No confidence rating set for this course — this factor is excluded, not guessed at.",
+  gradeHeadroom: "No target grade or projected grade available yet — this factor is excluded, not guessed at.",
+};
+
+export function explainMissingFactors(missingFactors: string[]): string[] {
+  return missingFactors.map((key) => MISSING_FACTOR_PROMPT[key] ?? `Missing factor: ${key}`);
+}
