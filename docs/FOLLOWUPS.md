@@ -33,6 +33,26 @@ audited against the plan at each boundary, not assumed from assignment messages.
 
 ---
 
+## Backend built, no UI — found by Lead audit (2026-08-19)
+
+Five features have working, tested backends that **no screen reaches**. Same family as D20
+(a component isn't done until a real caller invokes it) — here the missing caller is the UI.
+
+| # | Feature | Why it matters | Where it belongs |
+|---|---|---|---|
+| 🔴 U1 | **Interventions never displayed** | L9 records every intended intervention with its trigger and outcome, and nothing shows them. **"Intervene" is a step of the product's core loop** — Observe → Plan → Execute → Detect deviation → *Intervene* → Reflect. Right now that step is invisible, so the loop is open. | Today (inline), plus a history surface |
+| 🔴 U2 | **No way to set `planned_start_at`** | A2 added the column so start delay could be measured. Nothing writes it, so **start delay is permanently `null`** and the planning-vs-execution engine never sees the metric the brief names explicitly ("planned start 4:00 / actual start 5:07"). | Morning check-in — Top 3 optionally timeboxable |
+| 🟡 U3 | **Proof-of-work unreachable** | L6 built submission + a server-side completion gate. No UI sets `requires_proof_of_work` or submits evidence, so an entire brief feature is dead. | Task detail / completion flow |
+| 🟡 U4 | **`max_escalation_level` unsettable** | The opt-in ceiling that makes the escalation ladder work. Without UI it stays at the default, so escalation can never legitimately rise past L1 regardless of evidence. | Settings — kill-habit definitions |
+| 🟢 U5 | **Office hours never surfaced** | SCREEN_SPEC §4 wants them surfaced contextually when a topic is repeatedly flagged confusing — the brief's "better intervention than explaining the concept a tenth time". | Course detail |
+
+**Process note:** found by auditing backend columns/functions against UI references, not from any
+report — both engineers built exactly what was assigned. This is the *third* scope gap caught by
+audit rather than by review (after the night review and A2 timeboxing). Layer completion must be
+audited against the plan and the schema, not inferred from assignments.
+
+---
+
 ## Must fix before launch 🔴
 
 | # | Item | Notes |
