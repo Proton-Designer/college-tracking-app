@@ -38,6 +38,22 @@ describe('getDayView against the seeded demo user', () => {
     expect(result.data.profile.id).toBe(userId);
   });
 
+  it('does not trigger Recovery Mode today from tasks abandoned weeks ago -- overdueTasks is a near-term signal, not a permanent one', async () => {
+    // The seeded Recovery Mode day (22 days ago) leaves genuinely-uncompleted tasks
+    // behind on purpose (see seed.sql), which is real, permanent overdue debt. If
+    // overdueTaskCount's lookback were unbounded, that debt alone would push today's
+    // live view into Recovery Mode too -- confirmed live while building this seed
+    // coverage, then fixed by windowing the query in recoveryMode.ts to the last 7 days,
+    // matching every sibling signal's near-term shape (today/yesterday/48h).
+    const result = await getDayView(client, userId);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    const overdueSignal = result.data.recoveryMode.signals.find((s) => s.key === 'overdueTasks');
+    expect(overdueSignal?.active).toBe(false);
+    expect(result.data.recoveryMode.triggered).toBe(false);
+  });
+
   it('exposes the raw evidence behind computed conclusions -- calendar events, task sessions, and health, not just derived scores', async () => {
     const result = await getDayView(client, userId);
     expect(result.ok).toBe(true);
@@ -147,10 +163,24 @@ describe('getDayView against the seeded demo user', () => {
     expect(result.data.mvdPlan).not.toBeNull();
     expect(result.data.mvdPlan!.sleepByTime).toMatch(/^\d{2}:\d{2}$/);
     expect(result.data.mvdPlan!.phoneBlockDuringStudyBlock).toBe(true);
+
+    // The seed carries real material for this day (a hard-deadline task, a CHEM lab
+    // calendar event, and ordinary discretionary tasks) specifically so this assertion
+    // has something to prove -- an empty kept/deferred would pass silently otherwise,
+    // and "nothing the system defers is silent" is unverifiable if nothing is ever
+    // deferred. See supabase/seed.sql's v_bad_day branch.
+    expect(result.data.mvdPlan!.kept.length).toBeGreaterThan(0);
+    expect(result.data.mvdPlan!.deferred.length).toBeGreaterThan(0);
+    expect(result.data.mvdPlan!.kept.some((item) => item.kind === 'hardDeadline')).toBe(true);
+    expect(result.data.mvdPlan!.kept.some((item) => item.kind === 'attendance')).toBe(true);
   });
 
   it('an ordinary seeded day does not trigger Recovery Mode', async () => {
-    const ordinaryDay = addDays(today, -10);
+    // Deliberately BEFORE the bad day (22 days ago), not after -- the bad day's tasks are
+    // genuinely never completed (that's the point, see seed.sql), so overdueTaskCount
+    // (unbounded lookback, not scoped to a window) correctly flags them as overdue for
+    // every later day's view too. A day earlier than the bad day has no such tasks yet.
+    const ordinaryDay = addDays(today, -27);
     const asOf = new Date(`${ordinaryDay}T17:00:00Z`);
     const result = await getDayView(client, userId, asOf);
     expect(result.ok).toBe(true);

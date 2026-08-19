@@ -21,6 +21,7 @@ declare
   v_cat_id bigint;
   v_item_id bigint;
   v_deliv_id bigint;
+  v_bad_day_deliv_id bigint;
   v_backplan_id bigint;
   v_task_id bigint;
   v_kill_instagram bigint;
@@ -258,6 +259,13 @@ begin
     values (v_user_id, v_bme_id, 'HW5', 'problem_set', (current_date - 4)::timestamptz + time '23:59', 90, 'completed');
   insert into public.deliverables (user_id, course_id, title, type, due_at, estimated_minutes, status)
     values (v_user_id, v_phys_id, 'Exam 1', 'exam', (current_date - 21)::timestamptz + time '09:00', 300, 'completed');
+  -- Still not_started and badly overdue -- the thing the bad day (i = 22 below) never got
+  -- to. Due the day after that day, so it's the hard deadline the Minimum Viable Day
+  -- keeps; on today's live view it's a genuinely overdue item, which is the honest
+  -- consequence of a Recovery Mode day nobody recovered from at the time.
+  insert into public.deliverables (user_id, course_id, title, type, due_at, estimated_minutes, status)
+    values (v_user_id, v_chem_id, 'Lab Report 2', 'report', (current_date - 21)::timestamptz + time '23:59', 90, 'not_started')
+    returning id into v_bad_day_deliv_id;
 
   ------------------------------------------------------------------------
   -- Kill habits
@@ -342,7 +350,11 @@ begin
       from public.daily_reviews r
       where p.user_id = v_user_id and r.user_id = v_user_id and p.local_date = d and r.local_date = d;
 
-    -- 1-3 tasks per weekday, fewer on weekends, none on the bad day
+    -- 1-3 tasks per weekday, fewer on weekends. The bad day gets its own deliberately
+    -- uncompleted set instead of the random completed ones, so the Minimum Viable Day
+    -- (packages/core §6) has real material: a hard deadline (linked to the overdue Lab
+    -- Report 2 above), attendance (the explicit CHEM lab calendar_event below), and
+    -- ordinary discretionary tasks that get rolled forward, not silently dropped.
     if not v_bad_day then
       task_count := case when v_is_weekend then 1 + floor(random()*2)::int else 2 + floor(random()*2)::int end;
       for loop_i in 1..task_count loop
@@ -368,6 +380,25 @@ begin
                  floor(random()*3)::int, 2 + floor(random()*3)::int, floor(random()*15)::int
           from public.tasks t where t.id = v_task_id;
       end loop;
+    else
+      -- Hard deadline: linked to Lab Report 2 (due the next day), never reached that day
+      -- -- this is the item MVD keeps, kill-list-style, no matter what.
+      insert into public.tasks (user_id, course_id, deliverable_id, title, category, estimated_minutes, planned_date, status)
+        values (v_user_id, v_chem_id, v_bad_day_deliv_id, 'CHEM Lab Report 2 write-up', 'lab_report', 60, d, 'in_progress')
+        returning id into v_task_id;
+      insert into public.task_sessions (user_id, task_id, planned_start, actual_start, planned_duration_min, actual_duration_min, location, interruptions, subjective_focus, phone_usage_min)
+        values (v_user_id, v_task_id, d::timestamptz + time '16:00', d::timestamptz + time '16:05', 60, 12, 'dorm room', 4, 1, 25);
+
+      -- One ordinary discretionary task, never started -- exactly what "Rolled forward
+      -- (N)" exists to disclose rather than silently drop. Deliberately just one, not
+      -- several: recoveryMode.ts's overdueTaskCount has no time window (any uncompleted
+      -- task before "today", however long ago), so every day after this one inherits
+      -- whatever's still unresolved from it. The `overdueTasks` signal only activates at
+      -- >= 3 (packages/core/src/recovery/trigger.ts) -- two forever-unresolved tasks from
+      -- this day (this one plus the hard deadline above) stays under that, so today's own
+      -- live Recovery Mode state isn't accidentally flipped by history. Confirmed live.
+      insert into public.tasks (user_id, course_id, title, category, estimated_minutes, planned_date, status) values
+        (v_user_id, v_bme_id, 'BME problem review', 'problem_set', 45, d, 'pending');
     end if;
 
     -- kill events: occasional relapse, mostly resisted, one longer lapse around the bad day
@@ -451,17 +482,26 @@ begin
             jsonb_build_object('academicLoad', 'high', 'topRisk', 'PHYS 241 Exam 2', 'planAccuracyPct', 71));
 
   ------------------------------------------------------------------------
-  -- Calendar events for the coming two weeks, generated from the recurring meetings
+  -- Calendar events for the last 30 days and the coming two weeks, generated from the
+  -- recurring meetings -- history included (not just the upcoming window) so the Day
+  -- Trace and Minimum Viable Day have real class-attendance material on past dates too,
+  -- not only days the user hasn't lived through yet.
   ------------------------------------------------------------------------
   insert into public.calendar_events (user_id, source, title, start_at, end_at, is_class_meeting, course_id)
   select v_user_id, 'manual', c.code || ' lecture',
          gd::date + m.start_time, gd::date + m.end_time, true, m.course_id
-  from generate_series(current_date, current_date + 13, interval '1 day') gd
+  from generate_series(current_date - 29, current_date + 13, interval '1 day') gd
   join public.course_meetings m on m.day_of_week = extract(dow from gd) and m.user_id = v_user_id
   join public.courses c on c.id = m.course_id;
 
   insert into public.calendar_events (user_id, source, title, start_at, end_at, is_busy) values
     (v_user_id, 'manual', 'Dinner with roommates', (current_date + 2)::timestamptz + time '18:00', (current_date + 2)::timestamptz + time '19:00', true),
     (v_user_id, 'manual', 'BME study group', (current_date + 4)::timestamptz + time '19:00', (current_date + 4)::timestamptz + time '21:00', true);
+
+  -- The bad day's CHEM lab -- guaranteed regardless of what day-of-week it lands on
+  -- (the recurring-meetings join above only fires if that weekday happens to have a
+  -- scheduled section), so the attendance obligation the MVD keeps is never left to chance.
+  insert into public.calendar_events (user_id, source, title, start_at, end_at, is_class_meeting, course_id)
+    values (v_user_id, 'manual', 'CHEM 255 lab', (current_date - 22)::timestamptz + time '10:00', (current_date - 22)::timestamptz + time '11:30', true, v_chem_id);
 
 end $$;

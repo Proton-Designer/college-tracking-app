@@ -2,14 +2,8 @@ import type { Course } from "@collegeos/api";
 import type { DayView } from "@collegeos/api";
 import { daysBetween } from "@collegeos/core";
 import { RiskPill } from "@/components/ui/RiskPill";
+import { daysRemainingLabel } from "@/lib/dates";
 import { explainTopFactors } from "@/lib/riskExplain";
-
-function daysRemainingLabel(days: number): string {
-  if (days < 0) return "past due";
-  if (days === 0) return "today";
-  if (days === 1) return "tomorrow";
-  return `${days} days`;
-}
 
 export function DeadlineRadar({
   today,
@@ -46,7 +40,7 @@ export function DeadlineRadar({
               <div className="flex flex-col">
                 <span className="text-body text-ink">{d.title}</span>
                 <span className="font-mono text-caption text-ink-faint">
-                  {course?.code ?? "—"} · {daysRemainingLabel(daysBetween(today, d.localDueDate))}
+                  {course?.code ?? "—"} · {daysRemainingLabel(today, d.localDueDate)}
                 </span>
               </div>
               {risk ? <RiskPill band={risk.result.band} label={risk.result.band.toUpperCase()} /> : null}

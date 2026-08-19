@@ -1,0 +1,74 @@
+- generic [active] [ref=f38e1]:
+  - main [ref=f38e2]:
+    - heading "Courses" [level=1] [ref=f38e3]
+    - table [ref=f38e5]:
+      - rowgroup [ref=f38e6]:
+        - row [ref=f38e7]:
+          - columnheader "Course" [ref=f38e8]
+          - columnheader "Risk" [ref=f38e9]
+          - columnheader "Current" [ref=f38e10]
+          - columnheader "Target" [ref=f38e11]
+          - columnheader "Next deadline" [ref=f38e12]
+      - rowgroup [ref=f38e13]:
+        - row [ref=f38e14]:
+          - cell [ref=f38e15]:
+            - link "CHEM 255 Organic Chemistry I" [ref=f38e16] [cursor=pointer]:
+              - /url: /courses/3
+              - generic [ref=f38e17]: CHEM 255
+              - generic [ref=f38e18]: Organic Chemistry I
+          - cell "MODERATE" [ref=f38e19]
+          - cell "80%" [ref=f38e21]
+          - cell "85%" [ref=f38e22]
+          - cell "Problem Set 7 · 3 days" [ref=f38e23]:
+            - text: Problem Set 7
+            - generic [ref=f38e24]: · 3 days
+        - row [ref=f38e25]:
+          - cell [ref=f38e26]:
+            - link "BME 301 Biomedical Instrumentation" [ref=f38e27] [cursor=pointer]:
+              - /url: /courses/1
+              - generic [ref=f38e28]: BME 301
+              - generic [ref=f38e29]: Biomedical Instrumentation
+          - cell "MODERATE" [ref=f38e30]
+          - cell "87%" [ref=f38e32]
+          - cell "90%" [ref=f38e33]
+          - cell "HW6 · 5 days" [ref=f38e34]:
+            - text: HW6
+            - generic [ref=f38e35]: · 5 days
+        - row [ref=f38e36]:
+          - cell [ref=f38e37]:
+            - link "PHYS 241 Electricity and Optics" [ref=f38e38] [cursor=pointer]:
+              - /url: /courses/2
+              - generic [ref=f38e39]: PHYS 241
+              - generic [ref=f38e40]: Electricity and Optics
+          - cell "LOW" [ref=f38e41]
+          - cell "80%" [ref=f38e43]
+          - cell "90%" [ref=f38e44]
+          - cell "Exam 2 · 9 days" [ref=f38e45]:
+            - text: Exam 2
+            - generic [ref=f38e46]: · 9 days
+        - row [ref=f38e47]:
+          - cell [ref=f38e48]:
+            - link "CS 180 Problem Solving and OOP" [ref=f38e49] [cursor=pointer]:
+              - /url: /courses/4
+              - generic [ref=f38e50]: CS 180
+              - generic [ref=f38e51]: Problem Solving and OOP
+          - cell "LOW" [ref=f38e52]
+          - cell "93%" [ref=f38e54]
+          - cell "93%" [ref=f38e55]
+          - 'cell "Project 5: Recursion · 14 days" [ref=f38e56]':
+            - text: "Project 5: Recursion"
+            - generic [ref=f38e57]: · 14 days
+        - row [ref=f38e58]:
+          - cell [ref=f38e59]:
+            - link "ENGL 106 Technical Communication" [ref=f38e60] [cursor=pointer]:
+              - /url: /courses/5
+              - generic [ref=f38e61]: ENGL 106
+              - generic [ref=f38e62]: Technical Communication
+          - cell "LOW" [ref=f38e63]
+          - cell "91%" [ref=f38e65]
+          - cell "90%" [ref=f38e66]
+          - cell "Final Portfolio · 40 days" [ref=f38e67]:
+            - text: Final Portfolio
+            - generic [ref=f38e68]: · 40 days
+  - button "Open Next.js Dev Tools" [ref=f38e74] [cursor=pointer]
+  - alert [ref=f38e78]

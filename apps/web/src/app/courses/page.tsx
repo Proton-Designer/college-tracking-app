@@ -1,18 +1,10 @@
 import Link from "next/link";
-import { daysBetween } from "@collegeos/core";
 import { RiskPill } from "@/components/ui";
+import { daysRemainingLabel } from "@/lib/dates";
 import { loadCoursesIndex, type CoursesIndexRow } from "./data";
 
 function formatPct(pct: number | null): string {
   return pct == null ? "—" : `${Math.round(pct)}%`;
-}
-
-function daysRemainingLabel(today: string, localDueDate: string): string {
-  const days = daysBetween(today, localDueDate);
-  if (days < 0) return "past due";
-  if (days === 0) return "today";
-  if (days === 1) return "tomorrow";
-  return `${days} days`;
 }
 
 export default async function CoursesPage() {
@@ -23,9 +15,9 @@ export default async function CoursesPage() {
       <main className="mx-auto flex w-full max-w-app flex-1 flex-col items-start gap-3 px-8 py-12">
         <p className="font-mono text-label uppercase tracking-[0.1em] text-risk-critical">Couldn&apos;t load courses</p>
         <p className="text-body text-ink-muted">{result.error}</p>
-        <a href="/courses" className="font-mono text-body-s text-accent underline underline-offset-2">
+        <Link href="/courses" className="font-mono text-body-s text-accent underline underline-offset-2">
           Try again
-        </a>
+        </Link>
       </main>
     );
   }
@@ -75,7 +67,10 @@ function CourseRow({ row, today }: { row: CoursesIndexRow; today: string }) {
       </td>
       <td className="py-3 pr-4">
         {courseRisk ? (
-          <RiskPill band={courseRisk.result.band} label={courseRisk.result.band.toUpperCase()} />
+          <div className="flex items-center gap-2">
+            <RiskPill band={courseRisk.result.band} label={courseRisk.result.band.toUpperCase()} />
+            <span className="font-mono text-body-s tabular-nums text-ink-faint">{courseRisk.result.score}</span>
+          </div>
         ) : (
           <span className="text-body-s text-ink-faint">—</span>
         )}

@@ -2,6 +2,12 @@ import { addDays, computeRecoveryModeTrigger, type LocalDate, type RecoveryModeR
 import type { TypedSupabaseClient } from '../client/types';
 
 const HARD_DEADLINE_WINDOW_HOURS = 48;
+// Every other execution/academic signal here is near-term (today, yesterday, 48h) --
+// unbounded "any task ever left undone" doesn't match that shape and means one
+// permanently-abandoned task from months ago silently and forever contributes to
+// today's Recovery Mode score. Bounded to a week: old enough to catch "you've been
+// falling behind all week," not so long that ancient history never ages out.
+const OVERDUE_TASK_LOOKBACK_DAYS = 7;
 
 export async function computeTodayRecoveryMode(
   client: TypedSupabaseClient,
@@ -23,7 +29,13 @@ export async function computeTodayRecoveryMode(
     { data: compressedBackplans, error: backplanError },
   ] = await Promise.all([
     client.from('health_daily').select('sleep_hours, whoop_recovery_pct').eq('user_id', userId).eq('local_date', today).maybeSingle(),
-    client.from('tasks').select('id').eq('user_id', userId).lt('planned_date', today).not('status', 'in', '(completed,cancelled)'),
+    client
+      .from('tasks')
+      .select('id')
+      .eq('user_id', userId)
+      .gte('planned_date', addDays(today, -OVERDUE_TASK_LOOKBACK_DAYS))
+      .lt('planned_date', today)
+      .not('status', 'in', '(completed,cancelled)'),
     client
       .from('deliverables')
       .select('id')

@@ -33,6 +33,10 @@ export { getCheckinForDate, upsertCheckin } from "./data/dailyCheckins";
 export type { DailyCheckin, DailyCheckinInsert } from "./data/dailyCheckins";
 export { getReviewForDate, upsertReview } from "./data/dailyReviews";
 export type { DailyReview, DailyReviewInsert } from "./data/dailyReviews";
+export { listGradeCategories, listGradeItems, listGradeBoundaries } from "./data/gradeStructure";
+export type { GradeCategoryRow, GradeItemRow, GradeBoundaryRow } from "./data/gradeStructure";
+export { listDeliverables } from "./data/deliverables";
+export type { Deliverable } from "./data/deliverables";
 
 export { getUserLocalToday } from "./day/today";
 export { getDayView } from "./day/dayView";
