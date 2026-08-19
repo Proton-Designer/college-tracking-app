@@ -1,19 +1,25 @@
 import type { CalendarEvent, Task, TaskSession } from "@collegeos/api";
 
 // The signature element, DESIGN_SYSTEM §6.1: the day rendered as a chart-recorder trace — a
-// ghost line for what was planned, a solid line for what actually happened, shaded where they
-// diverge, with a live cursor at the current time. Calendar events (classes, fixed commitments)
-// carry no actual/planned distinction in the schema — there's no "did you attend" signal to
-// observe — so they render identically in both the planned and actual layer rather than being
-// guessed at either way. Task sessions are the real planned-vs-actual data: that's what this
-// table exists to record.
+// ghost PLANNED row, a solid accent ACTUAL row directly below it so the eye reads the offset
+// without saccading, a shaded connector where they diverge, and a live cursor at current time.
+// Calendar events (classes, fixed commitments) carry no attendance signal in the schema — there's
+// no "did you attend" data to observe either way — so a class is never marked missed; it's
+// planned-only until the live cursor reaches it, then reads as matched. Task sessions are the
+// real planned-vs-actual signal: that's what planned_start/actual_start exist to record, and late
+// starts and no-shows are computed from them specifically, not from the merged block geometry.
 
 const VIEW_W = 1000;
 const VIEW_H = 96;
-const BAND_Y = 30;
-const BAND_H = 34;
+const ROW_H = 24;
+const ROW_GAP = 8;
+const PLANNED_Y = 6;
+const ACTUAL_Y = PLANNED_Y + ROW_H + ROW_GAP;
+const CONNECTOR_TOP = PLANNED_Y;
+const CONNECTOR_BOTTOM = ACTUAL_Y + ROW_H;
 const INSET_MIN = 6 * 60;
 const INSET_MAX = 22 * 60;
+const LATE_THRESHOLD_MIN = 5;
 
 interface Interval {
   startMin: number;
@@ -32,46 +38,21 @@ function minutesInZone(date: Date, timeZone: string): number {
   return hour * 60 + minute;
 }
 
-function mergeIntervals(raw: Interval[]): Interval[] {
-  const sorted = [...raw].filter((iv) => iv.endMin > iv.startMin).sort((a, b) => a.startMin - b.startMin);
-  const merged: Interval[] = [];
-  for (const iv of sorted) {
-    const last = merged[merged.length - 1];
-    if (last && iv.startMin <= last.endMin) {
-      last.endMin = Math.max(last.endMin, iv.endMin);
-    } else {
-      merged.push({ ...iv });
-    }
-  }
-  return merged;
+function formatHour(min: number): string {
+  const h = Math.floor(min / 60);
+  const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${display}${h >= 12 ? "PM" : "AM"}`;
 }
 
-interface DeviationSegment extends Interval {
-  kind: "missed" | "extra";
+interface PlannedBlock extends Interval {
+  missed: boolean;
 }
 
-/** Sweeps both interval sets together and reports every stretch where they disagree. */
-function findDeviations(planned: Interval[], actual: Interval[], nowMin: number): DeviationSegment[] {
-  const boundaries = new Set<number>();
-  for (const iv of [...planned, ...actual]) {
-    boundaries.add(iv.startMin);
-    boundaries.add(iv.endMin);
-  }
-  const points = [...boundaries].sort((a, b) => a - b);
-  const segments: DeviationSegment[] = [];
-  for (let i = 0; i < points.length - 1; i++) {
-    const segStart = points[i] as number;
-    const segEnd = points[i + 1] as number;
-    const mid = (segStart + segEnd) / 2;
-    const inPlanned = planned.some((iv) => mid >= iv.startMin && mid < iv.endMin);
-    const inActual = actual.some((iv) => mid >= iv.startMin && mid < iv.endMin);
-    if (inPlanned && !inActual && segEnd <= nowMin) {
-      segments.push({ startMin: segStart, endMin: segEnd, kind: "missed" });
-    } else if (!inPlanned && inActual) {
-      segments.push({ startMin: segStart, endMin: segEnd, kind: "extra" });
-    }
-  }
-  return segments;
+interface LateStart {
+  taskId: number;
+  plannedStart: number;
+  actualStart: number;
+  deltaMin: number;
 }
 
 export function DayTrace({
@@ -92,14 +73,22 @@ export function DayTrace({
   const tasksById = new Map(tasks.map((t) => [t.id, t]));
   const nowMin = minutesInZone(now, timezone);
 
-  const calendarPlanned: Interval[] = calendarEvents.map((e) => ({
+  const calendarBlocks: Interval[] = calendarEvents.map((e) => ({
     startMin: minutesInZone(new Date(e.start_at), timezone),
     endMin: minutesInZone(new Date(e.end_at), timezone),
   }));
 
-  const sessionPlanned: Interval[] = taskSessions.map((s) => {
+  // Classes carry no attendance signal, so "attended" is never claimed for one that hasn't
+  // started yet — it stays planned-only until the live cursor reaches it. One already underway
+  // shows solid up to the cursor, not its full length.
+  const calendarActual: Interval[] = calendarBlocks
+    .filter((iv) => iv.startMin < nowMin)
+    .map((iv) => ({ startMin: iv.startMin, endMin: Math.min(iv.endMin, nowMin) }));
+
+  const sessionPlanned: PlannedBlock[] = taskSessions.map((s) => {
     const start = minutesInZone(new Date(s.planned_start), timezone);
-    return { startMin: start, endMin: start + s.planned_duration_min };
+    const end = start + s.planned_duration_min;
+    return { startMin: start, endMin: end, missed: s.actual_start == null && end <= nowMin };
   });
 
   const sessionActual: Interval[] = taskSessions
@@ -112,12 +101,20 @@ export function DayTrace({
 
   const missedSessions = taskSessions.filter((s) => {
     const start = minutesInZone(new Date(s.planned_start), timezone);
-    const plannedEnd = start + s.planned_duration_min;
-    return s.actual_start == null && plannedEnd <= nowMin;
+    return s.actual_start == null && start + s.planned_duration_min <= nowMin;
   });
 
+  const lateStarts: LateStart[] = taskSessions
+    .filter((s) => s.actual_start != null)
+    .map((s) => {
+      const plannedStart = minutesInZone(new Date(s.planned_start), timezone);
+      const actualStart = minutesInZone(new Date(s.actual_start as string), timezone);
+      return { taskId: s.task_id, plannedStart, actualStart, deltaMin: actualStart - plannedStart };
+    })
+    .filter((l) => l.deltaMin >= LATE_THRESHOLD_MIN);
+
   const allMinutes = [
-    ...calendarPlanned.flatMap((iv) => [iv.startMin, iv.endMin]),
+    ...calendarBlocks.flatMap((iv) => [iv.startMin, iv.endMin]),
     ...sessionPlanned.flatMap((iv) => [iv.startMin, iv.endMin]),
     ...sessionActual.flatMap((iv) => [iv.startMin, iv.endMin]),
     nowMin,
@@ -130,23 +127,24 @@ export function DayTrace({
     return ((Math.min(Math.max(min, dayStart), dayEnd) - dayStart) / range) * VIEW_W;
   }
 
-  const plannedMerged = mergeIntervals([...calendarPlanned, ...sessionPlanned]);
-  const actualMerged = mergeIntervals([...calendarPlanned, ...sessionActual]);
-  const deviations = findDeviations(plannedMerged, actualMerged, nowMin);
+  const plannedBlocks: PlannedBlock[] = [
+    ...calendarBlocks.map((iv) => ({ ...iv, missed: false })),
+    ...sessionPlanned,
+  ];
+  const actualBlocks: Interval[] = [...calendarActual, ...sessionActual];
 
   const hourTicks: number[] = [];
   for (let h = Math.ceil(dayStart / 60); h <= Math.floor(dayEnd / 60); h += Math.max(1, Math.round(range / 60 / 7))) {
     hourTicks.push(h * 60);
   }
 
-  function formatHour(min: number): string {
-    const h = Math.floor(min / 60);
-    const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return `${display}${h >= 12 ? "PM" : "AM"}`;
-  }
-
   const hasAnyData = calendarEvents.length > 0 || taskSessions.length > 0;
   const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "UTC" }).format(new Date(`${today}T00:00:00Z`));
+
+  const captionLines = [
+    ...missedSessions.map((s) => `Didn't happen: ${tasksById.get(s.task_id)?.title ?? "a planned session"}`),
+    ...lateStarts.map((l) => `Started ${l.deltaMin}m late: ${tasksById.get(l.taskId)?.title ?? "a planned session"}`),
+  ];
 
   return (
     <div className="w-full">
@@ -158,91 +156,126 @@ export function DayTrace({
       </div>
 
       <div
-        className="day-trace-draw-in"
+        className="day-trace-draw-in flex gap-3"
         role="img"
         aria-label={
           hasAnyData
             ? `Today's plan compared to what has actually happened so far, as of ${formatHour(nowMin)}.${
-                missedSessions.length > 0
-                  ? ` Missed: ${missedSessions.map((s) => tasksById.get(s.task_id)?.title ?? "a planned session").join(", ")}.`
-                  : ""
+                captionLines.length > 0 ? ` ${captionLines.join(". ")}.` : ""
               }`
             : "Nothing scheduled yet today."
         }
       >
-        <svg viewBox={`0 0 ${VIEW_W} ${VIEW_H}`} className="w-full" aria-hidden>
+        <div className="relative w-14 shrink-0" style={{ height: VIEW_H }}>
+          <span
+            className="absolute left-0 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint"
+            style={{ top: PLANNED_Y, lineHeight: `${ROW_H}px` }}
+          >
+            Planned
+          </span>
+          <span
+            className="absolute left-0 font-mono text-[10px] uppercase tracking-[0.08em] text-ink"
+            style={{ top: ACTUAL_Y, lineHeight: `${ROW_H}px` }}
+          >
+            Actual
+          </span>
+        </div>
+
+        <svg
+          viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
+          preserveAspectRatio="none"
+          className="w-full"
+          style={{ height: VIEW_H }}
+          aria-hidden
+        >
           {hourTicks.map((min) => (
             <line
               key={min}
               x1={x(min)}
               x2={x(min)}
-              y1={BAND_Y - 4}
-              y2={BAND_Y + BAND_H + 4}
+              y1={PLANNED_Y - 4}
+              y2={ACTUAL_Y + ROW_H + 4}
               stroke="var(--color-hairline)"
               strokeWidth={1}
             />
           ))}
 
-          {plannedMerged.map((iv, i) => (
+          {/* Late-start / no-show connectors drawn first, under both rows, so the offset reads
+              as a solid band spanning from the planned row down to the actual row. */}
+          {lateStarts.map((l, i) => (
+            <g key={`late-${i}`}>
+              <rect
+                x={x(l.plannedStart)}
+                y={CONNECTOR_TOP}
+                width={Math.max(2, x(l.actualStart) - x(l.plannedStart))}
+                height={CONNECTOR_BOTTOM - CONNECTOR_TOP}
+                fill="var(--color-risk-high-wash)"
+              />
+              <line
+                x1={x(l.plannedStart)}
+                x2={x(l.plannedStart)}
+                y1={CONNECTOR_TOP}
+                y2={CONNECTOR_BOTTOM}
+                stroke="var(--color-risk-high)"
+                strokeWidth={2}
+              />
+              <line
+                x1={x(l.actualStart)}
+                x2={x(l.actualStart)}
+                y1={CONNECTOR_TOP}
+                y2={CONNECTOR_BOTTOM}
+                stroke="var(--color-risk-high)"
+                strokeWidth={2}
+              />
+            </g>
+          ))}
+
+          {plannedBlocks.map((iv, i) => (
             <rect
               key={`p-${i}`}
               x={x(iv.startMin)}
-              y={BAND_Y}
+              y={PLANNED_Y}
               width={Math.max(1, x(iv.endMin) - x(iv.startMin))}
-              height={BAND_H}
+              height={ROW_H}
               rx={3}
               fill="none"
-              stroke="var(--color-ink-faint)"
+              stroke={iv.missed ? "var(--color-risk-high)" : "var(--color-ink-faint)"}
               strokeDasharray="4 3"
               strokeWidth={1.5}
             />
           ))}
+          {plannedBlocks
+            .filter((iv) => iv.missed)
+            .map((iv, i) => (
+              <line
+                key={`miss-${i}`}
+                x1={x(iv.startMin)}
+                x2={x(iv.endMin)}
+                y1={PLANNED_Y + ROW_H / 2}
+                y2={PLANNED_Y + ROW_H / 2}
+                stroke="var(--color-risk-high)"
+                strokeWidth={1.5}
+              />
+            ))}
 
-          {deviations.map((d, i) => (
-            <rect
-              key={`d-${i}`}
-              x={x(d.startMin)}
-              y={BAND_Y}
-              width={Math.max(1, x(d.endMin) - x(d.startMin))}
-              height={BAND_H}
-              fill={d.kind === "missed" ? "var(--color-risk-high-wash)" : "var(--color-accent-wash)"}
-            />
-          ))}
-
-          {actualMerged.map((iv, i) => (
+          {actualBlocks.map((iv, i) => (
             <rect
               key={`a-${i}`}
               x={x(iv.startMin)}
-              y={BAND_Y}
+              y={ACTUAL_Y}
               width={Math.max(1, x(iv.endMin) - x(iv.startMin))}
-              height={BAND_H}
+              height={ROW_H}
               rx={3}
               fill="var(--color-accent)"
             />
           ))}
 
-          {missedSessions.map((s, i) => {
-            const start = minutesInZone(new Date(s.planned_start), timezone);
-            const end = start + s.planned_duration_min;
-            return (
-              <line
-                key={`m-${i}`}
-                x1={x(start)}
-                x2={x(end)}
-                y1={BAND_Y + BAND_H / 2}
-                y2={BAND_Y + BAND_H / 2}
-                stroke="var(--color-risk-high)"
-                strokeWidth={1.5}
-              />
-            );
-          })}
-
           {nowMin >= dayStart && nowMin <= dayEnd ? (
             <line
               x1={x(nowMin)}
               x2={x(nowMin)}
-              y1={BAND_Y - 8}
-              y2={BAND_Y + BAND_H + 8}
+              y1={PLANNED_Y - 8}
+              y2={ACTUAL_Y + ROW_H + 8}
               stroke="var(--color-accent)"
               strokeWidth={2}
             />
@@ -252,7 +285,7 @@ export function DayTrace({
             <text
               key={`t-${min}`}
               x={x(min)}
-              y={BAND_Y + BAND_H + 22}
+              y={ACTUAL_Y + ROW_H + 20}
               textAnchor={i === 0 ? "start" : i === hourTicks.length - 1 ? "end" : "middle"}
               className="fill-ink-faint font-mono text-[11px]"
             >
@@ -262,10 +295,14 @@ export function DayTrace({
         </svg>
       </div>
 
-      {missedSessions.length > 0 ? (
-        <p className="mt-1 font-mono text-caption text-risk-high">
-          Didn&apos;t happen: {missedSessions.map((s) => tasksById.get(s.task_id)?.title ?? "a planned session").join(", ")}
-        </p>
+      {captionLines.length > 0 ? (
+        <ul className="mt-1 flex flex-col gap-0.5">
+          {captionLines.map((line) => (
+            <li key={line} className="font-mono text-caption text-risk-high">
+              {line}
+            </li>
+          ))}
+        </ul>
       ) : !hasAnyData ? (
         <p className="mt-1 font-mono text-caption text-ink-faint">Nothing scheduled yet today.</p>
       ) : null}

@@ -12,30 +12,43 @@ export function WorkloadBand({ workload }: { workload: WorkloadLevels }) {
   const { floorMinutes, targetMinutes, capacityMinutes, floorExceedsCapacity, stretchItems } = workload;
   const floorPct = capacityMinutes > 0 ? Math.min(100, (floorMinutes / capacityMinutes) * 100) : 0;
   const targetPct = capacityMinutes > 0 ? Math.min(100, (targetMinutes / capacityMinutes) * 100) : 0;
+  const floorEqualsTarget = floorMinutes === targetMinutes;
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Floor/Target are both the user's own commitment level, not a danger reading — accent
+          throughout. Floor exceeding capacity is a genuine severity condition, and only then
+          does the bar switch to a risk color (DESIGN_SYSTEM §2: severity colors never mark
+          the default state of something that isn't a problem). */}
       <div className="flex h-3 w-full overflow-hidden rounded-pill bg-surface-sunken">
-        <div className="h-full bg-risk-critical" style={{ width: `${floorPct}%` }} />
-        <div className="h-full bg-accent" style={{ width: `${Math.max(0, targetPct - floorPct)}%` }} />
-      </div>
-      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1 font-mono text-body-s text-ink-muted">
-        <span>
-          <span className="text-label uppercase tracking-[0.1em] text-risk-critical">Floor</span>{" "}
-          {fmtMinutes(floorMinutes)}
-        </span>
-        <span>
-          <span className="text-label uppercase tracking-[0.1em] text-accent">Target</span>{" "}
-          {fmtMinutes(targetMinutes)}
-        </span>
-        {stretchItems.length > 0 ? (
-          <span>
-            <span className="text-label uppercase tracking-[0.1em] text-ink-faint">Stretch</span>{" "}
-            +{stretchItems.length} more if there's room
-          </span>
+        <div className={floorExceedsCapacity ? "h-full bg-risk-critical" : "h-full bg-accent"} style={{ width: `${floorPct}%` }} />
+        {!floorExceedsCapacity ? (
+          <div className="h-full bg-accent/45" style={{ width: `${Math.max(0, targetPct - floorPct)}%` }} />
         ) : null}
-        <span className="text-ink-faint">of ~{fmtMinutes(capacityMinutes)} today</span>
       </div>
+
+      <p className="font-mono text-body-s text-ink-muted">
+        {floorEqualsTarget ? (
+          <>
+            <span className="text-label uppercase tracking-[0.1em] text-ink-muted">Floor = target</span>{" "}
+            {fmtMinutes(floorMinutes)}
+          </>
+        ) : (
+          <>
+            <span className="text-label uppercase tracking-[0.1em] text-ink-muted">Floor</span> {fmtMinutes(floorMinutes)}
+            {"  ·  "}
+            <span className="text-label uppercase tracking-[0.1em] text-ink-muted">Target</span> {fmtMinutes(targetMinutes)}
+          </>
+        )}
+        <span className="text-ink-faint"> of ~{fmtMinutes(capacityMinutes)} realistic today.</span>
+      </p>
+
+      {stretchItems.length > 0 ? (
+        <p className="font-mono text-body-s text-ink-faint">
+          +{stretchItems.length} more {stretchItems.length === 1 ? "task" : "tasks"} if there&apos;s time left over.
+        </p>
+      ) : null}
+
       {floorExceedsCapacity ? (
         <p className="text-body-s text-risk-critical">
           Floor alone exceeds today&apos;s realistic capacity — something non-negotiable won&apos;t

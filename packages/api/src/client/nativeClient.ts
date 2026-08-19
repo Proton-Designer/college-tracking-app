@@ -21,6 +21,13 @@ export function createNativeSupabaseClient(env: AppEnvironment): TypedSupabaseCl
       persistSession: true,
       // There is no URL to parse a session out of on native.
       detectSessionInUrl: false,
+      // supabase-js defaults to 'implicit', which puts tokens in a URL *fragment*
+      // (#access_token=...) -- unusable here since useDeepLinkSession only ever sees a
+      // query string via Linking.parse. PKCE puts a `code` in the query string instead,
+      // which is also the flow Supabase recommends for any client that can't keep a
+      // client secret. Confirmed live: without this, a real signup confirmation link
+      // redirected to a fragment-only URL and the app reported "link expired".
+      flowType: 'pkce',
     },
   });
 

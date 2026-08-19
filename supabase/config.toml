@@ -166,6 +166,12 @@ additional_redirect_urls = [
   "http://127.0.0.1:3000/**",
   "http://localhost:3000/**",
   # Mobile (Expo Go, iOS Simulator) -- DEV ONLY, remove before release. See docs/SUPABASE_SETUP.md §5.
+  # Only matches when Metro is started in localhost mode (`npm run ios` in apps/mobile, which
+  # passes --localhost) -- Expo's default LAN mode advertises the Mac's LAN IP instead of
+  # 127.0.0.1 and won't match this entry. `npm run ios` also forces
+  # NODE_OPTIONS=--dns-result-order=ipv4first: on some macOS/Node setups 'localhost' resolves to
+  # ::1 first, which makes Metro's HTTP server IPv6-loopback-only and unreachable at the literal
+  # 127.0.0.1 this manifest URL uses -- confirmed live (curl 127.0.0.1:8081 failed until this was set).
   "exp://127.0.0.1:8081/**",
   # Mobile (standalone/dev-client build custom scheme) -- see docs/SUPABASE_SETUP.md §5 for the
   # pre-launch caveat (custom schemes are not domain-verified; migrate to Universal/App Links

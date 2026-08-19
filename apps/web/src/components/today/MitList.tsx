@@ -70,7 +70,11 @@ export function MitList({ items }: { items: MitItem[] }) {
         const completed = completedIds.has(item.taskId);
         const failed = failedIds.has(item.taskId);
         return (
-          <li key={item.taskId} className="flex flex-col gap-1">
+          <li
+            key={item.taskId}
+            className={`flex flex-col gap-1 border-l-2 py-0.5 pl-3 ${CONFIDENCE_BORDER[item.calibrationConfidence]}`}
+            style={{ borderColor: "var(--color-ink-muted)" }}
+          >
             <Checkbox
               label={item.title}
               checked={completed}
@@ -80,12 +84,7 @@ export function MitList({ items }: { items: MitItem[] }) {
             />
             <div className="ml-[30px] flex items-center gap-3 font-mono text-caption text-ink-faint">
               {item.courseCode ? <span>{item.courseCode}</span> : null}
-              <span
-                className={`border-l-2 pl-1.5 ${CONFIDENCE_BORDER[item.calibrationConfidence]}`}
-                style={{ borderColor: "var(--color-ink-faint)" }}
-              >
-                ~{Math.round(item.calibratedMinutes)} min
-              </span>
+              <span>~{Math.round(item.calibratedMinutes)} min</span>
             </div>
           </li>
         );

@@ -3,7 +3,7 @@
 import type { Course, DayView, Task } from "@collegeos/api";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
-import { Button, Checkbox, ChipGroup, Label, Panel } from "@/components/ui";
+import { Button, ChipGroup, Label, Panel } from "@/components/ui";
 import { submitCheckin } from "@/app/today/actions";
 
 const DERAILMENT_OPTIONS = [
@@ -98,7 +98,7 @@ export function CheckinForm({
     <Panel className="mx-auto flex w-full max-w-[560px] flex-col gap-6">
       <div className="flex flex-col gap-1">
         <p className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Morning check-in</p>
-        <p className="text-body-s text-ink-faint">About 60 seconds. Pre-filled — you're mostly correcting, not typing.</p>
+        <p className="text-body-s text-ink-faint">About 60 seconds. Pre-filled — you&apos;re mostly correcting, not typing.</p>
       </div>
 
       {todayHealth?.sleepHours != null || todayHealth?.whoopRecoveryPct != null ? (
