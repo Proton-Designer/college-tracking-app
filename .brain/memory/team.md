@@ -28,7 +28,24 @@ Message them with `mcp__claude-peers__send_message`. They reply into my session 
 2. Tell both peers to stand down.
 3. Kill the `caffeinate -i` background process (ID recorded in the session) so the laptop can sleep.
 
-## Ownership split (revised after L5 — backend ran two layers ahead of UI)
+## FINAL ownership split (revised again mid-L5)
+- **NOVA (`a9bsul1i`)** — owns **all UI, both platforms**. Web and mobile.
+- **ATLAS (`mapw9to2`)** — **backend only**: schema, packages/api, packages/core, edge functions,
+  integrations, test infra.
+
+**Why this replaced the earlier port-based split:** the earlier plan had Atlas porting Nova's web
+patterns to mobile. In practice the backend kept surfacing real gaps (four DayView additions, five
+reads, edge functions) and Atlas was pulled back every time — correctly, since the backend needed
+him. Mobile stalled at auth while web reached Courses and Calendar. Having the person who *designed*
+a screen also port it eliminates divergence risk instead of managing it, and is faster than someone
+relearning the reasoning behind every decision.
+
+Trade-off accepted: Nova is the UI bottleneck. Mitigated by Atlas having a deep backend queue
+(edge functions, L6-L10) so neither engineer idles.
+
+---
+
+## Superseded: port-based split (used during L3/L4)
 - **NOVA (`a9bsul1i`)** — owns **web** and **sets every screen's pattern**. Design authority.
 - **ATLAS (`mapw9to2`)** — ports Nova's established pattern to **mobile**. Follows, does not redesign.
 - Exception to routing-through-the-lead: Atlas may ask Nova directly about *design intent*,

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AssignmentsTable } from "@/components/courses/AssignmentsTable";
 import { CourseRiskPanel } from "@/components/courses/CourseRiskPanel";
 import { ScenarioPlanner } from "@/components/courses/ScenarioPlanner";
 import { Metric, Panel, RiskPill } from "@/components/ui";
@@ -34,8 +35,9 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     );
   }
 
-  const { course, gradeResult, courseRisk, deliverableRisks, today } = result.data;
+  const { course, gradeResult, courseRisk, deliverableRisks, today, categories, gradeItems, gradeBoundaries, deliverables } = result.data;
   const weightSumIssue = gradeResult?.issues.find((i) => i.kind === "weightSumWarning");
+  const categoryNameById = new Map(categories.map((c) => [String(c.id), c.name]));
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-8 px-8 py-10">
@@ -80,12 +82,22 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
       ) : null}
 
       {gradeResult ? (
-        <ScenarioPlanner courseId={courseId} categoryResults={gradeResult.categoryResults} defaultTargetPct={course.target_grade_pct} />
+        <ScenarioPlanner
+          courseId={courseId}
+          categoryResults={gradeResult.categoryResults}
+          categoryNameById={categoryNameById}
+          defaultTargetPct={course.target_grade_pct}
+        />
       ) : null}
 
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Why this score</h2>
         <CourseRiskPanel deliverableRisks={deliverableRisks} today={today} />
+      </section>
+
+      <section className="flex flex-col gap-3">
+        <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Assignments &amp; exams</h2>
+        <AssignmentsTable deliverables={deliverables} gradeItems={gradeItems} categories={categories} today={today} />
       </section>
 
       <section className="flex flex-col gap-3">
@@ -96,16 +108,24 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           {course.allowed_absences != null ? (
             <PolicyRow label="Allowed absences" value={String(course.allowed_absences)} />
           ) : null}
-          <p className="text-caption text-ink-faint">
-            Grade boundaries aren&apos;t wired up yet — pending a read of grade_boundaries.
-          </p>
+          {gradeBoundaries.length > 0 ? (
+            <div className="flex flex-col gap-0.5">
+              <span className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Grade boundaries</span>
+              <ul className="flex flex-wrap gap-x-4 gap-y-0.5 font-mono text-body-s tabular-nums text-ink">
+                {gradeBoundaries.map((b) => (
+                  <li key={b.id}>
+                    {b.letter} {Math.round(b.min_pct)}%+
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <PolicyRow label="Grade boundaries" value={null} />
+          )}
         </Panel>
       </section>
 
-      <p className="text-caption text-ink-faint">
-        Assignments &amp; exams, backplan milestone chains, and grade boundaries are pending backend reads not yet
-        exposed — tracked, not silently missing.
-      </p>
+      <p className="text-caption text-ink-faint">Backplan milestone chains are pending a backend read not yet exposed — tracked, not silently missing.</p>
     </main>
   );
 }

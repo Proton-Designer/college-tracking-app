@@ -27,13 +27,16 @@ function verdictProse(result: RequiredScoreResult, targetPct: number): string {
 export function ScenarioPlanner({
   courseId,
   categoryResults,
+  categoryNameById,
   defaultTargetPct,
 }: {
   courseId: number;
   categoryResults: CategoryResult[];
+  categoryNameById: Map<string, string>;
   defaultTargetPct: number | null;
 }) {
   const unresolved = categoryResults.filter((c) => !c.resolved);
+  const nameFor = (categoryId: string) => categoryNameById.get(categoryId) ?? `Category ${categoryId}`;
 
   const [targetInput, setTargetInput] = useState(String(defaultTargetPct ?? 90));
   const [requiredResult, setRequiredResult] = useState<RequiredScoreResult | null>(null);
@@ -111,7 +114,7 @@ export function ScenarioPlanner({
                 <ul className="mt-1 flex flex-col gap-0.5">
                   {requiredResult.perRemainingCategory.map((c) => (
                     <li key={c.categoryId} className="font-mono text-caption text-ink-faint">
-                      Category {c.categoryId}: {formatPct(c.requiredPct)}
+                      {nameFor(c.categoryId)}: {formatPct(c.requiredPct)}
                     </li>
                   ))}
                 </ul>
@@ -123,14 +126,11 @@ export function ScenarioPlanner({
 
       {unresolved.length > 0 ? (
         <Panel title="What if…">
-          <p className="mb-3 text-body-s text-ink-faint">
-            Category names aren&apos;t wired up yet — shown by id until that data lands.
-          </p>
           <div className="flex flex-col gap-3">
             <div className="flex flex-wrap gap-3">
               {unresolved.map((c) => (
                 <div key={c.categoryId} className="flex flex-col gap-1.5">
-                  <Label htmlFor={`hyp-${c.categoryId}`}>Category {c.categoryId}</Label>
+                  <Label htmlFor={`hyp-${c.categoryId}`}>{nameFor(c.categoryId)}</Label>
                   <input
                     id={`hyp-${c.categoryId}`}
                     type="number"

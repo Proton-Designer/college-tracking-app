@@ -1,8 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { beforeAll, describe, expect, it } from 'vitest';
+import { addDays } from '@collegeos/core';
 import { signIn } from '../auth/auth';
-import { generateAndPersistBackplan } from '../academic/backplan';
+import { generateAndPersistBackplan, computeCapacityHorizon } from '../academic/backplan';
 import { computeCourseGradeScenario, computeCourseRequiredScore } from '../academic/gradeScenario';
+import { getBackplan, listMilestones } from '../data/backplans';
 import { getUserLocalToday } from '../day/today';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from '../client/types';
@@ -52,6 +54,82 @@ describe('deadline radar + grade scenarios against the seeded demo user', () => 
     const { data: backplans } = await client.from('deliverable_backplans').select('id').eq('deliverable_id', deliverableId);
     expect(backplans!.length).toBe(1);
     expect(backplans![0]!.id).toBe(second.ok ? second.data.backplanId : undefined);
+  });
+
+  it('reads the current backplan and its milestones without mutating anything', async () => {
+    const { data: deliverables } = await client
+      .from('deliverables')
+      .select('id')
+      .eq('user_id', userId)
+      .neq('status', 'completed')
+      .limit(1);
+    const deliverableId = deliverables![0]!.id;
+    await generateAndPersistBackplan(client, userId, deliverableId, today);
+
+    const before = await getBackplan(client, deliverableId);
+    expect(before.ok).toBe(true);
+    if (!before.ok) return;
+    expect(before.data).not.toBeNull();
+
+    const milestones = await listMilestones(client, before.data!.id);
+    expect(milestones.ok).toBe(true);
+    if (!milestones.ok) return;
+    expect(milestones.data.length).toBeGreaterThan(0);
+
+    // A second read must be byte-for-byte identical -- this is a read, not the
+    // regenerate-on-every-load trap generateAndPersistBackplan itself carries a guard for.
+    const after = await getBackplan(client, deliverableId);
+    expect(after.ok).toBe(true);
+    if (after.ok) expect(after.data!.id).toBe(before.data!.id);
+  });
+
+  it('refuses to regenerate a backplan with a milestone already marked done, unless forced', async () => {
+    const { data: courses } = await client.from('courses').select('id, code').eq('user_id', userId);
+    const chem = courses!.find((c) => c.code === 'CHEM 255');
+    expect(chem).toBeDefined();
+    const { data: deliverables } = await client
+      .from('deliverables')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('course_id', chem!.id)
+      .eq('title', 'Problem Set 7');
+    expect(deliverables!.length).toBe(1);
+    const deliverableId = deliverables![0]!.id;
+
+    // Precondition set up by this test, not borrowed from the seed -- this test's own
+    // force:true call below regenerates (and so resets) the milestones it touches, which
+    // would otherwise make a second run of the suite against the same local db find
+    // nothing left to block. A test that only passes once isn't testing the guard.
+    const setup = await generateAndPersistBackplan(client, userId, deliverableId, today, { force: true });
+    expect(setup.ok).toBe(true);
+    if (!setup.ok) return;
+    const { data: firstMilestone } = await client
+      .from('backplan_milestones')
+      .select('id')
+      .eq('backplan_id', setup.data.backplanId)
+      .limit(1)
+      .single();
+    const { error: markDoneError } = await client
+      .from('backplan_milestones')
+      .update({ completed: true })
+      .eq('id', firstMilestone!.id);
+    expect(markDoneError).toBeNull();
+
+    const blocked = await generateAndPersistBackplan(client, userId, deliverableId, today);
+    expect(blocked.ok).toBe(false);
+    if (blocked.ok) return;
+    expect(blocked.error.code).toBe('conflict');
+
+    // The original backplan must survive untouched -- a refusal is not a partial mutation.
+    const untouched = await getBackplan(client, deliverableId);
+    expect(untouched.ok).toBe(true);
+    if (untouched.ok) {
+      const milestones = await listMilestones(client, untouched.data!.id);
+      expect(milestones.ok && milestones.data.some((m) => m.completed)).toBe(true);
+    }
+
+    const forced = await generateAndPersistBackplan(client, userId, deliverableId, today, { force: true });
+    expect(forced.ok).toBe(true);
   });
 
   it('every persisted milestone lands on or after today, matching packages/core\'s own invariant', async () => {

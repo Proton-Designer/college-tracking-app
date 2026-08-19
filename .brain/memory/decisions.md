@@ -90,3 +90,27 @@ must include a real `npm run build` for web and, where relevant, a Metro bundle.
 Editing `enable_confirmations` and running `supabase db reset` is **not** enough — the auth
 container keeps its old `GOTRUE_MAILER_AUTOCONFIRM`. Requires `supabase stop && supabase start`.
 Verify with `docker exec supabase_auth_college-app printenv | grep AUTOCONFIRM`.
+
+## D14 — Every integration test must be idempotent
+Three test-isolation failures in one session (shared `demo@collegeos.app` credential; test users
+accumulating to 14 against a seed of 1; a guard test that destroyed its own precondition via
+`force:true`, passed once, then failed on every re-run).
+
+**Rule:** a test either creates its own preconditions and cleans up, or makes no assumption about
+state a prior run could have changed. **Run any new integration test at least twice consecutively
+against the same database before reporting it green.**
+
+*Green once is not green.* A test that passes on a clean database and fails on the second run is
+worse than a failing test — it certifies correctness right up until someone else runs the suite and
+blames their own change. A suite that only passes after `db reset` is not a suite, it's a ritual.
+
+## D15 — Realistic seed data is a bug-finding tool, not set dressing
+Two real product bugs were found only because the seed models a genuine 10-week semester:
+1. Calendar events rendered as "actual" before they had started, so the Day Trace's pen drew ahead
+   of the live cursor — found by looking at a real 2am render.
+2. `overdueTaskCount` was unbounded while every sibling Recovery Mode signal is near-term, so three
+   abandoned tasks would have made Recovery Mode a **permanent** state — destroying a feature whose
+   meaning depends on being exceptional.
+
+Both were invisible to unit tests, which pass happily against constructed fixtures. Keep the seed
+realistic and keep verifying against it rather than against mocks.

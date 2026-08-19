@@ -5,8 +5,17 @@ const HARD_DEADLINE_WINDOW_HOURS = 48;
 // Every other execution/academic signal here is near-term (today, yesterday, 48h) --
 // unbounded "any task ever left undone" doesn't match that shape and means one
 // permanently-abandoned task from months ago silently and forever contributes to
-// today's Recovery Mode score. Bounded to a week: old enough to catch "you've been
-// falling behind all week," not so long that ancient history never ages out.
+// today's Recovery Mode score, eventually making Recovery Mode permanent rather than
+// exceptional. Bounded to a week: old enough to catch "you've been falling behind all
+// week," not so long that ancient history never ages out. Lead-ruled, not a guess -- see
+// the L4/mobile-L3 report thread.
+//
+// Known consequence, deliberately not fixed here: a task older than this window stops
+// counting toward Recovery Mode AND isn't surfaced anywhere else -- the product will
+// silently accumulate dead tasks, which is the same "silent" failure this whole system
+// exists to avoid. Tracked as a follow-up: a periodic stale-task surface ("these five
+// tasks have sat for three weeks -- still real, or should they go?"), belongs with
+// friction logging (L6) or insights (L8).
 const OVERDUE_TASK_LOOKBACK_DAYS = 7;
 
 export async function computeTodayRecoveryMode(

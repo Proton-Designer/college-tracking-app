@@ -4,10 +4,18 @@ import {
   getCourse,
   getOwnProfile,
   getUserLocalToday,
+  listDeliverables,
+  listGradeBoundaries,
+  listGradeCategories,
+  listGradeItems,
   loadCourseGradeProjections,
   type Course,
   type CourseRiskSummary,
+  type Deliverable,
   type DeliverableRisk,
+  type GradeBoundaryRow,
+  type GradeCategoryRow,
+  type GradeItemRow,
 } from "@collegeos/api";
 import type { CourseGradeResult } from "@collegeos/core";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
@@ -20,6 +28,10 @@ export interface CourseDetailData {
    *  deliverable across all courses in one batch, filtered down here. */
   deliverableRisks: DeliverableRisk[];
   today: string;
+  categories: GradeCategoryRow[];
+  gradeItems: GradeItemRow[];
+  gradeBoundaries: GradeBoundaryRow[];
+  deliverables: Deliverable[];
 }
 
 export type CourseDetailLoadResult = { ok: true; data: CourseDetailData } | { ok: false; error: string };
@@ -51,7 +63,18 @@ export async function loadCourseDetail(courseId: number): Promise<CourseDetailLo
     },
   ];
 
-  const risk = await computeRiskAssessment(client, user.id, today, courseFacts, gradeProjections, profile.sleep_baseline_hours);
+  const [risk, categoriesResult, gradeItemsResult, gradeBoundariesResult, deliverablesResult] = await Promise.all([
+    computeRiskAssessment(client, user.id, today, courseFacts, gradeProjections, profile.sleep_baseline_hours),
+    listGradeCategories(client, courseId),
+    listGradeItems(client, courseId),
+    listGradeBoundaries(client, courseId),
+    listDeliverables(client, courseId),
+  ]);
+
+  if (!categoriesResult.ok) return { ok: false, error: categoriesResult.error.message };
+  if (!gradeItemsResult.ok) return { ok: false, error: gradeItemsResult.error.message };
+  if (!gradeBoundariesResult.ok) return { ok: false, error: gradeBoundariesResult.error.message };
+  if (!deliverablesResult.ok) return { ok: false, error: deliverablesResult.error.message };
 
   return {
     ok: true,
@@ -61,6 +84,10 @@ export async function loadCourseDetail(courseId: number): Promise<CourseDetailLo
       courseRisk: risk.courseRisks.find((r) => r.courseId === courseId) ?? null,
       deliverableRisks: risk.deliverableRisks.filter((dr) => dr.courseId === courseId),
       today,
+      categories: categoriesResult.data,
+      gradeItems: gradeItemsResult.data,
+      gradeBoundaries: gradeBoundariesResult.data,
+      deliverables: deliverablesResult.data,
     },
   };
 }

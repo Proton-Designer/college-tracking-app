@@ -4,16 +4,23 @@ import {
   getOwnProfile,
   getUserLocalToday,
   listCourses,
+  listDeliverables,
   loadCourseGradeProjections,
   type Course,
+  type Deliverable,
   type DeliverableRisk,
 } from "@collegeos/api";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
+export interface CalendarObligation {
+  deliverable: Deliverable;
+  risk: DeliverableRisk | null;
+}
+
 export interface CalendarData {
   today: string;
   /** Every open deliverable across every course, in due-date order — a horizon, not a month grid. */
-  obligations: DeliverableRisk[];
+  obligations: CalendarObligation[];
   courses: Record<number, Course>;
 }
 
@@ -44,9 +51,21 @@ export async function loadCalendarHorizon(): Promise<CalendarLoadResult> {
     target_grade_pct: c.target_grade_pct,
   }));
 
-  const risk = await computeRiskAssessment(client, user.id, today, courseFacts, gradeProjections, profile.sleep_baseline_hours);
+  const [risk, deliverablesByCourse] = await Promise.all([
+    computeRiskAssessment(client, user.id, today, courseFacts, gradeProjections, profile.sleep_baseline_hours),
+    Promise.all(courses.map((c) => listDeliverables(client, c.id))),
+  ]);
 
-  const obligations = [...risk.deliverableRisks].sort((a, b) => (a.input.dueDate < b.input.dueDate ? -1 : a.input.dueDate > b.input.dueDate ? 1 : 0));
+  const badCourse = deliverablesByCourse.find((r) => !r.ok);
+  if (badCourse && !badCourse.ok) return { ok: false, error: badCourse.error.message };
+
+  const riskByDeliverableId = new Map(risk.deliverableRisks.map((dr) => [dr.deliverableId, dr]));
+  const allDeliverables = deliverablesByCourse.flatMap((r) => (r.ok ? r.data : []));
+
+  const obligations: CalendarObligation[] = allDeliverables
+    .filter((d) => d.status !== "completed")
+    .map((d) => ({ deliverable: d, risk: riskByDeliverableId.get(d.id) ?? null }))
+    .sort((a, b) => (a.deliverable.local_due_date < b.deliverable.local_due_date ? -1 : a.deliverable.local_due_date > b.deliverable.local_due_date ? 1 : 0));
 
   return {
     ok: true,

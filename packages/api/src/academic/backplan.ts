@@ -11,14 +11,21 @@ function wakingMinutesPerDayFor(sleepBaselineHours: number | null): number {
   return hours * 60;
 }
 
-async function computeDailyCapacity(
+/**
+ * Committed-vs-available minutes per day across [today, horizonEnd] -- originally
+ * private to backplan generation (windowEnd was always one deliverable's due date), now
+ * exported: /calendar needs the same committed/available split across a whole semester
+ * horizon, not one deliverable's window. Same computation either way, just a wider or
+ * narrower `horizonEnd`.
+ */
+export async function computeCapacityHorizon(
   client: TypedSupabaseClient,
   userId: string,
   today: LocalDate,
-  dueDate: LocalDate,
+  horizonEnd: LocalDate,
   sleepBaselineHours: number | null,
-): Promise<DayCapacity[]> {
-  const windowDays = Math.max(daysBetween(today, dueDate), 0);
+): Promise<DataResult<DayCapacity[]>> {
+  const windowDays = Math.max(daysBetween(today, horizonEnd), 0);
   const wakingMinutesPerDay = wakingMinutesPerDayFor(sleepBaselineHours);
 
   const { data: events, error } = await client
@@ -27,8 +34,8 @@ async function computeDailyCapacity(
     .eq('user_id', userId)
     .eq('is_busy', true)
     .gte('start_at', `${today}T00:00:00Z`)
-    .lte('start_at', `${dueDate}T23:59:59Z`);
-  if (error) throw error;
+    .lte('start_at', `${horizonEnd}T23:59:59Z`);
+  if (error) return dataErr(mapDataError(error));
 
   const busyMinutesByDate = new Map<LocalDate, number>();
   for (const event of events ?? []) {
@@ -37,13 +44,15 @@ async function computeDailyCapacity(
     busyMinutesByDate.set(date, (busyMinutesByDate.get(date) ?? 0) + minutes);
   }
 
-  return Array.from({ length: windowDays + 1 }, (_, i) => {
+  const days = Array.from({ length: windowDays + 1 }, (_, i) => {
     const date = new Date(`${today}T00:00:00Z`);
     date.setUTCDate(date.getUTCDate() + i);
     const localDate = date.toISOString().slice(0, 10);
     const busy = busyMinutesByDate.get(localDate) ?? 0;
     return { date: localDate, availableMinutes: Math.max(0, wakingMinutesPerDay - busy) };
   });
+
+  return dataOk(days);
 }
 
 export interface GenerateBackplanResult {
@@ -55,12 +64,21 @@ export interface GenerateBackplanResult {
  * Regenerates and persists a deliverable's backplan (packages/core §4). Backplans are a
  * LIVE plan, not an append-only snapshot (see docs/DATA_MODEL.md §3) -- this replaces
  * the prior backplan and its milestones rather than accumulating history.
+ *
+ * Refuses to run (unless `force`) when the existing backplan has a milestone the user
+ * has already marked done: regeneration deletes and reinserts milestones from scratch,
+ * so without this guard, calling this to merely RENDER a page (a due date changed, the
+ * UI re-fetches) would silently erase recorded progress -- the same class of bug as
+ * regenerating on every page load, just with a slower fuse. `completed` is the only
+ * mutable field on a milestone today, so it's the only thing there is to lose; there is
+ * no schema support yet for tracking an edited date/effort allocation specifically.
  */
 export async function generateAndPersistBackplan(
   client: TypedSupabaseClient,
   userId: string,
   deliverableId: number,
   today: LocalDate,
+  options: { force?: boolean } = {},
 ): Promise<DataResult<GenerateBackplanResult>> {
   const { data: deliverable, error: deliverableError } = await client
     .from('deliverables')
@@ -69,6 +87,23 @@ export async function generateAndPersistBackplan(
     .eq('user_id', userId)
     .single();
   if (deliverableError) return dataErr(mapDataError(deliverableError));
+
+  if (!options.force) {
+    const { data: existing, error: existingError } = await client
+      .from('deliverable_backplans')
+      .select('id, backplan_milestones(completed)')
+      .eq('deliverable_id', deliverableId)
+      .eq('user_id', userId)
+      .maybeSingle();
+    if (existingError) return dataErr(mapDataError(existingError));
+    const hasCompletedMilestone = existing?.backplan_milestones?.some((m) => m.completed) ?? false;
+    if (hasCompletedMilestone) {
+      return dataErr({
+        code: 'conflict',
+        message: 'This plan has milestones already marked done. Regenerating would discard that progress -- pass force:true to regenerate anyway.',
+      });
+    }
+  }
 
   const { data: profile, error: profileError } = await client
     .from('profiles')
@@ -85,20 +120,21 @@ export async function generateAndPersistBackplan(
   const calibration = calibrateCategory(calibrationObservations, deliverable.type, today);
   const totalEffortMinutes = Math.round((deliverable.estimated_minutes ?? 60) * calibration.multiplier);
 
-  const capacity = await computeDailyCapacity(
+  const capacityResult = await computeCapacityHorizon(
     client,
     userId,
     today,
     deliverable.local_due_date,
     profile.sleep_baseline_hours,
   );
+  if (!capacityResult.ok) return capacityResult;
 
   const backplan = buildBackplan({
     today,
     dueDate: deliverable.local_due_date,
     totalEffortMinutes,
     type: deliverable.type as DeliverableType,
-    capacity,
+    capacity: capacityResult.data,
   });
 
   // Replace: delete the prior backplan (cascades to its milestones) before inserting the
