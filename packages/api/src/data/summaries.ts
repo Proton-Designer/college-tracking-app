@@ -6,6 +6,7 @@ import { mapDataError } from './errors';
 
 export type DailySummaryRow = Database['public']['Tables']['daily_summaries']['Row'];
 export type WeeklySummaryRow = Database['public']['Tables']['weekly_summaries']['Row'];
+export type MonthlySummaryRow = Database['public']['Tables']['monthly_summaries']['Row'];
 
 /** The summary pyramid's daily tier (docs/LLM_LAYER_SPEC.md §5) -- `summary` is the
  *  DailySummaryPayload shape (supabase/functions/_shared/nightly/summaryPyramid.ts).
@@ -42,6 +43,16 @@ export async function getWeeklySummary(
   weekStartDate: LocalDate,
 ): Promise<DataResult<WeeklySummaryRow | null>> {
   const { data, error } = await client.from('weekly_summaries').select('*').eq('week_start_date', weekStartDate).maybeSingle();
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(data);
+}
+
+/** The summary pyramid's 30-day tier -- `summary` is the MonthlySummaryPayload shape. */
+export async function getMonthlySummary(
+  client: TypedSupabaseClient,
+  monthStartDate: LocalDate,
+): Promise<DataResult<MonthlySummaryRow | null>> {
+  const { data, error } = await client.from('monthly_summaries').select('*').eq('month_start_date', monthStartDate).maybeSingle();
   if (error) return dataErr(mapDataError(error));
   return dataOk(data);
 }

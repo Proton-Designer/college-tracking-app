@@ -86,8 +86,8 @@ export { getBackplan, listMilestones } from "./data/backplans";
 
 export { getAgentReport, listAgentReports } from "./data/agentReports";
 export type { AgentReport, AgentReportType } from "./data/agentReports";
-export { getDailySummary, listRecentDailySummaries, getWeeklySummary } from "./data/summaries";
-export type { DailySummaryRow, WeeklySummaryRow } from "./data/summaries";
+export { getDailySummary, listRecentDailySummaries, getWeeklySummary, getMonthlySummary } from "./data/summaries";
+export type { DailySummaryRow, WeeklySummaryRow, MonthlySummaryRow } from "./data/summaries";
 export { listActiveInsights } from "./data/insights";
 export type { Insight } from "./data/insights";
 

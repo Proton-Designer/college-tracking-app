@@ -151,12 +151,12 @@ export interface WeeklySynthesisPayload {
   experiment: null;
 }
 
-export function buildWeeklySynthesis(
-  weekStartDate: LocalDate,
-  dailySummaries: Array<{ localDate: LocalDate; summary: DailySummaryPayload }>,
-): WeeklySynthesisPayload {
-  const weekEndDate = dailySummaries.length > 0 ? dailySummaries[dailySummaries.length - 1]!.localDate : weekStartDate;
-
+/** The core aggregation both the 7-day (weekly) and 30-day (monthly) tiers share --
+ *  same fields, different window sizes. LLM_LAYER_SPEC.md §5's pyramid names them as
+ *  two distinct tiers ("7-day rolling" / "30-day pattern"), not a rollup-of-rollups, so
+ *  both are built directly from daily_summaries at their own window length, not from
+ *  each other. */
+function aggregatePeriodStats(dailySummaries: Array<{ localDate: LocalDate; summary: DailySummaryPayload }>) {
   const diagnosisCounts: Record<string, number> = {};
   const frictionCauseCounts: Record<string, number> = {};
   const peakScoreByCourse = new Map<number, number>();
@@ -200,8 +200,6 @@ export function buildWeeklySynthesis(
   }
 
   return {
-    weekStartDate,
-    weekEndDate,
     daysWithData: dailySummaries.length,
     outcomes: { totalMitsPlanned, totalMitsCompleted, totalDeepWorkActualMin, recoveryModeDays },
     planAccuracy: {
@@ -216,8 +214,16 @@ export function buildWeeklySynthesis(
     behavior: { frictionCauseCounts },
     killList: { totalRelapses, totalResisted },
     systemFailureSignals: { daysWithNoReview, daysWithDataGaps },
-    experiment: null,
+    experiment: null as null,
   };
+}
+
+export function buildWeeklySynthesis(
+  weekStartDate: LocalDate,
+  dailySummaries: Array<{ localDate: LocalDate; summary: DailySummaryPayload }>,
+): WeeklySynthesisPayload {
+  const weekEndDate = dailySummaries.length > 0 ? dailySummaries[dailySummaries.length - 1]!.localDate : weekStartDate;
+  return { weekStartDate, weekEndDate, ...aggregatePeriodStats(dailySummaries) };
 }
 
 export async function storeWeeklySynthesis(
@@ -229,5 +235,37 @@ export async function storeWeeklySynthesis(
   const { error } = await client
     .from("weekly_summaries")
     .upsert({ user_id: userId, week_start_date: weekStartDate, summary }, { onConflict: "user_id,week_start_date" });
+  if (error) throw error;
+}
+
+// ============================================================================
+// Monthly pattern (deterministic) -- LLM_LAYER_SPEC.md §5's "30-day pattern" tier.
+// Same shape and aggregation as the weekly tier, built directly from daily_summaries
+// over a 30-day window (not from weekly_summaries -- see aggregatePeriodStats's own
+// comment on why the pyramid's tiers aren't a rollup-of-rollups).
+// ============================================================================
+
+export interface MonthlySummaryPayload extends ReturnType<typeof aggregatePeriodStats> {
+  monthStartDate: LocalDate;
+  monthEndDate: LocalDate;
+}
+
+export function buildMonthlySummary(
+  monthStartDate: LocalDate,
+  dailySummaries: Array<{ localDate: LocalDate; summary: DailySummaryPayload }>,
+): MonthlySummaryPayload {
+  const monthEndDate = dailySummaries.length > 0 ? dailySummaries[dailySummaries.length - 1]!.localDate : monthStartDate;
+  return { monthStartDate, monthEndDate, ...aggregatePeriodStats(dailySummaries) };
+}
+
+export async function storeMonthlySummary(
+  client: AnySupabaseClient,
+  userId: string,
+  monthStartDate: LocalDate,
+  summary: MonthlySummaryPayload,
+): Promise<void> {
+  const { error } = await client
+    .from("monthly_summaries")
+    .upsert({ user_id: userId, month_start_date: monthStartDate, summary }, { onConflict: "user_id,month_start_date" });
   if (error) throw error;
 }

@@ -1713,6 +1713,7 @@ export type Database = {
           created_at: string
           id: number
           lesson: string
+          source_insight_id: number | null
           source_report_id: number | null
           term: string
           user_id: string
@@ -1722,6 +1723,7 @@ export type Database = {
           created_at?: string
           id?: never
           lesson: string
+          source_insight_id?: number | null
           source_report_id?: number | null
           term: string
           user_id: string
@@ -1731,11 +1733,19 @@ export type Database = {
           created_at?: string
           id?: never
           lesson?: string
+          source_insight_id?: number | null
           source_report_id?: number | null
           term?: string
           user_id?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "semester_lessons_source_insight_id_fkey"
+            columns: ["source_insight_id"]
+            isOneToOne: false
+            referencedRelation: "insights"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "semester_lessons_source_report_id_fkey"
             columns: ["source_report_id"]

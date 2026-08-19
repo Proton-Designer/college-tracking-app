@@ -90,6 +90,12 @@ export interface DurableLessonProfile {
   term: string;
   lesson: string;
   confidence: string;
+  sourceInsightId: number | null;
+  /** How many retrospective runs independently promoted this same insight. >1 is real
+   *  evidence of durability, stated explicitly here -- never smuggled in by sending the
+   *  same lesson text multiple times in the cached prompt (that would read as emphasis
+   *  the model can't tell apart from repeated evidence). */
+  confirmationCount: number;
 }
 
 export interface DurableProfile {
@@ -98,6 +104,39 @@ export interface DurableProfile {
   courses: CourseDurableProfile[];
   activeKillHabits: KillHabitDurableProfile[];
   durableLessons: DurableLessonProfile[];
+}
+
+/** Rows must already be ordered newest-first (created_at desc). Lessons with a
+ *  non-null source_insight_id collapse to their most recent row, with a count of how
+ *  many rows shared that source; lessons with no source (manual, or pre-migration)
+ *  pass through individually, uncounted. */
+// deno-lint-ignore no-explicit-any
+function dedupeDurableLessons(rows: any[]): DurableLessonProfile[] {
+  const bySourceInsight = new Map<number, DurableLessonProfile>();
+  const unsourced: DurableLessonProfile[] = [];
+
+  for (const row of rows) {
+    if (row.source_insight_id == null) {
+      unsourced.push({ lessonId: row.id, term: row.term, lesson: row.lesson, confidence: row.confidence, sourceInsightId: null, confirmationCount: 1 });
+      continue;
+    }
+    const existing = bySourceInsight.get(row.source_insight_id);
+    if (existing) {
+      existing.confirmationCount += 1; // this row is an older re-confirmation of the same insight
+    } else {
+      // First row seen for this source_insight_id IS the most recent, since rows arrive newest-first.
+      bySourceInsight.set(row.source_insight_id, {
+        lessonId: row.id,
+        term: row.term,
+        lesson: row.lesson,
+        confidence: row.confidence,
+        sourceInsightId: row.source_insight_id,
+        confirmationCount: 1,
+      });
+    }
+  }
+
+  return [...bySourceInsight.values(), ...unsourced];
 }
 
 export async function loadDurableProfile(client: AnySupabaseClient, userId: string): Promise<DurableProfile> {
@@ -122,7 +161,15 @@ export async function loadDurableProfile(client: AnySupabaseClient, userId: stri
     // Every durable lesson ever recorded (L8), not scoped to the current term -- a
     // lesson from a prior semester is exactly the kind of thing that should still
     // inform this one (append-only, DATA_MODEL.md §5, so this list only ever grows).
-    client.from("semester_lessons").select("id, term, lesson, confidence").eq("user_id", userId).order("created_at", { ascending: false }),
+    // Deduped below by source_insight_id, newest first -- a re-run of the semester
+    // retrospective re-promotes the same insight as a genuine new row (a
+    // re-confirmation is real signal), but must appear exactly once here, not once per
+    // run, or it silently gains false emphasis in the cached prompt.
+    client
+      .from("semester_lessons")
+      .select("id, term, lesson, confidence, source_insight_id")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false }),
   ]);
   if (profileError) throw profileError;
   if (coursesError) throw coursesError;
@@ -132,8 +179,7 @@ export async function loadDurableProfile(client: AnySupabaseClient, userId: stri
   return {
     timezone: profile.timezone,
     sleepBaselineHours: profile.sleep_baseline_hours,
-    // deno-lint-ignore no-explicit-any
-    durableLessons: (lessons ?? []).map((l: any) => ({ lessonId: l.id, term: l.term, lesson: l.lesson, confidence: l.confidence })),
+    durableLessons: dedupeDurableLessons(lessons ?? []),
     // deno-lint-ignore no-explicit-any
     courses: (courses ?? []).map((c: any) => ({
       courseId: c.id,

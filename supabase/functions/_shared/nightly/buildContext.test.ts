@@ -14,7 +14,7 @@ const DURABLE_PROFILE: DurableProfile = {
   timezone: "America/New_York",
   sleepBaselineHours: 7.5,
   durableLessons: [
-    { lessonId: 1, term: "Spring 2026", lesson: "Morning check-in question #7 produced no actionable insight for 4 weeks -- retired.", confidence: "medium" },
+    { lessonId: 1, term: "Spring 2026", lesson: "Morning check-in question #7 produced no actionable insight for 4 weeks -- retired.", confidence: "medium", sourceInsightId: 7, confirmationCount: 2 },
   ],
   courses: [
     {

@@ -11,6 +11,12 @@ export interface CreateSemesterLessonInput {
   lesson: string;
   confidence?: InsightConfidenceLevel;
   sourceReportId?: number;
+  /** The insight this lesson was promoted from -- SCREEN_SPEC §6: "a claim without
+   *  evidence is not displayed." Null for manually-written lessons; every
+   *  retrospective-promoted lesson must set this so loadDurableProfile can dedupe
+   *  re-confirmations across retrospective runs instead of repeating the same lesson in
+   *  every future nightly call's cached context. */
+  sourceInsightId?: number;
 }
 
 /** Durable lessons carried forward across terms -- the summary pyramid's highest tier
@@ -30,6 +36,7 @@ export async function createSemesterLesson(
       lesson: input.lesson,
       confidence: input.confidence ?? 'testing',
       source_report_id: input.sourceReportId ?? null,
+      source_insight_id: input.sourceInsightId ?? null,
     })
     .select()
     .single();
