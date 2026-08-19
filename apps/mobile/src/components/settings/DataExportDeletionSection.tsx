@@ -1,7 +1,8 @@
 import { color, space } from "@collegeos/design/native";
 import { useRouter } from "expo-router";
+import { File, Paths } from "expo-file-system";
 import { useState } from "react";
-import { Share, Text, View } from "react-native";
+import { Platform, Share, Text, View } from "react-native";
 import { textStyle } from "../../design/typography";
 import { deleteAccountAction, exportAccountAction } from "../../lib/settingsActions";
 import { signOut } from "@collegeos/api";
@@ -30,12 +31,27 @@ function ExportCard() {
       toast.show(result.error ?? "Export failed — try again.", "error");
       return;
     }
-    // No expo-file-system/expo-sharing dependency in this app yet -- the native Share
-    // sheet (built into React Native, no new install) lets the user save the JSON to
-    // Files, AirDrop it, or send it to themselves. A file-based download would need
-    // those two packages added; this is the dependency-free equivalent for now.
+    // Sharing the JSON as a plain string (Share.share({message})) doesn't reliably
+    // offer a real "Save to Files" action -- the share sheet infers actions from the
+    // item's type, and a bare string mostly surfaces Mail/Messages/Notes/Copy, not a
+    // file save. Writing a real file first and sharing its URL is what actually lets
+    // the user keep the export, confirmed against a real demo-account export (~220KB,
+    // 45 tables) -- see docs/FOLLOWUPS.md.
+    //
+    // iOS-only: RN's Share module documents `url` as an iOS content key; Android's
+    // share intent only takes `title`/`message` through this API (real file-attachment
+    // sharing on Android needs a FileProvider content:// URI, which is expo-sharing's
+    // job, not installed here -- see docs/FOLLOWUPS.md for the platform gap this
+    // leaves: Android users get the JSON as share text, not a saved file).
     try {
-      await Share.share({ title: "CollegeOS data export", message: JSON.stringify(result.data, null, 2) });
+      if (Platform.OS === "ios") {
+        const file = new File(Paths.cache, `collegeos-export-${result.data.exportedAt.slice(0, 10)}.json`);
+        file.create({ overwrite: true });
+        file.write(JSON.stringify(result.data, null, 2));
+        await Share.share({ title: "CollegeOS data export", url: file.uri });
+      } else {
+        await Share.share({ title: "CollegeOS data export", message: JSON.stringify(result.data, null, 2) });
+      }
     } catch {
       toast.show("Couldn't open the share sheet — try again.", "error");
       return;
