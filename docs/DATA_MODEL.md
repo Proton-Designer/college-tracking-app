@@ -341,6 +341,42 @@ back, or where a derived summary needs to be invalidated rather than silently or
   needs a `deleted_at IS NULL` clause for no real benefit, since there's no plausible
   "please restore my overdue task from three weeks ago" flow.
 
+**Account deletion is the hard-delete policy applied to an entire account, not a special
+case of it.** `account-delete` (built L10+) deletes a user's real `auth.users` row via
+GoTrue's admin API — confirmed live, not assumed, that this is a genuine hard delete on
+this Supabase version, not a soft `deleted_at`. Every one of the 41 user-scoped tables
+carries a direct, denormalized `user_id → profiles(id) ON DELETE CASCADE` (even child
+tables duplicate `user_id` rather than relying on a join), and `profiles.id → auth.users(id)
+ON DELETE CASCADE`, so the entire row-level deletion happens for free via the FK chain
+already in this schema — no per-table application code. Two things live *outside* that FK
+graph and need explicit handling, in this order, before the account itself is deleted:
+
+1. **Vault secrets** (`oauth_connections.vault_secret_id`, `brightspace_feeds.
+   vault_secret_id`) — nothing references *back* from `vault.secrets` to the tables that
+   point at it, so deleting a profile without first deleting its secrets orphans them
+   permanently (confirmed live). `private.delete_user_vault_secrets`/`public.
+   delete_user_vault_secrets` (migration `00000000000022`) clean these up first, while the
+   pointer still exists to find them by.
+2. **Storage objects** (`syllabi`/`proof`/`avatars` buckets, `<user_id>/…` paths) — no FK
+   to `auth.users` at all, and `storage.objects` has a `protect_delete()` trigger blocking
+   direct SQL deletes regardless, so this goes through the Storage API: list the user's
+   real prefix and delete what's actually there, never derive expected paths from table
+   rows (an upload that succeeded while its row insert failed would be invisible to a
+   row-derived list).
+
+`auth.admin.deleteUser()` runs **last**, only after both of the above succeed — it's the
+one genuinely irreversible step, since it destroys the `vault_secret_id` pointers the
+cleanup step needs. See `account-delete/index.ts` and `deleteAccount.ts`'s header comments
+for the full ordering rationale, and `supabase/tests/database/07_account_deletion.test.sql`
+for the proof that all 41 tables + Vault reach zero, dynamically enumerated so a future
+table can't silently stop being covered.
+
+`account-export` is the read side of the same right — every user-scoped table via the
+caller's own RLS-scoped client (no hand-written `user_id` filter, so there's no code path
+that could export the wrong user's data), including the *derived* material (insights,
+summaries, semester lessons, agent reports), since those are just more user-scoped tables
+rather than a special case someone has to remember to add.
+
 ---
 
 ## 8. Privacy-sensitive text (cross-reference, not enforced by schema alone)
