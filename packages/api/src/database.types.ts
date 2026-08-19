@@ -2220,6 +2220,180 @@ export type Database = {
           },
         ]
       }
+      weekly_plan_blocks: {
+        Row: {
+          block_date: string
+          course_id: number | null
+          deliverable_id: number | null
+          end_at: string
+          id: number
+          minutes: number
+          start_at: string
+          status: string
+          user_id: string
+          weekly_plan_id: number
+        }
+        Insert: {
+          block_date: string
+          course_id?: number | null
+          deliverable_id?: number | null
+          end_at: string
+          id?: never
+          minutes: number
+          start_at: string
+          status?: string
+          user_id: string
+          weekly_plan_id: number
+        }
+        Update: {
+          block_date?: string
+          course_id?: number | null
+          deliverable_id?: number | null
+          end_at?: string
+          id?: never
+          minutes?: number
+          start_at?: string
+          status?: string
+          user_id?: string
+          weekly_plan_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_plan_blocks_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_plan_blocks_deliverable_id_fkey"
+            columns: ["deliverable_id"]
+            isOneToOne: false
+            referencedRelation: "deliverables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_plan_blocks_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_plan_blocks_weekly_plan_id_fkey"
+            columns: ["weekly_plan_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_plan_unplaced: {
+        Row: {
+          course_id: number | null
+          deliverable_id: number | null
+          id: number
+          minutes_needed: number
+          minutes_placed: number
+          minutes_shortfall: number
+          reason: string
+          user_id: string
+          weekly_plan_id: number
+        }
+        Insert: {
+          course_id?: number | null
+          deliverable_id?: number | null
+          id?: never
+          minutes_needed: number
+          minutes_placed: number
+          minutes_shortfall: number
+          reason: string
+          user_id: string
+          weekly_plan_id: number
+        }
+        Update: {
+          course_id?: number | null
+          deliverable_id?: number | null
+          id?: never
+          minutes_needed?: number
+          minutes_placed?: number
+          minutes_shortfall?: number
+          reason?: string
+          user_id?: string
+          weekly_plan_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_plan_unplaced_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_plan_unplaced_deliverable_id_fkey"
+            columns: ["deliverable_id"]
+            isOneToOne: false
+            referencedRelation: "deliverables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_plan_unplaced_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_plan_unplaced_weekly_plan_id_fkey"
+            columns: ["weekly_plan_id"]
+            isOneToOne: false
+            referencedRelation: "weekly_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      weekly_plans: {
+        Row: {
+          academic_load: string
+          generated_at: string
+          has_unplaced_work: boolean
+          id: number
+          total_capacity_minutes: number
+          total_needed_minutes: number
+          user_id: string
+          week_start_date: string
+        }
+        Insert: {
+          academic_load: string
+          generated_at?: string
+          has_unplaced_work?: boolean
+          id?: never
+          total_capacity_minutes: number
+          total_needed_minutes: number
+          user_id: string
+          week_start_date: string
+        }
+        Update: {
+          academic_load?: string
+          generated_at?: string
+          has_unplaced_work?: boolean
+          id?: never
+          total_capacity_minutes?: number
+          total_needed_minutes?: number
+          user_id?: string
+          week_start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_plans_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_summaries: {
         Row: {
           created_at: string

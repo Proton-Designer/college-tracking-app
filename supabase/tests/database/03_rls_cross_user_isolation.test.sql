@@ -43,6 +43,7 @@ declare
   v_insight_id bigint;
   v_agent_report_id bigint;
   v_feed_id bigint;
+  v_weekly_plan_id bigint;
 begin
   insert into auth.users (id, email) values (p_user_id, p_email);
   -- profiles row is auto-created by the on_auth_user_created trigger.
@@ -183,6 +184,16 @@ begin
 
   insert into public.ics_event_extractions (user_id, feed_id, external_id, summary, start_at, end_at)
     values (p_user_id, v_feed_id, 'fixture-event-1@brightspace', 'BME 301 Lecture', now(), now() + interval '50 minutes');
+
+  insert into public.weekly_plans (user_id, week_start_date, academic_load, total_needed_minutes, total_capacity_minutes, has_unplaced_work)
+    values (p_user_id, date_trunc('week', current_date)::date, 'moderate', 300, 600, false)
+    returning id into v_weekly_plan_id;
+
+  insert into public.weekly_plan_blocks (user_id, weekly_plan_id, deliverable_id, course_id, block_date, start_at, end_at, minutes)
+    values (p_user_id, v_weekly_plan_id, v_deliverable_id, v_course_id, current_date, now(), now() + interval '45 minutes', 45);
+
+  insert into public.weekly_plan_unplaced (user_id, weekly_plan_id, deliverable_id, course_id, minutes_needed, minutes_placed, minutes_shortfall, reason)
+    values (p_user_id, v_weekly_plan_id, v_deliverable_id, v_course_id, 60, 0, 60, 'insufficient_capacity');
 end;
 $$;
 
