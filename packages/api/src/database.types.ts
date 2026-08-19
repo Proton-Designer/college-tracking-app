@@ -161,24 +161,24 @@ export type Database = {
       brightspace_feeds: {
         Row: {
           created_at: string
-          ics_url: string
           id: number
           last_synced_at: string | null
           user_id: string
+          vault_secret_id: string
         }
         Insert: {
           created_at?: string
-          ics_url: string
           id?: never
           last_synced_at?: string | null
           user_id: string
+          vault_secret_id: string
         }
         Update: {
           created_at?: string
-          ics_url?: string
           id?: never
           last_synced_at?: string | null
           user_id?: string
+          vault_secret_id?: string
         }
         Relationships: [
           {
@@ -1230,6 +1230,79 @@ export type Database = {
           },
         ]
       }
+      ics_event_extractions: {
+        Row: {
+          confirmed_at: string | null
+          course_id: number | null
+          description: string | null
+          end_at: string | null
+          external_id: string
+          feed_id: number
+          id: number
+          is_all_day: boolean
+          location: string | null
+          start_at: string
+          status: string
+          summary: string
+          synced_at: string
+          user_id: string
+        }
+        Insert: {
+          confirmed_at?: string | null
+          course_id?: number | null
+          description?: string | null
+          end_at?: string | null
+          external_id: string
+          feed_id: number
+          id?: never
+          is_all_day?: boolean
+          location?: string | null
+          start_at: string
+          status?: string
+          summary: string
+          synced_at?: string
+          user_id: string
+        }
+        Update: {
+          confirmed_at?: string | null
+          course_id?: number | null
+          description?: string | null
+          end_at?: string | null
+          external_id?: string
+          feed_id?: number
+          id?: never
+          is_all_day?: boolean
+          location?: string | null
+          start_at?: string
+          status?: string
+          summary?: string
+          synced_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ics_event_extractions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ics_event_extractions_feed_id_fkey"
+            columns: ["feed_id"]
+            isOneToOne: false
+            referencedRelation: "brightspace_feeds"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ics_event_extractions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       insights: {
         Row: {
           claim: string
@@ -2175,7 +2248,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_brightspace_feed_url: { Args: { p_user_id: string }; Returns: string }
+      get_oauth_token: {
+        Args: { p_provider: string; p_user_id: string }
+        Returns: string
+      }
       local_date: { Args: { ts: string; tz: string }; Returns: string }
+      store_brightspace_feed_url: {
+        Args: { p_ics_url: string; p_user_id: string }
+        Returns: number
+      }
+      store_oauth_token: {
+        Args: {
+          p_expires_at?: string
+          p_provider: string
+          p_scope?: string
+          p_token: string
+          p_user_id: string
+        }
+        Returns: number
+      }
     }
     Enums: {
       commitment_level:

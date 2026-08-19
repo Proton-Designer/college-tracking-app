@@ -1,7 +1,7 @@
 -- Proves OAuth tokens are actually encrypted at rest (constraint #6), not just routed
 -- through a table named "vault_secret_id" that happens to still hold plaintext.
 begin;
-select plan(5);
+select plan(7);
 
 insert into auth.users (id, email) values ('20000000-0000-0000-0000-000000000001', 'vault@test.local');
 
@@ -53,6 +53,33 @@ select throws_ok(
   $$select private.get_oauth_token('20000000-0000-0000-0000-000000000001'::uuid, 'whoop')$$,
   'not authorized',
   'a different user cannot retrieve another user''s OAuth token, even through the function path'
+);
+
+reset role;
+
+-- Proving the PRIVATE function is safe is not the same as proving the WRAPPER is --
+-- private.* is unreachable via PostgREST's .rpc() at all (config.toml excludes it from
+-- the exposed schemas), so public.store_oauth_token/get_oauth_token are the actual
+-- reachable surface a real caller uses. Re-runs the same refusal proof through that
+-- surface specifically, not the implementation underneath it.
+set role authenticated;
+set request.jwt.claims = '{"sub":"20000000-0000-0000-0000-000000000001","role":"authenticated"}';
+
+select lives_ok(
+  $$select public.store_oauth_token(
+    '20000000-0000-0000-0000-000000000001'::uuid, 'rescuetime', 'sk-real-looking-rescuetime-token-xyz789'
+  )$$,
+  'the public wrapper lets an authenticated user store their own OAuth token'
+);
+
+reset role;
+set role authenticated;
+set request.jwt.claims = '{"sub":"20000000-0000-0000-0000-000000000002","role":"authenticated"}';
+
+select throws_ok(
+  $$select public.get_oauth_token('20000000-0000-0000-0000-000000000001'::uuid, 'rescuetime')$$,
+  'not authorized',
+  'the public wrapper itself refuses a different user''s request, not just the private function underneath'
 );
 
 reset role;

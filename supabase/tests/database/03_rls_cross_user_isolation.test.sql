@@ -42,6 +42,7 @@ declare
   v_experiment_id bigint;
   v_insight_id bigint;
   v_agent_report_id bigint;
+  v_feed_id bigint;
 begin
   insert into auth.users (id, email) values (p_user_id, p_email);
   -- profiles row is auto-created by the on_auth_user_created trigger.
@@ -177,8 +178,11 @@ begin
 
   perform private.store_oauth_token(p_user_id, 'whoop', 'sk-fixture-token-' || p_user_id::text);
 
-  insert into public.brightspace_feeds (user_id, ics_url)
-    values (p_user_id, 'https://purdue.example/feed/' || p_user_id || '.ics');
+  select private.store_brightspace_feed_url(p_user_id, 'https://purdue.example/feed/' || p_user_id || '.ics')
+    into v_feed_id;
+
+  insert into public.ics_event_extractions (user_id, feed_id, external_id, summary, start_at, end_at)
+    values (p_user_id, v_feed_id, 'fixture-event-1@brightspace', 'BME 301 Lecture', now(), now() + interval '50 minutes');
 end;
 $$;
 

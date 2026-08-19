@@ -60,6 +60,7 @@ export {
   completeFocusSession,
   abandonFocusSession,
   getActiveFocusSession,
+  getFocusSessionContext,
 } from "./day/focusSessions";
 export type {
   TaskSessionRow,
@@ -67,6 +68,7 @@ export type {
   StartFocusSessionInput,
   StartFocusSessionResult,
   EndFocusSessionInput,
+  FocusSessionContext,
 } from "./day/focusSessions";
 export { computeHabitBounceBack } from "./day/killLoopBounceBack";
 export { createKillHabit, listKillHabits, deactivateKillHabit, setMaxEscalationLevel } from "./data/killHabits";
@@ -133,3 +135,6 @@ export {
   respondToDeviationPrompt,
   evaluateEscalations,
 } from "./day/interventionEvaluation";
+
+export { getBrightspaceFeedStatus, listPendingIcsEvents } from "./data/brightspaceFeeds";
+export type { BrightspaceFeedRow, IcsEventExtractionRow } from "./data/brightspaceFeeds";

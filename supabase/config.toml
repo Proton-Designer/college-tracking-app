@@ -412,6 +412,14 @@ verify_jwt = false
 [functions.weekly-synthesis]
 verify_jwt = false
 
+# brightspace-confirm is the ONLY server-side gate between staged ics_event_extractions
+# and real calendar_events writes (same reasoning as syllabus-confirm above).
+[functions.brightspace-sync]
+verify_jwt = true
+
+[functions.brightspace-confirm]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

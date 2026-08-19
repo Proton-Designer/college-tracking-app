@@ -40,3 +40,4 @@ export * from './insights/experimentOutcome.ts';
 export * from './interventions/exceptionNotification.ts';
 export * from './interventions/deviationPrompt.ts';
 export * from './interventions/escalationLadder.ts';
+export * from './integrations/icsParser.ts';
