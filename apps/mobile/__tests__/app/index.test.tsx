@@ -19,11 +19,9 @@ describe("Index", () => {
     await render(<Index />);
 
     expect(screen.getByTestId("app-heading")).toHaveTextContent("CollegeOS");
-    expect(screen.getByTestId("env-source")).toHaveTextContent("source: mobile");
-    expect(screen.getByTestId("env-mode")).toHaveTextContent("mode: local");
-    expect(screen.getByTestId("env-supabase-url")).toHaveTextContent(
-      "supabaseUrl: http://127.0.0.1:54321",
-    );
+    expect(screen.getByTestId("env-source")).toHaveTextContent("mobile");
+    expect(screen.getByTestId("env-mode")).toHaveTextContent("local");
+    expect(screen.getByTestId("env-supabase-url")).toHaveTextContent("http://127.0.0.1:54321");
   });
 
   it("throws a clear error when Supabase env vars are missing", async () => {

@@ -1,5 +1,7 @@
 import { resolveAppEnvironment, type AppEnvironment } from "@collegeos/api";
+import { color, space } from "@collegeos/design/native";
 import { StyleSheet, Text, View } from "react-native";
+import { textStyle } from "../design/typography";
 
 function getEnvironment(): AppEnvironment {
   return resolveAppEnvironment({
@@ -17,17 +19,26 @@ export default function Index() {
       <Text testID="app-heading" style={styles.title}>
         CollegeOS
       </Text>
-      <Text style={styles.subtitle}>L0 foundation — app shell skeleton. Design system pending.</Text>
+      <Text style={styles.subtitle}>L0 foundation — app shell skeleton. See /_design for the full system.</Text>
       <View style={styles.debugBlock}>
-        <Text testID="env-source" style={styles.debugRow}>
-          source: {env.debugLabel}
-        </Text>
-        <Text testID="env-mode" style={styles.debugRow}>
-          mode: {env.mode}
-        </Text>
-        <Text testID="env-supabase-url" style={styles.debugRow}>
-          supabaseUrl: {env.supabaseUrl}
-        </Text>
+        <View style={styles.debugRow}>
+          <Text style={styles.debugLabel}>source</Text>
+          <Text testID="env-source" style={styles.debugValue}>
+            {env.debugLabel}
+          </Text>
+        </View>
+        <View style={styles.debugRow}>
+          <Text style={styles.debugLabel}>mode</Text>
+          <Text testID="env-mode" style={styles.debugValue}>
+            {env.mode}
+          </Text>
+        </View>
+        <View style={styles.debugRow}>
+          <Text style={styles.debugLabel}>supabaseUrl</Text>
+          <Text testID="env-supabase-url" style={styles.debugValue}>
+            {env.supabaseUrl}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -37,25 +48,20 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     justifyContent: "center",
-    paddingHorizontal: 24,
-    gap: 12,
-    backgroundColor: "#ffffff",
+    paddingHorizontal: space[7],
+    gap: space[3],
+    backgroundColor: color.ground,
   },
-  title: {
-    fontSize: 28,
-    fontWeight: "600",
-  },
-  subtitle: {
-    fontSize: 15,
-    color: "#525252",
-  },
+  title: textStyle("displayM", color.ink),
+  subtitle: textStyle("body", color.inkMuted),
   debugBlock: {
-    marginTop: 16,
-    gap: 4,
+    marginTop: space[5],
+    gap: space[2],
   },
   debugRow: {
-    fontFamily: "monospace",
-    fontSize: 13,
-    color: "#404040",
+    flexDirection: "row",
+    gap: space[5],
   },
+  debugLabel: { ...textStyle("label", color.inkFaint), width: 100 },
+  debugValue: textStyle("caption", color.ink),
 });

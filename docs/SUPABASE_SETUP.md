@@ -88,18 +88,32 @@ diff /tmp/cloud.types.ts packages/api/src/database.types.ts   # expect no output
 
 ### Extensions required
 
-Enabled by migration, but verify under **Database → Extensions**:
+Enabled by migration (`supabase/migrations/00000000000001_extensions.sql`), but verify under
+**Database → Extensions**:
 
 | Extension | Purpose |
 |---|---|
-| `pgcrypto` | UUID generation, digests |
-| `uuid-ossp` | UUID generation (compat) |
-| `pg_cron` | scheduled nightly/weekly analysis jobs |
+| `pgcrypto` | UUID generation, digests (`llm_usage_log.content_hash`) |
+| `uuid-ossp` | UUID generation (compat; enabled by default on both local and cloud) |
+| `pg_cron` | scheduled nightly/weekly analysis jobs *(wired up in L7)* |
 | `pg_net` | HTTP calls from Postgres to Edge Functions (used by cron) |
-| `supabase_vault` | encrypted storage of third-party OAuth tokens |
+| `supabase_vault` | encrypted storage of third-party OAuth tokens — see §L1 note below |
+| `pgtap` | pgTAP test suite (`supabase/tests/database/`) |
 
 > `pg_cron` and `pg_net` exist on the cloud platform but **not** in the default local stack. Any
 > logic depending on them is written to be triggered externally in local development. See §8.
+
+> **L1 note:** on some hosted Supabase plans, `CREATE EXTENSION` from a migration can fail for
+> extensions that require dashboard-level enablement (this was true historically for `pgtap` and
+> occasionally `pg_net`). If `supabase db push` reports an extension error, enable it manually under
+> **Database → Extensions** first, then re-run. `supabase_vault` and `pgcrypto` are standard on all
+> plans and should apply from the migration without issue.
+>
+> `supabase_vault`-backed OAuth token storage (`oauth_connections`, `private.store_oauth_token`,
+> `private.get_oauth_token`) is proven working end-to-end locally by
+> `supabase/tests/database/02_vault_oauth_tokens.test.sql` — no additional cloud configuration is
+> needed beyond the extension being enabled, since Vault's encryption key is managed by the platform
+> automatically on both local and cloud.
 
 ---
 
@@ -110,6 +124,11 @@ This is the security gate. Do not skip it.
 ```bash
 supabase test db --linked        # pgTAP suite: proves cross-user isolation
 ```
+
+As of L1 this is 255 assertions across 3 files — notably
+`03_rls_cross_user_isolation.test.sql`, which dynamically enumerates every RLS-enabled table with a
+`user_id` column (40 as of L1, not a hand-picked subset) and proves a second user sees zero rows
+from any of them.
 
 Then confirm in **Database → Tables** that *every* table in the `public` schema shows **RLS
 enabled**. A table with RLS disabled is exposed to anyone holding the anon key, which is a public

@@ -1,8 +1,1 @@
-@import "tailwindcss";
-
-/*
- * Design tokens are owned by @collegeos/design (in progress). Once it lands, replace this file's
- * body with:
- *   @import "@collegeos/design/tailwind.css";
- * Do not hand-author palette/type-scale/spacing here in the meantime.
- */
+@import "@collegeos/design/tailwind.css";

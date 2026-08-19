@@ -1,0 +1,21 @@
+{
+  "name": "@collegeos/design",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CollegeOS design tokens — \"Instrument\". Source of truth for docs/DESIGN_SYSTEM.md, consumed by Tailwind (web) and StyleSheet (mobile).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./tailwind.css": "./src/tailwind.css",
+    "./native": "./src/native.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@collegeos/config": "*",
+    "typescript": "5.9.3"
+  }
+}

@@ -5,9 +5,14 @@
   "private": true,
   "dependencies": {
     "@collegeos/api": "*",
+    "@collegeos/design": "*",
+    "@expo-google-fonts/ibm-plex-mono": "^0.4.1",
+    "@expo-google-fonts/ibm-plex-sans": "^0.4.1",
+    "@expo-google-fonts/ibm-plex-serif": "^0.4.1",
     "@supabase/supabase-js": "2.112.3",
     "expo": "~57.0.14",
     "expo-constants": "~57.0.12",
+    "expo-font": "~57.0.1",
     "expo-linking": "~57.0.6",
     "expo-router": "~57.0.14",
     "expo-splash-screen": "~57.0.7",
@@ -46,7 +51,9 @@
   },
   "expo": {
     "install": {
-      "exclude": ["typescript"]
+      "exclude": [
+        "typescript"
+      ]
     }
   }
 }
