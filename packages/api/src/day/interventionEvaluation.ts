@@ -1,0 +1,231 @@
+import {
+  clampEscalationToOptIn,
+  evaluateDeviationPrompt,
+  evaluateEscalation,
+  evaluateUpcomingBlockNotification,
+  frictionCauseForDeviationResponse,
+  DEVIATION_PROMPT_ACTIONS,
+  type CommitmentLevel,
+  type DeviationPromptAction,
+  type LocalDate,
+} from '@collegeos/core';
+import type { TypedSupabaseClient } from '../client/types';
+import { dataErr, dataOk, type DataResult } from '../data/types';
+import { mapDataError } from '../data/errors';
+import { createIntervention, recordInterventionResponse, type InterventionRow } from '../data/interventions';
+import { logFriction } from '../data/frictionLogs';
+
+/**
+ * Exception-based notifications: scans today's timeboxed, not-yet-completed tasks for
+ * any starting within the lead-time window and persists an intervention for each one
+ * that qualifies. Idempotent per (task, kind, day) -- calling this repeatedly (e.g. a
+ * periodic poll, since there's no push infrastructure to trigger it once) never
+ * creates a second notification for the same upcoming block.
+ */
+export async function evaluateUpcomingBlockNotifications(
+  client: TypedSupabaseClient,
+  userId: string,
+  today: LocalDate,
+  now: Date,
+): Promise<DataResult<InterventionRow[]>> {
+  const [{ data: tasks, error: taskError }, { data: screenDaily, error: screenError }] = await Promise.all([
+    client
+      .from('tasks')
+      .select('id, title, planned_start_at')
+      .eq('user_id', userId)
+      .eq('planned_date', today)
+      .not('planned_start_at', 'is', null)
+      .not('status', 'in', '(completed,cancelled)'),
+    client.from('screen_daily').select('distracting_min').eq('user_id', userId).eq('local_date', today).maybeSingle(),
+  ]);
+  if (taskError) return dataErr(mapDataError(taskError));
+  if (screenError) return dataErr(mapDataError(screenError));
+
+  const created: InterventionRow[] = [];
+  for (const task of tasks ?? []) {
+    const decision = evaluateUpcomingBlockNotification({
+      now,
+      plannedStartAt: new Date(task.planned_start_at!),
+      taskTitle: task.title,
+      screenTimeMinutesToday: screenDaily?.distracting_min ?? null,
+    });
+    if (!decision.shouldFire) continue;
+
+    const { data: existing, error: existingError } = await client
+      .from('interventions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('related_task_id', task.id)
+      .eq('kind', 'exception_notification')
+      .eq('local_date', today)
+      .maybeSingle();
+    if (existingError) return dataErr(mapDataError(existingError));
+    if (existing) continue;
+
+    const result = await createIntervention(client, userId, {
+      kind: 'exception_notification',
+      triggerReason: decision.reason!,
+      message: decision.reason!,
+      actions: ['Start', 'Move block'],
+      relatedTaskId: task.id,
+    });
+    if (!result.ok) return result;
+    created.push(result.data);
+  }
+  return dataOk(created);
+}
+
+/**
+ * Deviation detection: for today's timeboxed tasks whose planned start has passed the
+ * grace period with no focus session ever started, persists a one-tap deviation
+ * prompt. Same per-(task, day) idempotency as the exception notifications above.
+ */
+export async function evaluateDeviationPrompts(
+  client: TypedSupabaseClient,
+  userId: string,
+  today: LocalDate,
+  now: Date,
+): Promise<DataResult<InterventionRow[]>> {
+  const { data: tasks, error: taskError } = await client
+    .from('tasks')
+    .select('id, title, planned_start_at')
+    .eq('user_id', userId)
+    .eq('planned_date', today)
+    .not('planned_start_at', 'is', null)
+    .not('status', 'in', '(completed,cancelled)');
+  if (taskError) return dataErr(mapDataError(taskError));
+
+  const created: InterventionRow[] = [];
+  for (const task of tasks ?? []) {
+    const { data: sessions, error: sessionError } = await client.from('task_sessions').select('id').eq('task_id', task.id).limit(1);
+    if (sessionError) return dataErr(mapDataError(sessionError));
+
+    const decision = evaluateDeviationPrompt({
+      now,
+      plannedStartAt: new Date(task.planned_start_at!),
+      taskTitle: task.title,
+      sessionStarted: (sessions ?? []).length > 0,
+    });
+    if (!decision.shouldFire) continue;
+
+    const { data: existing, error: existingError } = await client
+      .from('interventions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('related_task_id', task.id)
+      .eq('kind', 'deviation_prompt')
+      .eq('local_date', today)
+      .maybeSingle();
+    if (existingError) return dataErr(mapDataError(existingError));
+    if (existing) continue;
+
+    const result = await createIntervention(client, userId, {
+      kind: 'deviation_prompt',
+      triggerReason: decision.reason!,
+      message: decision.reason!,
+      actions: [...DEVIATION_PROMPT_ACTIONS],
+      relatedTaskId: task.id,
+    });
+    if (!result.ok) return result;
+    created.push(result.data);
+  }
+  return dataOk(created);
+}
+
+/**
+ * The one-tap response to a deviation prompt IS a friction log entry (per the brief:
+ * "one tap generates useful behavioral data") -- this records the intervention's
+ * outcome and, for the three real failure-reason buttons, logs the matching
+ * friction_logs row in the same call. "Start now" is compliance, not a failure --
+ * recorded as acted_on with no friction log, per frictionCauseForDeviationResponse's
+ * own null case.
+ */
+export async function respondToDeviationPrompt(
+  client: TypedSupabaseClient,
+  userId: string,
+  interventionId: number,
+  action: DeviationPromptAction,
+): Promise<DataResult<InterventionRow>> {
+  const responded = await recordInterventionResponse(client, interventionId, { status: 'acted_on', actionTaken: action });
+  if (!responded.ok) return responded;
+
+  const frictionMapping = frictionCauseForDeviationResponse(action);
+  if (frictionMapping) {
+    const logged = await logFriction(client, userId, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- FrictionCause is a generated
+      // enum union; the mapping is already exhaustively checked against it in deviationPrompt.test.ts.
+      cause: frictionMapping.cause as any,
+      ...(frictionMapping.causeDetail != null ? { causeDetail: frictionMapping.causeDetail } : {}),
+      ...(responded.data.related_task_id != null ? { relatedTaskId: responded.data.related_task_id } : {}),
+    });
+    if (!logged.ok) return logged;
+  }
+
+  return responded;
+}
+
+/**
+ * Commitment escalation: for each active kill habit, checks whether relapses since the
+ * ladder was last moved cross the threshold, and -- only if the habit's own
+ * max_escalation_level permits it -- actually escalates: updates escalation_level,
+ * records the audit-trail row in commitment_escalation_events, and persists an
+ * intervention documenting that the escalation action itself fired.
+ */
+export async function evaluateEscalations(client: TypedSupabaseClient, userId: string, today: LocalDate, now: Date): Promise<DataResult<InterventionRow[]>> {
+  const { data: habits, error: habitsError } = await client
+    .from('kill_habits')
+    .select('id, name, escalation_level, max_escalation_level, created_at')
+    .eq('user_id', userId)
+    .eq('active', true);
+  if (habitsError) return dataErr(mapDataError(habitsError));
+
+  const created: InterventionRow[] = [];
+  for (const habit of habits ?? []) {
+    const { data: lastEscalation, error: lastEscalationError } = await client
+      .from('commitment_escalation_events')
+      .select('occurred_at')
+      .eq('kill_habit_id', habit.id)
+      .order('occurred_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (lastEscalationError) return dataErr(mapDataError(lastEscalationError));
+    const levelSetAt = lastEscalation?.occurred_at ?? habit.created_at;
+
+    const { count: relapsesSinceLevelSet, error: relapsesError } = await client
+      .from('kill_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('kill_habit_id', habit.id)
+      .eq('outcome', 'relapsed')
+      .gte('occurred_at', levelSetAt);
+    if (relapsesError) return dataErr(mapDataError(relapsesError));
+
+    const decision = evaluateEscalation({
+      currentLevel: habit.escalation_level as CommitmentLevel,
+      relapsesSinceLevelSet: relapsesSinceLevelSet ?? 0,
+    });
+    if (!decision.shouldEscalate || !decision.recommendedNextLevel) continue;
+
+    const clampedLevel = clampEscalationToOptIn(decision.recommendedNextLevel, habit.max_escalation_level as CommitmentLevel);
+    if (!clampedLevel) continue; // evidence supports it, but this habit hasn't opted in that far
+
+    const { error: updateError } = await client.from('kill_habits').update({ escalation_level: clampedLevel }).eq('id', habit.id);
+    if (updateError) return dataErr(mapDataError(updateError));
+
+    const { error: eventError } = await client
+      .from('commitment_escalation_events')
+      .insert({ user_id: userId, kill_habit_id: habit.id, from_level: habit.escalation_level, to_level: clampedLevel, reason: decision.reason });
+    if (eventError) return dataErr(mapDataError(eventError));
+
+    const message = `"${habit.name}" escalated to ${clampedLevel} -- ${decision.reason}`;
+    const result = await createIntervention(client, userId, {
+      kind: 'escalation_action',
+      triggerReason: decision.reason!,
+      message,
+      actions: ['Acknowledge'],
+      relatedKillHabitId: habit.id,
+    });
+    if (!result.ok) return result;
+    created.push(result.data);
+  }
+  return dataOk(created);
+}

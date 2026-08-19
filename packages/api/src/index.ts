@@ -69,7 +69,7 @@ export type {
   EndFocusSessionInput,
 } from "./day/focusSessions";
 export { computeHabitBounceBack } from "./day/killLoopBounceBack";
-export { createKillHabit, listKillHabits, deactivateKillHabit } from "./data/killHabits";
+export { createKillHabit, listKillHabits, deactivateKillHabit, setMaxEscalationLevel } from "./data/killHabits";
 export type { KillHabitRow, CommitmentLevel, CreateKillHabitInput } from "./data/killHabits";
 export { logKillEvent, listKillEvents } from "./data/killEvents";
 export type { KillEventRow, KillEventOutcome, LogKillEventInput } from "./data/killEvents";
@@ -111,3 +111,25 @@ export type { DecisionJournalRow, LogDecisionInput, ScoreDecisionInput } from ".
 export { createSemesterLesson, listSemesterLessons, listSemesterLessonsForTerm } from "./data/semesterLessons";
 export type { SemesterLessonRow, CreateSemesterLessonInput } from "./data/semesterLessons";
 export type { DeliverableBackplanRow, BackplanMilestoneRow } from "./data/backplans";
+
+export {
+  createIntervention,
+  markInterventionDelivered,
+  recordInterventionResponse,
+  getIntervention,
+  listPendingInterventions,
+  listInterventionsForDate,
+} from "./data/interventions";
+export type {
+  InterventionRow,
+  InterventionKind,
+  InterventionStatus,
+  CreateInterventionInput,
+  RecordInterventionResponseInput,
+} from "./data/interventions";
+export {
+  evaluateUpcomingBlockNotifications,
+  evaluateDeviationPrompts,
+  respondToDeviationPrompt,
+  evaluateEscalations,
+} from "./day/interventionEvaluation";

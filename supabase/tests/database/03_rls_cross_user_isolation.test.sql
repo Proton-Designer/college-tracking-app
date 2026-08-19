@@ -97,6 +97,10 @@ begin
   insert into public.commitment_escalation_events (user_id, kill_habit_id, from_level, to_level)
     values (p_user_id, v_kill_habit_id, 'l0_reminder', 'l1_stronger_notification');
 
+  insert into public.interventions (user_id, kind, trigger_reason, message, actions, related_task_id, related_kill_habit_id)
+    values (p_user_id, 'deviation_prompt', 'BME block hasn''t started', 'BME block hasn''t started.',
+      array['Forgot', 'Avoiding', 'Schedule changed', 'Start now'], v_task_id, v_kill_habit_id);
+
   insert into public.friction_logs (user_id, related_task_id, cause)
     values (p_user_id, v_task_id, 'distracted');
 

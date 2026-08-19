@@ -19,6 +19,10 @@ export interface CreateKillHabitInput {
   replacementBehavior?: string;
   implementationIntention?: string;
   escalationLevel?: CommitmentLevel;
+  /** "Levels 2-4 are opt-in per behavior" -- defaults to l1 (migration 0016's DB
+   *  default) if omitted, meaning this habit can never auto-escalate past a stronger
+   *  notification until explicitly raised via setMaxEscalationLevel. */
+  maxEscalationLevel?: CommitmentLevel;
 }
 
 export async function createKillHabit(
@@ -38,6 +42,7 @@ export async function createKillHabit(
       ...(input.replacementBehavior != null ? { replacement_behavior: input.replacementBehavior } : {}),
       ...(input.implementationIntention != null ? { implementation_intention: input.implementationIntention } : {}),
       ...(input.escalationLevel != null ? { escalation_level: input.escalationLevel } : {}),
+      ...(input.maxEscalationLevel != null ? { max_escalation_level: input.maxEscalationLevel } : {}),
     })
     .select('*')
     .single();
@@ -55,6 +60,27 @@ export async function listKillHabits(
   let query = client.from('kill_habits').select('*').eq('user_id', userId).order('created_at');
   if (activeOnly) query = query.eq('active', true);
   const { data, error } = await query;
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(data);
+}
+
+/** The explicit opt-in action for "levels 2-4 are opt-in per behavior" -- a user
+ *  deliberately choosing, for THIS specific habit, to allow it to auto-escalate that
+ *  far. Never set as a side effect of anything else (no auto-raise on relapse count,
+ *  no default-to-max) -- that's the whole point of the rule. */
+export async function setMaxEscalationLevel(
+  client: TypedSupabaseClient,
+  userId: string,
+  killHabitId: number,
+  maxEscalationLevel: CommitmentLevel,
+): Promise<DataResult<KillHabitRow>> {
+  const { data, error } = await client
+    .from('kill_habits')
+    .update({ max_escalation_level: maxEscalationLevel })
+    .eq('id', killHabitId)
+    .eq('user_id', userId)
+    .select('*')
+    .single();
   if (error) return dataErr(mapDataError(error));
   return dataOk(data);
 }

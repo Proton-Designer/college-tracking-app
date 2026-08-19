@@ -37,3 +37,6 @@ export * from './friction/frictionAnalytics.ts';
 export * from './insights/confidenceGate.ts';
 export * from './insights/calibrationInsight.ts';
 export * from './insights/experimentOutcome.ts';
+export * from './interventions/exceptionNotification.ts';
+export * from './interventions/deviationPrompt.ts';
+export * from './interventions/escalationLadder.ts';

@@ -1286,6 +1286,76 @@ export type Database = {
           },
         ]
       }
+      interventions: {
+        Row: {
+          action_taken: string | null
+          actions: string[]
+          id: number
+          kind: string
+          local_date: string
+          message: string
+          occurred_at: string
+          related_kill_habit_id: number | null
+          related_task_id: number | null
+          responded_at: string | null
+          status: string
+          trigger_reason: string
+          user_id: string
+        }
+        Insert: {
+          action_taken?: string | null
+          actions: string[]
+          id?: never
+          kind: string
+          local_date: string
+          message: string
+          occurred_at?: string
+          related_kill_habit_id?: number | null
+          related_task_id?: number | null
+          responded_at?: string | null
+          status?: string
+          trigger_reason: string
+          user_id: string
+        }
+        Update: {
+          action_taken?: string | null
+          actions?: string[]
+          id?: never
+          kind?: string
+          local_date?: string
+          message?: string
+          occurred_at?: string
+          related_kill_habit_id?: number | null
+          related_task_id?: number | null
+          responded_at?: string | null
+          status?: string
+          trigger_reason?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "interventions_related_kill_habit_id_fkey"
+            columns: ["related_kill_habit_id"]
+            isOneToOne: false
+            referencedRelation: "kill_habits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_related_task_id_fkey"
+            columns: ["related_task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "interventions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       journal_entries: {
         Row: {
           content: string
@@ -1387,6 +1457,7 @@ export type Database = {
           immediate_reward: string | null
           implementation_intention: string | null
           long_term_cost: string | null
+          max_escalation_level: Database["public"]["Enums"]["commitment_level"]
           name: string
           replacement_behavior: string | null
           trigger_description: string | null
@@ -1402,6 +1473,7 @@ export type Database = {
           immediate_reward?: string | null
           implementation_intention?: string | null
           long_term_cost?: string | null
+          max_escalation_level?: Database["public"]["Enums"]["commitment_level"]
           name: string
           replacement_behavior?: string | null
           trigger_description?: string | null
@@ -1417,6 +1489,7 @@ export type Database = {
           immediate_reward?: string | null
           implementation_intention?: string | null
           long_term_cost?: string | null
+          max_escalation_level?: Database["public"]["Enums"]["commitment_level"]
           name?: string
           replacement_behavior?: string | null
           trigger_description?: string | null
