@@ -52,7 +52,7 @@ export function handleCorsPreflight(req: Request): Response | null {
 export async function getVerifiedCaller(
   req: Request,
   createClient: (url: string, key: string, opts: Record<string, unknown>) => AnySupabaseClient,
-): Promise<{ ok: true; userId: string; client: AnySupabaseClient } | { ok: false; response: Response }> {
+): Promise<{ ok: true; userId: string; email: string | null; client: AnySupabaseClient } | { ok: false; response: Response }> {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
     return { ok: false, response: apiErr("Missing Authorization header.", 401) };
@@ -74,5 +74,5 @@ export async function getVerifiedCaller(
     return { ok: false, response: apiErr("Invalid or expired session.", 401) };
   }
 
-  return { ok: true, userId: data.user.id, client };
+  return { ok: true, userId: data.user.id, email: data.user.email ?? null, client };
 }

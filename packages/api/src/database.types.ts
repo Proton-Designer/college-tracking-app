@@ -2254,6 +2254,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      delete_user_vault_secrets: {
+        Args: { p_user_id: string }
+        Returns: number
+      }
       get_brightspace_feed_url: { Args: { p_user_id: string }; Returns: string }
       get_oauth_token: {
         Args: { p_provider: string; p_user_id: string }

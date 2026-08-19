@@ -436,6 +436,12 @@ verify_jwt = false
 [functions.rescuetime-sync]
 verify_jwt = true
 
+# The most destructive function in this product -- verify_jwt = true is what makes
+# getVerifiedCaller's session round trip meaningful at all. userId is never accepted as a
+# request parameter; see account-delete/index.ts's header comment.
+[functions.account-delete]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

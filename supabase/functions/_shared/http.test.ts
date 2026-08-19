@@ -24,7 +24,7 @@ function fakeCreateClient(behavior: "valid" | "invalid" | "error") {
     auth: {
       getUser: () => {
         if (behavior === "valid") {
-          return Promise.resolve({ data: { user: { id: "real-user-id" } }, error: null });
+          return Promise.resolve({ data: { user: { id: "real-user-id", email: "real-user@collegeos.test" } }, error: null });
         }
         if (behavior === "invalid") {
           return Promise.resolve({ data: { user: null }, error: { message: "invalid token" } });
@@ -49,7 +49,10 @@ Deno.test("getVerifiedCaller: a valid session returns the real user id from auth
   const req = new Request("http://x", { method: "POST", headers: { Authorization: "Bearer some-real-jwt" } });
   const result = await getVerifiedCaller(req, fakeCreateClient("valid"));
   assertEquals(result.ok, true);
-  if (result.ok) assertEquals(result.userId, "real-user-id");
+  if (result.ok) {
+    assertEquals(result.userId, "real-user-id");
+    assertEquals(result.email, "real-user@collegeos.test");
+  }
 });
 
 Deno.test("getVerifiedCaller: an invalid/expired session is rejected with 401, not trusted", async () => {
