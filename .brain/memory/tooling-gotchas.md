@@ -102,3 +102,41 @@ mismatch: Kong "Up 2 hours" while auth is "Up About a minute".
 Found twice independently within a minute (a failing admin `createUser`, and a container-uptime
 check). Worth checking uptimes before assuming an application bug: healthy containers plus a
 gateway 502 is an infrastructure symptom, not a code one.
+
+## Gotcha 4 — iOS Simulator's QuickType keyboard learns and re-injects typed strings, corrupting
+`idb ui text` input in a way that compounds and is *not* fixed by clearing Keychain
+
+Symptom: `idb ui text` into a plain `TextField` (verified via `idb ui describe-all`'s `AXValue`, not
+just a screenshot) lands a value that's spliced with fragments of a *previous, unrelated* string
+typed earlier in the same simulator session — e.g. typing a test account's email produced
+`verify-u2-mobile-...@demo@collegeos.appcollegeos.test` after `demo@collegeos.app` had been typed
+many times earlier while fighting this same issue. It gets *worse* with more typing, not better:
+after navigating Settings and typing "Keyboard" into its search field trying to fix this, the next
+app-field type picked up a `Reset Keyboard` fragment too.
+
+**This is iOS's predictive-text (QuickType) word learning, not a saved password/Keychain issue.**
+Two things that do **not** fix it, confirmed by testing in this exact session:
+- `xcrun simctl keychain <udid> reset` — clears saved passwords/certs, not QuickType's learned
+  vocabulary. Ran it; contamination continued identically afterward.
+- Settings → General → AutoFill & Passwords → toggling "AutoFill Passwords and Passkeys" off —
+  governs password-manager suggestions specifically, not general keyboard word prediction. Verified
+  the toggle actually flipped (rechecked the screen after) and the very next email-field type still
+  spliced in `demo@collegeos.app`.
+
+Also worth knowing: a **second `idb ui text` call to append/complete a truncated field is itself a
+new contamination window** — appending onto an already-typed field was consistently where the
+splice happened, more often than the first fresh-field type. If a field truncates, prefer clearing
+it fully and retyping the whole string in one `idb ui text` call over appending the missing suffix.
+
+**Not yet found:** a reliable in-session fix. The two most likely real fixes — neither attempted
+successfully in this session — are (a) Settings → General → Keyboard → toggle off "Predictive"
+(navigating there via `idb ui tap` on the Settings app proved unreliable: taps repeatedly landed on
+the wrong row, and `App-Prefs:General&path=Keyboard` deep links did not open the Keyboard subpage
+in this iOS/simulator version), or (b) `xcrun simctl erase <udid>` for a fully clean device — not
+attempted here since it wipes the whole simulator (all apps/data) and needs explicit authorization
+before use, especially on a simulator that might be shared with other engineers' work.
+
+**Practical workaround for the next person:** minimize total keystrokes typed into the simulator
+before you need clean input — every string typed (including into Settings, search bars, anywhere)
+adds to what QuickType can later re-suggest. If you must fight this live, expect it to compound, not
+self-resolve; don't try to "type your way out of it" by retrying the same field repeatedly.
