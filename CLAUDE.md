@@ -8,8 +8,13 @@ Observe → Plan → Execute → Detect deviation → Intervene → Reflect → 
 
 ## Start here
 
+**New to this repo? Read `HANDOFF.md` first** — what exists, what was verified and how, what was
+*not* verified, and what remains before production.
+
 | You need | Read |
 |---|---|
+| **Full handoff — start here** | **`HANDOFF.md`** |
+| Remaining work & testing plan | `docs/REMAINING_WORK.md`, `docs/L11_HARDENING.md` |
 | Architecture, phases, scope | `docs/MASTER_PLAN.md` |
 | Current project state | `docs/STATUS.md` |
 | Original product brief (requirements) | `docs/context/SOURCE_BRIEF.txt` |
