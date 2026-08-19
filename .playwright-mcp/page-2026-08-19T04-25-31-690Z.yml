@@ -1,0 +1,13 @@
+- generic [active] [ref=f2e1]:
+  - main [ref=f2e2]:
+    - heading "CollegeOS" [level=1] [ref=f2e3]
+    - paragraph [ref=f2e4]: L0 foundation — app shell skeleton. Design system pending.
+    - generic [ref=f2e5]:
+      - term [ref=f2e6]: source
+      - definition [ref=f2e7]: web
+      - term [ref=f2e8]: mode
+      - definition [ref=f2e9]: local
+      - term [ref=f2e10]: supabaseUrl
+      - definition [ref=f2e11]: http://127.0.0.1:54321
+  - button "Open Next.js Dev Tools" [ref=f2e17] [cursor=pointer]
+  - alert [ref=f2e21]

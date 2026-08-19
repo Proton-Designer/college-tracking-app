@@ -86,6 +86,33 @@ never zeroed, so a 30%-weight final exam still surfaces in week 2 at a low-but-v
 
 `0–24 low · 25–49 moderate · 50–74 high · 75–100 critical`
 
+### Missing factors — exclude and renormalize (amended)
+
+> Supersedes the earlier "neutral default 0.5" note. Both naive defaults are wrong: substituting
+> `0` biases the score **downward** by that factor's full weight (so before any grades are entered,
+> every course would get a free 12-point discount on risk — exactly when the radar matters most),
+> and substituting `0.5` **fabricates an observation** we never made.
+
+When a factor's input is genuinely unavailable, **exclude the factor and renormalize the remaining
+weights** over the available mass:
+
+```
+missingMass = Σ weights of unavailable factors
+scale       = 1 / (1 − missingMass)
+base        = Σ (wᵢ · scale · fᵢ)      // available factors only
+```
+
+Confidence derives from the missing mass:
+`0 → high · ≤0.15 → moderate · ≤0.35 → low · >0.35 → insufficient`
+
+**Not applicable to** (these are real values, not missing data):
+- `unfinished = 1.0` when nothing is planned — a genuine signal that all work remains.
+- `procrastination` falling back to the global mean — that is an estimate, so it stays in the sum
+  and only downgrades confidence.
+
+The trace must return `missingFactors: string[]` so the UI can say *"risk may be understated — rate
+this course's difficulty"*, turning a limitation into a prompt for the input that resolves it.
+
 ### Course-level roll-up
 
 A course's risk is **not** the mean of its assignments (which dilutes: ten trivial items would
@@ -225,6 +252,23 @@ Turn one due date into a milestone chain, as the brief requires.
 
 Exam plans are deliberately weighted toward **retrieval practice** over re-reading notes — the
 brief calls this out explicitly as the recommendation the system should make.
+
+### Required (non-droppable) phases — amended
+
+The **terminal phase that produces or submits the artifact** is flagged `required: true` and may
+never be dropped by a crash plan: `paper/report → final`, `problem_set → check`,
+`project → finalize`, `reading → notes`. `exam` has no artifact and therefore no required phase.
+
+Without this, a naive "keep the largest phases" crash plan drops `final (.10)` while keeping
+`draft (.30)` — **producing a paper that is never submitted**, which is a worse outcome than the
+schedule pressure it was trying to solve.
+
+Allocation order: reserve every `required` phase first, then greedily allocate the remaining
+capacity to the largest-fraction optional phases.
+
+If capacity cannot cover even the required phases, return `infeasible: true` with the shortfall.
+*"This cannot be done in the time available"* is a legitimate and necessary output; a plan that
+silently omits submitting the work is not.
 
 ### Algorithm
 

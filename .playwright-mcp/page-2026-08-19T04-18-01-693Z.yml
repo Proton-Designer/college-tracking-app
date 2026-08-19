@@ -1,0 +1,12 @@
+- generic [active] [ref=e1]:
+  - main [ref=e2]:
+    - heading "CollegeOS" [level=1] [ref=e3]
+    - paragraph [ref=e4]: L0 foundation — app shell skeleton. Design system pending.
+    - generic [ref=e5]:
+      - term [ref=e6]: source
+      - definition [ref=e7]: web
+      - term [ref=e8]: mode
+      - definition [ref=e9]: local
+      - term [ref=e10]: supabaseUrl
+      - definition [ref=e11]: http://127.0.0.1:54321
+  - alert [ref=e12]

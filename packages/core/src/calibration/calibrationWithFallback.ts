@@ -1,0 +1,31 @@
+import type { LocalDate } from '../types.js';
+import { computeCalibration, type CalibrationResult, type DurationObservation } from './calibration.js';
+
+export type CalibrationSource = 'category' | 'global' | 'none';
+
+export interface CalibrationWithFallbackResult extends CalibrationResult {
+  source: CalibrationSource;
+}
+
+/**
+ * Category calibration falls back to the user's global multiplier when category data
+ * is thin, and to 1.0 (explicitly reported) when even global data is thin — the engine
+ * never invents a multiplier. DOMAIN_ENGINE_SPEC.md §3.
+ */
+export function computeCalibrationWithFallback(
+  categoryObservations: DurationObservation[],
+  globalObservations: DurationObservation[],
+  now: LocalDate,
+): CalibrationWithFallbackResult {
+  const category = computeCalibration(categoryObservations, now);
+  if (category.confidence !== 'insufficient') {
+    return { ...category, source: 'category' };
+  }
+
+  const global = computeCalibration(globalObservations, now);
+  if (global.confidence !== 'insufficient') {
+    return { ...global, source: 'global' };
+  }
+
+  return { ...global, multiplier: 1.0, source: 'none' };
+}

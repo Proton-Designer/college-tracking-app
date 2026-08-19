@@ -39,3 +39,19 @@ Keys are in `.env.local` (CLI demo keys — local only, not secret).
 **Consequence:** the RLS test suite and Vault-encrypted token storage can both be built and proven
 locally rather than deferred to cloud. Mailpit means the real signup/confirmation email flow is
 end-to-end testable without a cloud project.
+
+## Corrections (found during L0 scaffolding)
+- **iPhone 17 Pro simulator is DEAD** — `AC967333-3598-49DB-9E2D-0F8AB6AF73AA` fails with
+  "Unable to boot deleted device" (stale/corrupt CoreSimulator record). **Use iPhone 16 Pro**
+  (`3E76E929-3780-400D-AF3E-A058FC3A80C6`). Recreate the 17 Pro record with `xcrun simctl delete`
+  when convenient — not blocking.
+- `npx create-next-app` / `create-expo-app` hit a false-positive "path not writable" under the
+  default sandbox. Run scaffolders with the sandbox disabled.
+- **Never run native prebuild** (`expo run:ios`, `expo run:android`, `expo prebuild`). We stay in
+  the managed workflow. Use `expo start --ios`. A prebuild killed mid-write once already and
+  zeroed `apps/mobile/package.json`.
+- Next 16 auto-generates `AGENTS.md`/`CLAUDE.md` into `apps/web` unless `agentRules: false` is set
+  in `next.config` — it is set. Don't remove it; it duplicates the root CLAUDE.md.
+
+## Dev servers (when running)
+- web: http://localhost:3300 · Metro: http://localhost:8081
