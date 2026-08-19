@@ -13,6 +13,9 @@ import type { DailySummaryPayload } from "./summaryPyramid.ts";
 const DURABLE_PROFILE: DurableProfile = {
   timezone: "America/New_York",
   sleepBaselineHours: 7.5,
+  durableLessons: [
+    { lessonId: 1, term: "Spring 2026", lesson: "Morning check-in question #7 produced no actionable insight for 4 weeks -- retired.", confidence: "medium" },
+  ],
   courses: [
     {
       courseId: 1,
@@ -93,6 +96,7 @@ Deno.test("buildNightlyAnalysisRequest: only the system+durable-profile blocks a
   assert(blocks.every((b) => b.cacheable === true));
   assert(blocks[0]!.text.includes("analysis engine for a personal college accountability system"));
   assert(blocks[1]!.text.includes("Organic Chemistry"));
+  assert(blocks[1]!.text.includes("question #7"));
 
   // The volatile blocks live in userContent, not systemPrompt -- they change every call
   // and would never hit cache, matching §5's ❌ column.

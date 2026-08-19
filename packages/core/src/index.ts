@@ -33,3 +33,4 @@ export * from './friction/frictionAnalytics';
 
 export * from './insights/confidenceGate';
 export * from './insights/calibrationInsight';
+export * from './insights/experimentOutcome';

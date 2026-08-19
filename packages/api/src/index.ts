@@ -83,4 +83,31 @@ export { generateAndPersistBackplan, computeCapacityHorizon } from "./academic/b
 export type { GenerateBackplanResult, CapacityDay } from "./academic/backplan";
 export { computeCourseGradeScenario, computeCourseRequiredScore } from "./academic/gradeScenario";
 export { getBackplan, listMilestones } from "./data/backplans";
+
+export { getAgentReport, listAgentReports } from "./data/agentReports";
+export type { AgentReport, AgentReportType } from "./data/agentReports";
+export { getDailySummary, listRecentDailySummaries, getWeeklySummary } from "./data/summaries";
+export type { DailySummaryRow, WeeklySummaryRow } from "./data/summaries";
+export { listActiveInsights } from "./data/insights";
+export type { Insight } from "./data/insights";
+
+export {
+  createExperiment,
+  getExperiment,
+  listExperiments,
+  logExperimentMeasurement,
+  listExperimentMeasurements,
+  scoreExperiment,
+} from "./data/experiments";
+export type {
+  Experiment,
+  ExperimentMeasurementRow,
+  CreateExperimentInput,
+  LogExperimentMeasurementInput,
+  ScoreExperimentInput,
+} from "./data/experiments";
+export { logDecision, scoreDecision, getDecision, listDecisions } from "./data/decisionJournal";
+export type { DecisionJournalRow, LogDecisionInput, ScoreDecisionInput } from "./data/decisionJournal";
+export { createSemesterLesson, listSemesterLessons, listSemesterLessonsForTerm } from "./data/semesterLessons";
+export type { SemesterLessonRow, CreateSemesterLessonInput } from "./data/semesterLessons";
 export type { DeliverableBackplanRow, BackplanMilestoneRow } from "./data/backplans";

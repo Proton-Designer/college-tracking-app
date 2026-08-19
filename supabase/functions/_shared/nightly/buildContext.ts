@@ -55,11 +55,10 @@ If you cannot assess something, say so in data_gaps rather than inventing a patt
 // Durable profile (cached) -- goals, active habits, kill-list definitions, course
 // policies, semester context, durable lessons per §5's table.
 //
-// Scope note: "goals" (no goals table exists in the schema yet) and "durable lessons"
-// (an output of monthly/semester synthesis, L9 scope, not built this session) are real
-// parts of §5's durable profile with no source to read from yet. Flagged here rather
-// than silently omitted -- same honesty rule dailyAnalysisSchema.ts's `lenses` note
-// follows.
+// Scope note: "goals" (no goals table exists in the schema yet) is a real part of §5's
+// durable profile with no source to read from yet. Flagged here rather than silently
+// omitted -- same honesty rule dailyAnalysisSchema.ts's `lenses` note follows.
+// "Durable lessons" (semester_lessons, L8) is wired in below.
 // ============================================================================
 
 export interface CourseDurableProfile {
@@ -86,36 +85,55 @@ export interface KillHabitDurableProfile {
   longTermCost: string | null;
 }
 
+export interface DurableLessonProfile {
+  lessonId: number;
+  term: string;
+  lesson: string;
+  confidence: string;
+}
+
 export interface DurableProfile {
   timezone: string;
   sleepBaselineHours: number | null;
   courses: CourseDurableProfile[];
   activeKillHabits: KillHabitDurableProfile[];
+  durableLessons: DurableLessonProfile[];
 }
 
 export async function loadDurableProfile(client: AnySupabaseClient, userId: string): Promise<DurableProfile> {
-  const [{ data: profile, error: profileError }, { data: courses, error: coursesError }, { data: habits, error: habitsError }] =
-    await Promise.all([
-      client.from("profiles").select("timezone, sleep_baseline_hours").eq("id", userId).single(),
-      client
-        .from("courses")
-        .select("id, name, code, target_grade_pct, difficulty_rating, confidence_rating, late_policy, attendance_policy, allowed_absences")
-        .eq("user_id", userId),
-      client
-        .from("kill_habits")
-        .select(
-          "id, name, escalation_level, trigger_description, urge_description, replacement_behavior, implementation_intention, immediate_reward, long_term_cost",
-        )
-        .eq("user_id", userId)
-        .eq("active", true),
-    ]);
+  const [
+    { data: profile, error: profileError },
+    { data: courses, error: coursesError },
+    { data: habits, error: habitsError },
+    { data: lessons, error: lessonsError },
+  ] = await Promise.all([
+    client.from("profiles").select("timezone, sleep_baseline_hours").eq("id", userId).single(),
+    client
+      .from("courses")
+      .select("id, name, code, target_grade_pct, difficulty_rating, confidence_rating, late_policy, attendance_policy, allowed_absences")
+      .eq("user_id", userId),
+    client
+      .from("kill_habits")
+      .select(
+        "id, name, escalation_level, trigger_description, urge_description, replacement_behavior, implementation_intention, immediate_reward, long_term_cost",
+      )
+      .eq("user_id", userId)
+      .eq("active", true),
+    // Every durable lesson ever recorded (L8), not scoped to the current term -- a
+    // lesson from a prior semester is exactly the kind of thing that should still
+    // inform this one (append-only, DATA_MODEL.md §5, so this list only ever grows).
+    client.from("semester_lessons").select("id, term, lesson, confidence").eq("user_id", userId).order("created_at", { ascending: false }),
+  ]);
   if (profileError) throw profileError;
   if (coursesError) throw coursesError;
   if (habitsError) throw habitsError;
+  if (lessonsError) throw lessonsError;
 
   return {
     timezone: profile.timezone,
     sleepBaselineHours: profile.sleep_baseline_hours,
+    // deno-lint-ignore no-explicit-any
+    durableLessons: (lessons ?? []).map((l: any) => ({ lessonId: l.id, term: l.term, lesson: l.lesson, confidence: l.confidence })),
     // deno-lint-ignore no-explicit-any
     courses: (courses ?? []).map((c: any) => ({
       courseId: c.id,

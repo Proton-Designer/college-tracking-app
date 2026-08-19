@@ -11,16 +11,23 @@ describe('computeExperimentOutcome', () => {
     expect(computeExperimentOutcome(30, 'decrease', series([25, 26, 27]))).toBeNull();
   });
 
-  it('confirms a hypothesized decrease that holds cleanly across the whole trial, at medium confidence below n=20', () => {
+  it('confirms a hypothesized decrease that holds cleanly across the whole trial, at medium confidence between n=10 and n=20', () => {
     // Baseline: 30% of task attempts derailed by distraction. Hypothesis: a phone-away
     // implementation intention decreases that. Trial logs a consistent drop to ~10%.
-    const outcome = computeExperimentOutcome(30, 'decrease', series([12, 10, 8, 11, 9, 10]));
+    const outcome = computeExperimentOutcome(30, 'decrease', series([12, 10, 8, 11, 9, 10, 11, 9, 10, 8]));
     expect(outcome).not.toBeNull();
     expect(outcome!.movedInHypothesizedDirection).toBe(true);
     expect(outcome!.trialMeanValue).toBeCloseTo(10, 0);
     expect(outcome!.percentChange).toBeLessThan(0);
-    expect(outcome!.evidence.sampleSize).toBeLessThan(20);
+    expect(outcome!.evidence.sampleSize).toBe(10);
     expect(outcome!.confidence).toBe('medium'); // clean and consistent, but n<20 caps it below 'high'
+  });
+
+  it('too few measurements to reach even medium (n<10) is honestly testing-tier, not upgraded because the trend looks clean', () => {
+    const outcome = computeExperimentOutcome(30, 'decrease', series([12, 10, 8, 11, 9, 10]));
+    expect(outcome!.evidence.sampleSize).toBeLessThan(10);
+    expect(outcome!.movedInHypothesizedDirection).toBe(true);
+    expect(outcome!.confidence).toBe('testing');
   });
 
   it('rejects a hypothesis when the metric actually moved the wrong way', () => {
