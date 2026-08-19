@@ -220,3 +220,25 @@ rather than trusting the implementation beneath it; `REVOKE ALL FROM PUBLIC, ano
 so proving the implementation safe does not prove the wrapper safe.
 
 Full reasoning in `docs/DATA_MODEL.md`. Migration `00000000000018`.
+
+## D20 — A component isn't done until something in the real request path calls it
+Four instances in a single session, all of **correct, fully-tested code that shipped unreachable**:
+
+1. `getNightReviewDraft`/`getPredictionForDate` — built correctly, never exported from the
+   `packages/api` barrel. Blocked the other engineer for hours; the fix was one line.
+2. Three L7 modules (`agentReports`, `summaries`, `insights`) — same shape, same cause.
+3. `private.store_oauth_token`/`get_oauth_token` — pgTAP-proven since L1 with **zero** real call
+   path. PostgREST cannot reach the `private` schema at all; pgTAP exercises it over direct SQL and
+   therefore could never have caught it. Found only when a first real caller appeared, at L10.
+4. `ingestWhoopTelemetry` — built, tested, and invoked by nothing; the webhook verified, resolved,
+   and acked without ever fetching or ingesting.
+
+**Why unit tests structurally cannot catch this:** in every case the defect was not *in* the
+component. It was the **absence of an edge** connecting it to a caller. Tests passed, coverage
+looked healthy, review found nothing — because there was nothing wrong with the code under test.
+
+**Rule:** when you finish a component, **name its production caller out loud.** If the honest
+answer is "its test," it is not done.
+
+Partial mitigation exists: `scripts/check-barrel-exports.mjs` catches cases 1 and 2 mechanically.
+Cases 3 and 4 are not mechanically detectable — they need the habit.
