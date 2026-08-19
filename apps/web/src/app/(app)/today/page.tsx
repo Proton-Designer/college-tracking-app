@@ -8,7 +8,6 @@ import { RecoveryBanner } from "@/components/today/RecoveryBanner";
 import { UnplannedGate } from "@/components/today/UnplannedGate";
 import { WorkloadBand } from "@/components/today/WorkloadBand";
 import { loadTodayData } from "./data";
-import { SignOutButton } from "./SignOutButton";
 
 function buildMitItems(dayView: DayView, courses: Record<number, Course>): MitItem[] {
   const tasksById = new Map(dayView.todayTasks.map((t) => [t.id, t]));
@@ -51,7 +50,7 @@ export default async function TodayPage({
     );
   }
 
-  const { dayView, courses, mode, userEmail, now } = result.data;
+  const { dayView, courses, mode, now } = result.data;
   const hasAnyData =
     dayView.todayTasks.length > 0 || dayView.todayCalendarEvents.length > 0 || dayView.upcomingDeliverables.length > 0;
   const mitItems = buildMitItems(dayView, courses);
@@ -85,16 +84,6 @@ export default async function TodayPage({
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-8 px-8 py-10">
-      <div className="flex items-center justify-between">
-        <span className="font-serif text-title font-semibold text-ink">CollegeOS</span>
-        <div className="flex items-center gap-3">
-          <span data-testid="today-user-email" className="text-body-s text-ink-muted">
-            {userEmail}
-          </span>
-          <SignOutButton />
-        </div>
-      </div>
-
       <TodayHeader today={dayView.today} health={dayView.todayHealth} sleepBaselineHours={dayView.profile.sleep_baseline_hours} />
 
       <DayTrace

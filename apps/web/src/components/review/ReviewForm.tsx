@@ -3,7 +3,7 @@
 import type { DailyPredictionRow, NightReviewDraft, Task } from "@collegeos/api";
 import { useState, useTransition } from "react";
 import { Button, Panel, Textarea } from "@/components/ui";
-import { submitReview } from "@/app/review/actions";
+import { submitReview } from "@/app/(app)/review/actions";
 import { FrictionPicker } from "./FrictionPicker";
 import { ReviewDraft } from "./ReviewDraft";
 

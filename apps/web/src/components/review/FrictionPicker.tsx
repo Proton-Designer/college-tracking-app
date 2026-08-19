@@ -3,7 +3,7 @@
 import type { FrictionCause, Task } from "@collegeos/api";
 import { useState, useTransition } from "react";
 import { ChipGroup } from "@/components/ui";
-import { logFrictionForTask } from "@/app/review/actions";
+import { logFrictionForTask } from "@/app/(app)/review/actions";
 
 const FRICTION_OPTIONS: Array<{ value: FrictionCause; label: string }> = [
   { value: "underestimated_duration", label: "Underestimated duration" },

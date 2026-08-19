@@ -10,11 +10,13 @@ import { useAuthSession } from "../lib/useAuthSession";
 SplashScreen.preventAutoHideAsync();
 
 // Bounce unauthenticated sessions out of app routes, and authenticated sessions off the
-// auth-only forms — see docs/SCREEN_SPEC.md §0 and the L(mobile-3) assignment. `/` (the
-// welcome screen) and `/auth/callback` (which manages its own post-confirm redirect) are
-// deliberately excluded from both sets, matching web's behavior (its landing page and
-// /auth/confirm don't force-redirect an already-authenticated visitor either).
-const PROTECTED_ROOTS = new Set(["today", "review"]);
+// auth-only forms — see docs/SCREEN_SPEC.md §0. Default-protect (mirrors web's proxy.ts):
+// everything is auth-required except an explicit public/auth-only allowlist, rather than an
+// allowlist of protected roots -- so a new route (the "(tabs)" group, "settings", any future
+// screen) is protected by default instead of silently open until someone remembers to add it
+// here. `/` (the welcome screen) and `/auth/callback` (which manages its own post-confirm
+// redirect) stay public, matching web's landing page and /auth/confirm.
+const PUBLIC_ROOTS = new Set(["", "auth", "design"]);
 const AUTH_ONLY_ROOTS = new Set(["login", "signup", "forgot-password", "reset-password"]);
 
 function useAuthRouting(loading: boolean, isAuthenticated: boolean) {
@@ -23,12 +25,14 @@ function useAuthRouting(loading: boolean, isAuthenticated: boolean) {
 
   useEffect(() => {
     if (loading) return;
-    const root = segments[0];
-    if (!root) return;
+    const root = segments[0] ?? "";
 
-    if (!isAuthenticated && PROTECTED_ROOTS.has(root)) {
+    const isAuthOnly = AUTH_ONLY_ROOTS.has(root);
+    const isPublic = PUBLIC_ROOTS.has(root);
+
+    if (!isAuthenticated && !isAuthOnly && !isPublic) {
       router.replace("/login");
-    } else if (isAuthenticated && AUTH_ONLY_ROOTS.has(root)) {
+    } else if (isAuthenticated && isAuthOnly) {
       router.replace("/today");
     }
   }, [loading, isAuthenticated, segments, router]);
@@ -44,7 +48,13 @@ function RoutedStack() {
         headerShown: false,
         contentStyle: { backgroundColor: color.ground },
       }}
-    />
+    >
+      {/* Without an explicit title, a screen pushed on top (e.g. /settings) inherits the
+          literal route-group folder name "(tabs)" as its back button's accessible name --
+          invisible with headerBackButtonDisplayMode: "minimal" (no text on screen) but still
+          read aloud by VoiceOver. Found live on a real device, not in review. */}
+      <Stack.Screen name="(tabs)" options={{ title: "Today" }} />
+    </Stack>
   );
 }
 

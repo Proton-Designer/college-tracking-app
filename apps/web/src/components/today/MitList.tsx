@@ -3,7 +3,7 @@
 import type { Confidence } from "@collegeos/core";
 import { useState, useTransition } from "react";
 import { Checkbox } from "@/components/ui/Checkbox";
-import { toggleTaskCompletion } from "@/app/today/actions";
+import { toggleTaskCompletion } from "@/app/(app)/today/actions";
 
 export interface MitItem {
   taskId: number;

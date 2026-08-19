@@ -5,18 +5,18 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Skeleton } from "../components/ui";
-import { CheckinFlow } from "../components/today/CheckinFlow";
-import { DayTrace } from "../components/today/DayTrace";
-import { DeadlineRadar } from "../components/today/DeadlineRadar";
-import { TodayHeader } from "../components/today/Header";
-import { type MitItem, MitList } from "../components/today/MitList";
-import { RecoveryBanner } from "../components/today/RecoveryBanner";
-import { WorkloadBand } from "../components/today/WorkloadBand";
-import { textStyle } from "../design/typography";
-import { getMobileSupabaseClient } from "../lib/supabase/client";
-import { useAuthSession } from "../lib/useAuthSession";
-import { useTodayData } from "../lib/useTodayData";
+import { Button, Skeleton } from "../../components/ui";
+import { CheckinFlow } from "../../components/today/CheckinFlow";
+import { DayTrace } from "../../components/today/DayTrace";
+import { DeadlineRadar } from "../../components/today/DeadlineRadar";
+import { TodayHeader } from "../../components/today/Header";
+import { type MitItem, MitList } from "../../components/today/MitList";
+import { RecoveryBanner } from "../../components/today/RecoveryBanner";
+import { WorkloadBand } from "../../components/today/WorkloadBand";
+import { textStyle } from "../../design/typography";
+import { getMobileSupabaseClient } from "../../lib/supabase/client";
+import { useAuthSession } from "../../lib/useAuthSession";
+import { useTodayData } from "../../lib/useTodayData";
 
 function buildMitItems(dayView: DayView, courses: Record<number, Course>): MitItem[] {
   const tasksById = new Map(dayView.todayTasks.map((t) => [t.id, t]));
@@ -67,9 +67,14 @@ export default function TodayScreen() {
           <Text testID="today-user-email" style={textStyle("bodyS", color.inkMuted)}>
             {session?.user.email}
           </Text>
-          <Button testID="sign-out" variant="secondary" loading={signingOut} onPress={handleSignOut}>
-            Sign out
-          </Button>
+          <View style={styles.topBarActions}>
+            <Button testID="settings-link" variant="ghost" onPress={() => router.push("/settings")}>
+              Settings
+            </Button>
+            <Button testID="sign-out" variant="secondary" loading={signingOut} onPress={handleSignOut}>
+              Sign out
+            </Button>
+          </View>
         </View>
       </View>
 
@@ -213,6 +218,11 @@ const styles = StyleSheet.create({
   },
   topBarRight: {
     alignItems: "flex-end",
+    gap: space[2],
+  },
+  topBarActions: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: space[2],
   },
   errorBox: {

@@ -9,7 +9,6 @@ export interface TodayData {
   /** Plain object, not a Map — this crosses the server/client component boundary. */
   courses: Record<number, Course>;
   mode: TodayMode;
-  userEmail: string | null;
   /** The instant getDayView was computed against — passed to the Day Trace's live cursor so
    *  it never drifts from what the query actually saw. */
   now: Date;
@@ -59,7 +58,6 @@ export async function loadTodayData(options?: { asOf?: Date }): Promise<TodayLoa
       dayView: dayViewResult.data,
       courses: Object.fromEntries(coursesResult.data.map((c) => [c.id, c])),
       mode: decideMode(dayViewResult.data),
-      userEmail: user.email ?? null,
       now,
     },
   };

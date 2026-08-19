@@ -4,7 +4,7 @@ import type { Course, DayView, Task } from "@collegeos/api";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button, ChipGroup, Label, Panel } from "@/components/ui";
-import { submitCheckin } from "@/app/today/actions";
+import { submitCheckin } from "@/app/(app)/today/actions";
 
 const DERAILMENT_OPTIONS = [
   { value: "phone", label: "Phone" },

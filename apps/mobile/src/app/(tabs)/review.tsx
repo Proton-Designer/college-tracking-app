@@ -2,11 +2,11 @@ import type { DailyPredictionRow, DailyReview } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Panel, Skeleton } from "../components/ui";
-import { ReviewForm } from "../components/review/ReviewForm";
-import { textStyle } from "../design/typography";
-import { useAuthSession } from "../lib/useAuthSession";
-import { useReviewData } from "../lib/useReviewData";
+import { Button, Panel, Skeleton } from "../../components/ui";
+import { ReviewForm } from "../../components/review/ReviewForm";
+import { textStyle } from "../../design/typography";
+import { useAuthSession } from "../../lib/useAuthSession";
+import { useReviewData } from "../../lib/useReviewData";
 
 export default function ReviewScreen() {
   const insets = useSafeAreaInsets();

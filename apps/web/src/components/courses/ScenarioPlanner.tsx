@@ -3,7 +3,7 @@
 import type { CategoryResult, GradeScenarioHypothetical, RequiredScoreResult } from "@collegeos/core";
 import { useState, useTransition } from "react";
 import { Button, Label, Panel } from "@/components/ui";
-import { runGradeScenario, runRequiredScore } from "@/app/courses/[id]/actions";
+import { runGradeScenario, runRequiredScore } from "@/app/(app)/courses/[id]/actions";
 
 function formatPct(pct: number): string {
   return `${Math.round(pct * 10) / 10}%`;

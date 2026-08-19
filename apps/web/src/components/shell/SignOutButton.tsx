@@ -6,7 +6,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { getBrowserSupabaseClient } from "@/lib/supabase/client";
 
-export function SignOutButton() {
+export function SignOutButton({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const [submitting, setSubmitting] = useState(false);
 
@@ -18,8 +18,15 @@ export function SignOutButton() {
   }
 
   return (
-    <Button data-testid="sign-out" variant="secondary" loading={submitting} onClick={handleSignOut}>
-      Sign out
+    <Button
+      data-testid="sign-out"
+      variant="secondary"
+      loading={submitting}
+      onClick={handleSignOut}
+      aria-label="Sign out"
+      className={compact ? "px-2 text-caption" : undefined}
+    >
+      {compact ? "Out" : "Sign out"}
     </Button>
   );
 }
