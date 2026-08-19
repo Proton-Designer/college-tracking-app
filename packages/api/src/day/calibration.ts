@@ -64,3 +64,24 @@ export function calibrateCategory(
 ): CalibrationWithFallbackResult {
   return computeCalibrationWithFallback(observations.byCategory.get(category) ?? [], observations.global, today);
 }
+
+export interface CalibrationTableRow {
+  category: string;
+  result: CalibrationWithFallbackResult;
+}
+
+/** The personal-multiplier table SCREEN_SPEC §7 puts on /insights -- one row per task
+ *  category the user has completed sessions for, sorted alphabetically. Reuses the exact
+ *  same observations and per-category calibration Today's workload sizing already runs
+ *  on, so the table can never disagree with the multiplier actually applied elsewhere. */
+export async function listCalibrationTable(
+  client: TypedSupabaseClient,
+  userId: string,
+  timezone: string,
+  now: Date,
+): Promise<CalibrationTableRow[]> {
+  const observations = await loadCalibrationObservations(client, userId, timezone, now);
+  const today = localDateFromInstant(now, timezone);
+  const categories = [...observations.byCategory.keys()].sort();
+  return categories.map((category) => ({ category, result: calibrateCategory(observations, category, today) }));
+}

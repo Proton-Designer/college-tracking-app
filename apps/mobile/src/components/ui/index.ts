@@ -6,6 +6,8 @@ export { Checkbox } from "./Checkbox";
 export type { CheckboxProps } from "./Checkbox";
 export { ChipGroup } from "./ChipGroup";
 export type { ChipGroupProps, ChipOption } from "./ChipGroup";
+export { ConfidenceRule } from "./ConfidenceRule";
+export type { ConfidenceLineStyle } from "./ConfidenceRule";
 export { EmptyState } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
 export { FieldError } from "./FieldError";

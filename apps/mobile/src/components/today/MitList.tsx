@@ -3,6 +3,7 @@ import { color, space } from "@collegeos/design/native";
 import { useState, useTransition } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Checkbox } from "../ui/Checkbox";
+import { ConfidenceRule, type ConfidenceLineStyle } from "../ui/ConfidenceRule";
 import { textStyle } from "../../design/typography";
 import { toggleTaskCompletion } from "../../lib/todayActions";
 
@@ -16,51 +17,14 @@ export interface MitItem {
   calibrationConfidence: Confidence;
 }
 
-type LineStyle = "solid" | "dashed" | "dotted";
-
 /** DESIGN_SYSTEM §6.2: line style encodes epistemic status, ratified system-wide. `low` and
  *  `insufficient` both read as "hypothesis" — there's no fourth visual tier. */
-const CONFIDENCE_BORDER: Record<Confidence, LineStyle> = {
+const CONFIDENCE_BORDER: Record<Confidence, ConfidenceLineStyle> = {
   high: "solid",
   moderate: "dashed",
   low: "dotted",
   insufficient: "dotted",
 };
-
-// RN's `borderStyle: 'dashed'/'dotted'` frequently renders as solid on iOS — composing the
-// rule from small Views (same fix as DayTrace.tsx) so dashed/dotted/solid are genuinely three
-// distinct states rather than gambling on the native renderer for a ratified convention.
-// The dash/dot segments are absolutely positioned inside ruleTrack so they never contribute to
-// its own layout size — ruleTrack's height comes purely from `alignSelf: stretch` matching
-// itemContent, same as the solid case. A prior version stacked the segments as normal flow
-// children, which gave ruleTrack a large intrinsic height of its own and forced the whole row
-// (and itemContent, via the row's default stretch) to grow to fit it, producing dead space
-// below short rows — worse for dashed/dotted than solid since they had more/taller segments.
-const RULE_SEGMENTS = 20;
-const RULE_GAP = 3;
-
-function ConfidenceRule({ lineStyle, ruleColor }: { lineStyle: LineStyle; ruleColor: string }) {
-  if (lineStyle === "solid") {
-    return <View style={[styles.ruleTrack, { backgroundColor: ruleColor }]} />;
-  }
-  const segLen = lineStyle === "dotted" ? 2 : 5;
-  return (
-    <View style={styles.ruleTrack}>
-      {Array.from({ length: RULE_SEGMENTS }, (_, i) => i).map((i) => (
-        <View
-          key={i}
-          style={{
-            position: "absolute",
-            top: i * (segLen + RULE_GAP),
-            width: 2,
-            height: segLen,
-            backgroundColor: ruleColor,
-          }}
-        />
-      ))}
-    </View>
-  );
-}
 
 export function MitList({ items }: { items: MitItem[] }) {
   const [completedIds, setCompletedIds] = useState<Set<number>>(
@@ -134,12 +98,7 @@ const styles = StyleSheet.create({
   },
   item: {
     flexDirection: "row",
-  },
-  ruleTrack: {
-    width: 2,
-    marginRight: space[3],
-    alignSelf: "stretch",
-    overflow: "hidden",
+    gap: space[3],
   },
   itemContent: {
     flex: 1,
