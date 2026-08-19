@@ -1,0 +1,47 @@
+import type { TelemetryEventInput } from './whoopNormalize';
+
+/**
+ * Proves the schema's own documented rule (DATA_MODEL.md §5): health_daily is a
+ * derived, rebuildable ROLLUP of telemetry_events, never the primary record. This
+ * function IS that derivation -- given a day's raw telemetry_events (already filtered
+ * to one user, one local_date, source='whoop'), produce the typed health_daily patch.
+ * Re-running it against the same events always produces the same result, which is the
+ * whole point of "rebuildable."
+ */
+export interface HealthDailyPatch {
+  sleepHours: number | null;
+  whoopRecoveryPct: number | null;
+  hrvMs: number | null;
+  restingHr: number | null;
+  strain: number | null;
+  workoutCompleted: boolean | null;
+}
+
+type TelemetryEventForRollup = Pick<TelemetryEventInput, 'metric' | 'value'>;
+
+/** Latest value wins per metric when a day has more than one reading (e.g. two
+ *  workouts -- strain from the second, more recent session is what "today's strain"
+ *  means, not a fabricated sum or average across unrelated sessions). Assumes events
+ *  are already filtered to one user/day and ordered oldest-first; the caller controls
+ *  both via its own query. */
+export function buildHealthDailyFromTelemetry(events: TelemetryEventForRollup[]): HealthDailyPatch {
+  const latestByMetric = new Map<string, number>();
+  let workoutCompleted: boolean | null = null;
+
+  for (const event of events) {
+    if (event.metric === 'workout_completed') {
+      workoutCompleted = true;
+      continue;
+    }
+    latestByMetric.set(event.metric, event.value);
+  }
+
+  return {
+    sleepHours: latestByMetric.get('sleep_hours') ?? null,
+    whoopRecoveryPct: latestByMetric.get('recovery_pct') ?? null,
+    hrvMs: latestByMetric.get('hrv_ms') ?? null,
+    restingHr: latestByMetric.get('resting_hr') ?? null,
+    strain: latestByMetric.get('strain') ?? null,
+    workoutCompleted,
+  };
+}
