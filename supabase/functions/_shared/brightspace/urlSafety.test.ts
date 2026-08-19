@@ -41,3 +41,13 @@ Deno.test("assertSafeFeedUrl: rejects an unresolvable hostname rather than silen
   const result = await assertSafeFeedUrl("https://this-domain-should-not-exist-8f2a91xyz.test/feed.ics");
   assertEquals(result.ok, false);
 });
+
+Deno.test("assertSafeFeedUrl: rejects a bracketed IPv6 loopback literal -- URL.hostname keeps the brackets, and the literal-IP short-circuit must still recognize it", async () => {
+  const result = await assertSafeFeedUrl("https://[::1]/feed.ics");
+  assertEquals(result.ok, false);
+});
+
+Deno.test("assertSafeFeedUrl: rejects a bracketed IPv6 link-local literal", async () => {
+  const result = await assertSafeFeedUrl("https://[fe80::1]/feed.ics");
+  assertEquals(result.ok, false);
+});

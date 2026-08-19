@@ -42,6 +42,19 @@ describe('isPrivateOrReservedIp', () => {
     // 11.x.x.x is outside 10.0.0.0/8.
     expect(isPrivateOrReservedIp('11.0.0.1')).toBe(false);
   });
+
+  it('flags a bracketed IPv6 literal the same as its unbracketed form -- URL.hostname keeps the brackets', () => {
+    // `new URL("https://[::1]/x").hostname` is literally the string "[::1]", brackets
+    // included (WHATWG URL spec) -- a caller that passes url.hostname straight through
+    // must not get a different (wrong) answer than one that passes the bare address.
+    expect(isPrivateOrReservedIp('[::1]')).toBe(true);
+    expect(isPrivateOrReservedIp('[fe80::1]')).toBe(true);
+    expect(isPrivateOrReservedIp('[fc00::1]')).toBe(true);
+  });
+
+  it('does not false-positive a bracketed public IPv6 address', () => {
+    expect(isPrivateOrReservedIp('[2001:4860:4860::8888]')).toBe(false); // Google public DNS
+  });
 });
 
 describe('checkUrlSchemeAndHostname', () => {

@@ -53,7 +53,15 @@ const IPV4_PRIVATE_RANGES: Array<[string, number]> = [
  *  otherwise not routable on the public internet -- the set of addresses a server-side
  *  fetch must never be allowed to silently reach on a user's say-so. */
 export function isPrivateOrReservedIp(ip: string): boolean {
-  const normalized = ip.trim().toLowerCase();
+  let normalized = ip.trim().toLowerCase();
+  // A URL's `.hostname` keeps the brackets for an IPv6 literal (`new URL("https://[::1]/x").hostname === "[::1]"`,
+  // per the WHATWG URL spec) -- unwrap them here so every caller is protected, not just
+  // ones that remember to strip brackets first. Without this, "[::1]"/"[fe80::1]"/etc.
+  // fail every check below (none of them match a leading "[") and are silently treated
+  // as public, which is exactly the SSRF bypass this guard exists to prevent.
+  if (normalized.startsWith('[') && normalized.endsWith(']')) {
+    normalized = normalized.slice(1, -1);
+  }
 
   if (normalized.includes(':')) {
     // IPv6: loopback (::1), unique-local (fc00::/7), link-local (fe80::/10),
