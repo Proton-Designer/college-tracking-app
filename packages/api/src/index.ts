@@ -86,6 +86,8 @@ export type { ProofOfWorkType, SubmitProofOfWorkInput } from "./data/proofOfWork
 
 export { generateAndPersistBackplan, computeCapacityHorizon } from "./academic/backplan";
 export type { GenerateBackplanResult, CapacityDay } from "./academic/backplan";
+export { generateAndPersistWeeklyPlan } from "./planning/weeklyPlan";
+export type { WeeklyPlanGenerationResult, SkippedDeliverable } from "./planning/weeklyPlan";
 export { computeCourseGradeScenario, computeCourseRequiredScore } from "./academic/gradeScenario";
 export { getBackplan, listMilestones } from "./data/backplans";
 

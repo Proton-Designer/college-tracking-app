@@ -80,3 +80,37 @@ export function findFreeIntervals(dayStart: string, dayEnd: string, busyEvents: 
 export function intervalMinutes(interval: TimeInterval): number {
   return (new Date(interval.end).getTime() - new Date(interval.start).getTime()) / 60_000;
 }
+
+/**
+ * Raw free calendar time overstates realistic capacity -- capacity.ts's
+ * computeCapacityMinutes already discounts it by recovery state and historical
+ * performance, exactly the ceiling Today's workload view respects. Weekly planning must
+ * respect the same ceiling, not just "however much calendar time happens to be open," or
+ * Today and the weekly plan would silently disagree about how much work is realistic on
+ * a given day. Walks the day's free intervals chronologically and truncates once the
+ * capacity budget is spent, so the earliest slots are preserved (consistent with
+ * buildWeeklyPlan's own earliest-first placement) and any intervals beyond the ceiling
+ * are dropped entirely rather than left dangling.
+ */
+export function clipIntervalsToCapacity(intervals: TimeInterval[], capacityMinutes: number): TimeInterval[] {
+  if (capacityMinutes <= 0) return [];
+  const sorted = [...intervals].sort((a, b) => a.start.localeCompare(b.start));
+  const clipped: TimeInterval[] = [];
+  let remaining = capacityMinutes;
+
+  for (const interval of sorted) {
+    if (remaining <= 0) break;
+    const minutes = intervalMinutes(interval);
+    if (minutes <= 0) continue;
+    if (minutes <= remaining) {
+      clipped.push(interval);
+      remaining -= minutes;
+    } else {
+      const endMs = new Date(interval.start).getTime() + remaining * 60_000;
+      clipped.push({ start: interval.start, end: new Date(endMs).toISOString() });
+      remaining = 0;
+    }
+  }
+
+  return clipped;
+}

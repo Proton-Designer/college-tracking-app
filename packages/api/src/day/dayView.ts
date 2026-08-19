@@ -1,4 +1,4 @@
-import type { LocalDate, MvdPlan, PlanningExecutionResult, RecoveryModeResult, WorkloadLevels } from '@collegeos/core';
+import type { Confidence, LocalDate, MvdPlan, PlanningExecutionResult, RecoveryModeResult, WorkloadLevels } from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
 import type { Database } from '../database.types';
 import { dataErr, dataOk, type DataResult } from '../data/types';
@@ -46,6 +46,11 @@ export interface DayView {
   gradeProjections: CourseGradeProjection[];
   risk: RiskAssessment;
   workload: WorkloadLevels;
+  /** Confidence behind `workload.capacityMinutes` -- 'insufficient' means the user has
+   *  fewer than 3 days of real deep-work history yet, and capacityMinutes is
+   *  DEFAULT_HISTORICAL_DEEP_WORK_P50_MINUTES_PRIOR (a documented prior), not a real
+   *  measurement. Never render capacity as a hard fact without checking this first. */
+  capacityConfidence: Confidence;
   suggestedMits: SuggestedMit[];
   recoveryMode: RecoveryModeResult;
   /** Only computed when recoveryMode.triggered -- see docs/SCREEN_SPEC.md §1: "Only the
@@ -133,7 +138,7 @@ export async function getDayView(
   );
   const calibration = await loadCalibrationObservations(client, userId, profile.timezone, now);
 
-  const [recoveryMode, yesterdayPlanningExecution, historicalCapacityP50Min] = await Promise.all([
+  const [recoveryMode, yesterdayPlanningExecution, historicalCapacity] = await Promise.all([
     computeTodayRecoveryMode(client, userId, today, profile.sleep_baseline_hours),
     computeYesterdayPlanningExecution(client, userId, today),
     computeHistoricalCapacityP50Min(client, userId, today),
@@ -159,7 +164,7 @@ export async function getDayView(
     today,
     risk.deliverableRisks,
     calibration,
-    historicalCapacityP50Min,
+    historicalCapacity.minutes,
     todayHealth?.whoopRecoveryPct ?? null,
     profile.sleep_baseline_hours,
   );
@@ -187,6 +192,7 @@ export async function getDayView(
     gradeProjections,
     risk,
     workload: levels,
+    capacityConfidence: historicalCapacity.confidence,
     suggestedMits: rankSuggestedMits(items, calibrationByItemId),
     recoveryMode,
     mvdPlan,

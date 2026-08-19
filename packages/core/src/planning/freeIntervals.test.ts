@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findFreeIntervals, intervalMinutes } from './freeIntervals';
+import { clipIntervalsToCapacity, findFreeIntervals, intervalMinutes } from './freeIntervals';
 
 const DAY_START = '2026-08-24T08:00:00.000Z'; // Monday
 const DAY_END = '2026-08-24T23:00:00.000Z';
@@ -100,5 +100,51 @@ describe('intervalMinutes', () => {
 
   it('is zero for a zero-length interval', () => {
     expect(intervalMinutes({ start: DAY_START, end: DAY_START })).toBe(0);
+  });
+});
+
+describe('clipIntervalsToCapacity', () => {
+  it('passes intervals through unchanged when total free time is already under the capacity budget', () => {
+    const intervals = [{ start: '2026-08-24T16:00:00.000Z', end: '2026-08-24T17:00:00.000Z' }];
+    expect(clipIntervalsToCapacity(intervals, 120)).toEqual(intervals);
+  });
+
+  it('truncates the last interval that exceeds the budget, preserving the earliest slots first', () => {
+    const intervals = [
+      { start: '2026-08-24T09:00:00.000Z', end: '2026-08-24T10:00:00.000Z' }, // 60 min
+      { start: '2026-08-24T14:00:00.000Z', end: '2026-08-24T16:00:00.000Z' }, // 120 min
+    ];
+    const clipped = clipIntervalsToCapacity(intervals, 90); // 60 + 30 of the second
+    expect(clipped).toEqual([
+      { start: '2026-08-24T09:00:00.000Z', end: '2026-08-24T10:00:00.000Z' },
+      { start: '2026-08-24T14:00:00.000Z', end: '2026-08-24T14:30:00.000Z' },
+    ]);
+  });
+
+  it('drops intervals entirely once the budget is exhausted, rather than leaving a zero-length remainder', () => {
+    const intervals = [
+      { start: '2026-08-24T09:00:00.000Z', end: '2026-08-24T10:00:00.000Z' }, // 60 min
+      { start: '2026-08-24T14:00:00.000Z', end: '2026-08-24T15:00:00.000Z' }, // 60 min
+    ];
+    expect(clipIntervalsToCapacity(intervals, 60)).toEqual([{ start: '2026-08-24T09:00:00.000Z', end: '2026-08-24T10:00:00.000Z' }]);
+  });
+
+  it('a zero or negative capacity produces no free intervals at all', () => {
+    const intervals = [{ start: '2026-08-24T09:00:00.000Z', end: '2026-08-24T10:00:00.000Z' }];
+    expect(clipIntervalsToCapacity(intervals, 0)).toEqual([]);
+    expect(clipIntervalsToCapacity(intervals, -30)).toEqual([]);
+  });
+
+  it('an empty interval list stays empty regardless of capacity', () => {
+    expect(clipIntervalsToCapacity([], 120)).toEqual([]);
+  });
+
+  it('handles out-of-order input intervals correctly', () => {
+    const intervals = [
+      { start: '2026-08-24T14:00:00.000Z', end: '2026-08-24T15:00:00.000Z' },
+      { start: '2026-08-24T09:00:00.000Z', end: '2026-08-24T09:30:00.000Z' },
+    ];
+    const clipped = clipIntervalsToCapacity(intervals, 30);
+    expect(clipped).toEqual([{ start: '2026-08-24T09:00:00.000Z', end: '2026-08-24T09:30:00.000Z' }]);
   });
 });
