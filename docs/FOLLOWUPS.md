@@ -15,6 +15,8 @@
 | ⚪️ F1 | **Focus session launcher** omitted from Today | L6 | No write path exists. Deliberately *not* stubbed — a "Start focus" button that persists nothing is a fake feature. L6 builds start/stop, interruptions, subjective focus, objective output, proof-of-work, and `/focus/[sessionId]`. |
 | ⚪️ F2 | **Kill-list section** omitted from Today | L6 | `kill_habits`/`kill_events` have no backend. Omitted rather than faked. |
 | ⚪️ F3 | Brightspace `ics_url` stored plaintext | L10 | Ruled: it's a **bearer credential** (grants calendar access by possession, long-lived, not user-rotatable). Moves to Vault when the integration is built. |
+| ⚪️ F4 | **L2 (distraction block) has no enforcement mechanism** | Settings | Real app-blocking needs native Screen Time / Digital Wellbeing APIs — out of scope for web and for managed Expo, and the brief itself scoped this to a later native-only feature. Found auditing `evaluateEscalations`: L2 currently produces the same in-app intervention message as L0/L1, nothing more. Settings' escalation-ceiling picker labels this explicitly rather than implying it works. |
+| ⚪️ F5 | **`kill_habits` has no accountability-partner contact field** | Settings | L3 is meant to notify a real, named person. There is no column to store who, so L3 cannot notify anyone even in principle — a schema gap, not just a missing notification integration. Found the same audit pass as F4. Settings' escalation-ceiling picker labels L3 as in-app-message-only until this exists. |
 
 ---
 
@@ -43,7 +45,7 @@ Five features have working, tested backends that **no screen reaches**. Same fam
 | 🔴 U1 | **Interventions never displayed** | L9 records every intended intervention with its trigger and outcome, and nothing shows them. **"Intervene" is a step of the product's core loop** — Observe → Plan → Execute → Detect deviation → *Intervene* → Reflect. Right now that step is invisible, so the loop is open. | Today (inline), plus a history surface |
 | 🔴 U2 | **No way to set `planned_start_at`** | A2 added the column so start delay could be measured. Nothing writes it, so **start delay is permanently `null`** and the planning-vs-execution engine never sees the metric the brief names explicitly ("planned start 4:00 / actual start 5:07"). | Morning check-in — Top 3 optionally timeboxable |
 | 🟡 U3 | **Proof-of-work unreachable** | L6 built submission + a server-side completion gate. No UI sets `requires_proof_of_work` or submits evidence, so an entire brief feature is dead. | Task detail / completion flow |
-| 🟡 U4 | **`max_escalation_level` unsettable** | The opt-in ceiling that makes the escalation ladder work. Without UI it stays at the default, so escalation can never legitimately rise past L1 regardless of evidence. | Settings — kill-habit definitions |
+| ~~🟡 U4~~ | ~~`max_escalation_level` unsettable~~ | **Resolved.** Settings' kill-habit editor now lets a user set the ceiling per habit, all 5 levels selectable. Verified live via psql that the write reaches the DB. Found while building it: L2-L4 currently produce the same in-app-message-only behavior as L0/L1 (see F4/F5) — the picker labels this explicitly rather than implying real enforcement exists. | Settings — kill-habit definitions |
 | 🟢 U5 | **Office hours never surfaced** | SCREEN_SPEC §4 wants them surfaced contextually when a topic is repeatedly flagged confusing — the brief's "better intervention than explaining the concept a tenth time". | Course detail |
 
 **Process note:** found by auditing backend columns/functions against UI references, not from any

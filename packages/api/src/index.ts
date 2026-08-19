@@ -158,7 +158,7 @@ export {
   respondToStaleTaskPrompt,
 } from "./day/interventionEvaluation";
 
-export { getBrightspaceFeedStatus, listPendingIcsEvents } from "./data/brightspaceFeeds";
+export { connectBrightspaceFeed, disconnectBrightspaceFeed, getBrightspaceFeedStatus, listPendingIcsEvents } from "./data/brightspaceFeeds";
 export type { BrightspaceFeedRow, IcsEventExtractionRow } from "./data/brightspaceFeeds";
 
 export { listIntegrationStatuses, disconnectIntegration } from "./data/integrations";
