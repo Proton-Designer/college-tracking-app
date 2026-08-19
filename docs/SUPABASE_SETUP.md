@@ -124,7 +124,10 @@ Also check **Advisors → Security** in the dashboard and resolve every finding.
 **Authentication → Sign In / Providers**
 
 - **Email** — enabled
-  - Confirm email: **ON** for production
+  - Confirm email: **ON** for production (also `enable_confirmations = true` in local
+    `supabase/config.toml` as of L1, so the two never drift — the real signup -> email ->
+    confirm flow is testable locally via Mailpit. The E2E test-user fixture creates users
+    through the admin API with `email_confirm: true`, bypassing this for automated tests.)
   - Secure email change: ON
   - Minimum password length: 10
   - Leaked-password protection (HIBP): **ON**

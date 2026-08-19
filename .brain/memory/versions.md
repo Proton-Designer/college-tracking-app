@@ -17,6 +17,10 @@ any of these — see the "do not bump" notes below.
 | react-native-reanimated | whatever Expo SDK 57 bundles (4.3–4.5 range) | |
 | @supabase/supabase-js | 2.112.3 | |
 | @supabase/ssr | 0.12.4 | |
+| @playwright/test | 1.62.1 | npm latest |
+| jest | **29.7.0** (not npm `latest` 30.4.2) | see landmine #3 |
+| jest-expo | ~57.0.4 | matches SDK 57 |
+| @testing-library/react-native | 14.0.1 | see landmine #4 for its breaking `render()` change |
 
 ## Landmine 1 — TypeScript 7.0 is npm `latest` but is NOT safe to use yet
 
@@ -43,6 +47,51 @@ confusing native crashes/build failures, not a clean dependency error.
 versions.** Always scaffold via `npx create-expo-app` and add native deps via `npx expo install
 <pkg>`, which resolves against the SDK's own compatibility table. Verify with `npx expo-doctor`
 after any dependency change.
+
+## Landmine 3 — `jest-expo` needs Jest 29, not npm's "latest" Jest 30
+
+`jest-expo@57.0.4` depends directly on `jest-snapshot@^29.2.1`, `babel-jest@^29.2.1`,
+`@jest/globals@^29.2.1` — it's built for **Jest 29**. npm's `jest@latest` is 30.4.2. Same shape as
+landmines 1 and 2: installing "latest" would silently misalign the test runner from the preset that
+wires up React Native's transform pipeline.
+
+**Pinned `jest@29.7.0` in `apps/mobile`.** Check `npm view jest-expo dependencies` before bumping
+either `jest` or `jest-expo` — they must stay in the same major line.
+
+## Landmine 4 — `@testing-library/react-native@14`'s `render()` is now `async`
+
+Breaking API change from earlier majors: `render()` used to be synchronous. In v14 it's `async
+function render(...)`. Calling `render(<X />)` without `await` doesn't throw — it just means
+`screen.getByTestId(...)` on the very next line hits RNTL's "detached" placeholder (error:
+`` `render` function has not been called ``) because `setRenderResult` hasn't run yet. Always
+`await render(...)`; for a component expected to throw during render, use
+`await expect(render(<X />)).rejects.toThrow(...)`, not a synchronous `expect(() => render(...))`.
+
+## Landmine 5 — Expo Router bundles *any* file under the app root, including tests
+
+`expo-router`'s `require.context` (`node_modules/expo-router/_ctx.ios.js`) only excludes
+`+api`/`+html`/`+middleware` suffixed files — it has **no built-in exclusion for `.test.tsx`,
+`.spec.tsx`, or `__tests__` directories**, unlike most router/framework conventions. A test file
+placed inside `src/app/` (this app's `EXPO_ROUTER_APP_ROOT`) gets pulled into the production Metro
+bundle as if it were a route. Concretely: `src/app/index.test.tsx` imported
+`@testing-library/react-native`, which imports Node's `console` module — Metro can't resolve a
+Node core module for the app target, and the simulator showed "Unable to resolve module console."
+
+**Every test file for `apps/mobile` must live outside `src/app/`** — this repo uses
+`apps/mobile/__tests__/` (Jest's default `testMatch` finds it there regardless of location; nothing
+about Jest requires tests to be colocated with the router root). If a future screen genuinely needs
+a colocated test, verify with `expo start` + a fresh bundle that Metro doesn't choke on it, not just
+`npm test`.
+
+## Discovery — local Supabase has `enable_confirmations = false` by default
+
+`supabase/config.toml`'s `[auth.email]` section ships with `enable_confirmations = false`, so a
+plain `supabase.auth.signUp()` **auto-confirms and sends no email** on the local stack — Mailpit
+stays empty. This isn't a bug, but it means the e2e harness's Mailpit fixture had to prove itself
+against `resetPasswordForEmail` instead (which always sends locally). **Whoever builds L3's real
+signup-confirmation flow will need `enable_confirmations = true`** for that flow to be
+end-to-end testable via Mailpit the way the brief describes ("Sunday weekly planning" email
+confirmation, etc.) — flag this to whoever owns that migration/config change.
 
 ## Non-landmine (confirmed safe)
 

@@ -14,12 +14,20 @@ export default function Index() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>CollegeOS</Text>
+      <Text testID="app-heading" style={styles.title}>
+        CollegeOS
+      </Text>
       <Text style={styles.subtitle}>L0 foundation — app shell skeleton. Design system pending.</Text>
       <View style={styles.debugBlock}>
-        <Text style={styles.debugRow}>source: {env.debugLabel}</Text>
-        <Text style={styles.debugRow}>mode: {env.mode}</Text>
-        <Text style={styles.debugRow}>supabaseUrl: {env.supabaseUrl}</Text>
+        <Text testID="env-source" style={styles.debugRow}>
+          source: {env.debugLabel}
+        </Text>
+        <Text testID="env-mode" style={styles.debugRow}>
+          mode: {env.mode}
+        </Text>
+        <Text testID="env-supabase-url" style={styles.debugRow}>
+          supabaseUrl: {env.supabaseUrl}
+        </Text>
       </View>
     </View>
   );
