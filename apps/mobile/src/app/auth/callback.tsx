@@ -18,6 +18,7 @@ export default function AuthCallbackScreen() {
       const id = setTimeout(() => router.replace("/today"), 1200);
       return () => clearTimeout(id);
     }
+    return undefined;
   }, [state, router]);
 
   if (state === "checking") {

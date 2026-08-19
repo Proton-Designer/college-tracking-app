@@ -15,21 +15,25 @@ export function useDeepLinkSession(): DeepLinkSessionState {
   const url = Linking.useURL();
 
   useEffect(() => {
-    if (!url) return;
+    if (!url) return undefined;
 
     const { queryParams } = Linking.parse(url);
     const code = queryParams?.code;
-    if (typeof code !== "string") {
-      setState("invalid");
-      return;
-    }
-
     let cancelled = false;
-    getMobileSupabaseClient()
-      .auth.exchangeCodeForSession(code)
-      .then(({ data, error }) => {
-        if (!cancelled) setState(!error && data.session ? "valid" : "invalid");
+
+    if (typeof code !== "string") {
+      // Deferred, not called synchronously in the effect body -- same async-callback
+      // shape as the exchangeCodeForSession branch below, just with nothing to await.
+      Promise.resolve().then(() => {
+        if (!cancelled) setState("invalid");
       });
+    } else {
+      getMobileSupabaseClient()
+        .auth.exchangeCodeForSession(code)
+        .then(({ data, error }) => {
+          if (!cancelled) setState(!error && data.session ? "valid" : "invalid");
+        });
+    }
 
     return () => {
       cancelled = true;

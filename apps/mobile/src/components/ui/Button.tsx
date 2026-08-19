@@ -12,6 +12,7 @@ export interface ButtonProps {
   onPress?: () => void;
   children: ReactNode;
   style?: StyleProp<ViewStyle>;
+  testID?: string;
 }
 
 const VARIANT_BG: Record<ButtonVariant, string> = {
@@ -35,6 +36,7 @@ export function Button({
   onPress,
   children,
   style,
+  testID,
 }: ButtonProps) {
   const [focused, setFocused] = useState(false);
 
@@ -45,6 +47,7 @@ export function Button({
 
   return (
     <Pressable
+      testID={testID}
       accessibilityRole="button"
       accessibilityState={{ disabled: isInactive, busy: loading }}
       disabled={isInactive}

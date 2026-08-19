@@ -1,5 +1,6 @@
 "use client";
 
+import type { Confidence } from "@collegeos/core";
 import { useState, useTransition } from "react";
 import { Checkbox } from "@/components/ui/Checkbox";
 import { toggleTaskCompletion } from "@/app/today/actions";
@@ -10,13 +11,19 @@ export interface MitItem {
   title: string;
   courseCode: string | null;
   completed: boolean;
-  /**
-   * Raw (uncalibrated) estimate from the task row. `packages/api`'s SuggestedMit doesn't carry a
-   * calibrated figure yet (tracked, see the L4 report) — showing the raw number labeled as such
-   * beats hiding it or pretending it's the corrected one.
-   */
-  rawEstimatedMinutes: number | null;
+  calibratedMinutes: number;
+  calibrationConfidence: Confidence;
 }
+
+/** DESIGN_SYSTEM §6.2: line style encodes epistemic status. `low`/`insufficient` both read as
+ *  "hypothesis" here — there's no fourth visual tier, and both mean the calibration data is too
+ *  thin to trust as more than a guess. */
+const CONFIDENCE_BORDER: Record<Confidence, string> = {
+  high: "border-solid",
+  moderate: "border-dashed",
+  low: "border-dotted",
+  insufficient: "border-dotted",
+};
 
 export function MitList({ items }: { items: MitItem[] }) {
   const [completedIds, setCompletedIds] = useState<Set<number>>(
@@ -73,11 +80,12 @@ export function MitList({ items }: { items: MitItem[] }) {
             />
             <div className="ml-[30px] flex items-center gap-3 font-mono text-caption text-ink-faint">
               {item.courseCode ? <span>{item.courseCode}</span> : null}
-              {item.rawEstimatedMinutes != null ? (
-                <span title="Raw estimate — not yet calibration-corrected">
-                  ~{item.rawEstimatedMinutes} min
-                </span>
-              ) : null}
+              <span
+                className={`border-l-2 pl-1.5 ${CONFIDENCE_BORDER[item.calibrationConfidence]}`}
+                style={{ borderColor: "var(--color-ink-faint)" }}
+              >
+                ~{Math.round(item.calibratedMinutes)} min
+              </span>
             </div>
           </li>
         );

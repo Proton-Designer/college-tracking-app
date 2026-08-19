@@ -183,6 +183,17 @@ from how charts distinguish measured from interpolated data:
 This makes the confidence hierarchy visible before a word is read, and it enforces the product's
 core honesty rule at the level of visual grammar.
 
+**Ratified as a system-wide convention** (extended from insights during L4): this encoding applies
+to *any* value the system infers rather than measures — insight tiers, task-duration calibration
+confidence, risk scores with missing factors, provisional grade categories. Wherever the product
+shows a number it is less than certain about, the line style carries that uncertainty.
+
+The mapping is always the same, because the epistemics are always the same:
+`solid = measured · dashed = indicated · dotted = hypothesis`.
+
+A user should be able to learn this once and read it everywhere. Do not invent a second uncertainty
+encoding (opacity, italics, a badge) for a different surface — one grammar, applied consistently.
+
 ### 6.3 Calibrated ground
 The `ground` carries an extremely faint 8px grid (≈0.7% opacity ink — tuned down from an initial
 1.5% pass, which read as visible graph-paper wallpaper rather than a felt texture), like

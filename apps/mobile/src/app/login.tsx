@@ -1,6 +1,5 @@
 import { signIn } from "@collegeos/api";
 import { useRouter } from "expo-router";
-import * as Network from "expo-network";
 import { useState } from "react";
 import { View } from "react-native";
 import { AuthLink } from "../components/auth/AuthLink";
@@ -27,12 +26,6 @@ export default function LoginScreen() {
     if (!password) nextFieldErrors.password = "Enter your password.";
     setFieldErrors(nextFieldErrors);
     if (Object.keys(nextFieldErrors).length > 0) return;
-
-    const network = await Network.getNetworkStateAsync();
-    if (network.isConnected === false) {
-      setFormError("You're offline. Check your connection and try again.");
-      return;
-    }
 
     setSubmitting(true);
     const result = await signIn(getMobileSupabaseClient(), { email, password });

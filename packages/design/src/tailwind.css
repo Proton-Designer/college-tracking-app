@@ -88,6 +88,7 @@
   /* Motion */
   --ease-decelerate: cubic-bezier(0.2, 0, 0, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  --duration-deliberate: 380ms; /* the Day Trace's left-to-right draw-in, DESIGN_SYSTEM §6.1 */
 
   /* Content width, §4 — produces `max-w-app` / `max-w-report` utilities, not breakpoints.
      NOT named `--container-prose`: Tailwind v4 ships a built-in `max-w-prose` (65ch) that a
@@ -122,5 +123,25 @@
       linear-gradient(to right, rgba(22, 24, 29, 0.007) 1px, transparent 1px),
       linear-gradient(to bottom, rgba(22, 24, 29, 0.007) 1px, transparent 1px);
     background-size: 8px 8px;
+  }
+
+  /* §6.1 Day Trace — draws in left-to-right like a pen recorder, once, on load. */
+  @keyframes day-trace-draw-in {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+
+  .day-trace-draw-in {
+    animation: day-trace-draw-in var(--duration-deliberate) var(--ease-decelerate) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .day-trace-draw-in {
+      animation: none;
+    }
   }
 }

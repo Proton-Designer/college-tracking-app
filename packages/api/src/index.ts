@@ -36,7 +36,7 @@ export type { DailyReview, DailyReviewInsert } from "./data/dailyReviews";
 
 export { getUserLocalToday } from "./day/today";
 export { getDayView } from "./day/dayView";
-export type { DayView } from "./day/dayView";
+export type { DayView, CalendarEvent, TaskSession, TodayHealth } from "./day/dayView";
 export { submitMorningCheckin } from "./day/submitCheckin";
 export type { SubmitMorningCheckinInput } from "./day/submitCheckin";
 export { submitNightReview } from "./day/submitReview";
