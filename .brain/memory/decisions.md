@@ -64,3 +64,29 @@ opinions about someone's life instead of an engine with evidence.
 Syllabus extraction lands in staging with the verbatim source snippet per item; nothing reaches
 `assignments`/`exams`/`grade_categories` without explicit user confirmation. A silently-moved exam
 date is the most damaging failure this product could produce.
+
+## D11 — `@collegeos/api` uses platform subpath exports
+`.` (universal: env, auth logic, data layer, types) · `./web` (browser + server clients,
+`@supabase/ssr`) · `./native` (AsyncStorage client, `react-native`).
+
+**Why:** a flat barrel that re-exported the native client made `apps/web` transitively bundle
+`react-native`, and the production build died on Flow syntax inside `node_modules/react-native`.
+Typecheck was clean throughout — only a real `next build` surfaced it. Neither platform-specific
+entry is reachable from the main barrel.
+
+**Rule:** anything importing a platform-only dependency goes behind a subpath. Never re-export it
+from `src/index.ts`.
+
+## D12 — `npm run verify` must mean something
+`verify` = `check:imports → typecheck → lint → test`. `scripts/check-imports.mjs` guards D4:
+`.js`-suffixed relative imports typecheck fine under `moduleResolution: "bundler"` but break
+Turbopack and Metro at runtime. It caught **109 latent violations**, 70 of them in `packages/core`,
+which would all have detonated at once on L4's first domain import and looked like an L4 bug.
+
+**Rule:** typecheck alone is not acceptable evidence in this repo. Any report claiming a layer works
+must include a real `npm run build` for web and, where relevant, a Metro bundle.
+
+## D13 — Local GoTrue reads `config.toml` at container start
+Editing `enable_confirmations` and running `supabase db reset` is **not** enough — the auth
+container keeps its old `GOTRUE_MAILER_AUTOCONFIRM`. Requires `supabase stop && supabase start`.
+Verify with `docker exec supabase_auth_college-app printenv | grep AUTOCONFIRM`.

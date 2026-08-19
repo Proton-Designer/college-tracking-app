@@ -1,4 +1,4 @@
-export type { LocalDate } from './util/date.js';
+export type { LocalDate } from './util/date';
 
 /**
  * Confidence in a computed value, paired with the sample size that produced it.

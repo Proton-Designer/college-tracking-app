@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { letterGradeForPct, type GradeBoundary } from './letterGrade.js';
+import { letterGradeForPct, type GradeBoundary } from './letterGrade';
 
 const boundaries: GradeBoundary[] = [
   { letter: 'A', minPct: 93 },

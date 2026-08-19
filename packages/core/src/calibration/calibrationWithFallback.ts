@@ -1,5 +1,5 @@
-import type { LocalDate } from '../types.js';
-import { computeCalibration, type CalibrationResult, type DurationObservation } from './calibration.js';
+import type { LocalDate } from '../types';
+import { computeCalibration, type CalibrationResult, type DurationObservation } from './calibration';
 
 export type CalibrationSource = 'category' | 'global' | 'none';
 

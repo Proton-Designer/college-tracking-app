@@ -1,6 +1,6 @@
-import type { LocalDate } from '../types.js';
-import { addDays, compareLocalDate, daysBetween } from '../util/date.js';
-import { PHASE_TEMPLATES, type DeliverableType } from './phaseTemplates.js';
+import type { LocalDate } from '../types';
+import { addDays, compareLocalDate, daysBetween } from '../util/date';
+import { PHASE_TEMPLATES, type DeliverableType } from './phaseTemplates';
 
 const DEFAULT_BUFFER_DAYS = 1;
 const OVERDUE_PHASE_NAME = 'submit now / assess damage';

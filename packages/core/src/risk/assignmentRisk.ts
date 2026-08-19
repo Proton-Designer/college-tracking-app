@@ -1,6 +1,6 @@
-import type { Confidence, LocalDate, TraceEntry } from '../types.js';
-import { clamp01 } from '../util/math.js';
-import { daysBetween } from '../util/date.js';
+import type { Confidence, LocalDate, TraceEntry } from '../types';
+import { clamp01 } from '../util/math';
+import { daysBetween } from '../util/date';
 
 export type RiskBand = 'low' | 'moderate' | 'high' | 'critical';
 

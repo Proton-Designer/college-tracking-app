@@ -33,7 +33,7 @@ export function Input({ label, error, required, id, className, disabled, ...rest
           "outline-none transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)]",
           error ? "border-risk-critical" : "border-border",
           !error && "hover:border-ink-muted",
-          "focus-visible:border-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent",
+          "focus-visible:border-accent focus-visible:[outline:2px_solid_var(--color-accent)] focus-visible:outline-offset-2",
           "disabled:cursor-not-allowed disabled:border-hairline disabled:bg-surface-sunken disabled:text-ink-faint",
           className,
         )}

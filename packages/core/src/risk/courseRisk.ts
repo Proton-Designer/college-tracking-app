@@ -1,5 +1,5 @@
-import type { Confidence, TraceEntry } from '../types.js';
-import { bandForScore, type RiskBand } from './assignmentRisk.js';
+import type { Confidence, TraceEntry } from '../types';
+import { bandForScore, type RiskBand } from './assignmentRisk';
 
 const SOFTMAX_TEMPERATURE = 18;
 

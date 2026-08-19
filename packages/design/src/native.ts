@@ -3,9 +3,11 @@
  * stays testable and importable outside a native runtime. Consumers pass these into RN's
  * `StyleSheet.create` / Reanimated APIs directly.
  */
-import { color, motion, radius, space, type } from "./tokens";
+import { color, motion, radius, riskBandColor, riskBands, space, type } from "./tokens";
+import type { RiskBand } from "./tokens";
 
-export { color, radius, space, type };
+export { color, radius, riskBandColor, riskBands, space, type };
+export type { RiskBand };
 
 /**
  * RN has no native hairline color; consumers pair this width with `color.hairline` or

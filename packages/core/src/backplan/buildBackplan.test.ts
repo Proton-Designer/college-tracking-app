@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { buildBackplan, type DayCapacity } from './buildBackplan.js';
-import { PHASE_TEMPLATES } from './phaseTemplates.js';
+import { buildBackplan, type DayCapacity } from './buildBackplan';
+import { PHASE_TEMPLATES } from './phaseTemplates';
 
 function capacityRange(fromDate: string, count: number, minutesPerDay: number): DayCapacity[] {
   return Array.from({ length: count }, (_, i) => ({

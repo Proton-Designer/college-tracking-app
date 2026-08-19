@@ -29,7 +29,7 @@ export function Toast({ variant = "default", message, onDismiss }: ToastProps) {
           type="button"
           onClick={onDismiss}
           aria-label="Dismiss"
-          className="ml-auto shrink-0 rounded-sm text-ink-faint outline-none hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+          className="ml-auto shrink-0 rounded-sm text-ink-faint outline-none hover:text-ink focus-visible:[outline:2px_solid_var(--color-accent)] focus-visible:outline-offset-2"
         >
           ✕
         </button>

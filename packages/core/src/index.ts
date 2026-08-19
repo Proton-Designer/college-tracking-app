@@ -1,32 +1,32 @@
-export * from './types.js';
-export * from './util/date.js';
-export * from './util/math.js';
+export * from './types';
+export * from './util/date';
+export * from './util/math';
 
-export * from './risk/assignmentRisk.js';
-export * from './risk/courseRisk.js';
+export * from './risk/assignmentRisk';
+export * from './risk/courseRisk';
 
-export * from './grades/types.js';
-export * from './grades/courseGrade.js';
-export * from './grades/requiredScore.js';
-export * from './grades/scenario.js';
-export * from './grades/letterGrade.js';
+export * from './grades/types';
+export * from './grades/courseGrade';
+export * from './grades/requiredScore';
+export * from './grades/scenario';
+export * from './grades/letterGrade';
 
-export * from './calibration/calibration.js';
-export * from './calibration/calibrationWithFallback.js';
+export * from './calibration/calibration';
+export * from './calibration/calibrationWithFallback';
 
-export * from './backplan/phaseTemplates.js';
-export * from './backplan/buildBackplan.js';
+export * from './backplan/phaseTemplates';
+export * from './backplan/buildBackplan';
 
-export * from './bounceback/bounceBack.js';
+export * from './bounceback/bounceBack';
 
-export * from './recovery/trigger.js';
-export * from './recovery/mvd.js';
+export * from './recovery/trigger';
+export * from './recovery/mvd';
 
-export * from './workload/capacity.js';
-export * from './workload/levels.js';
+export * from './workload/capacity';
+export * from './workload/levels';
 
-export * from './planning/planningExecutionGap.js';
+export * from './planning/planningExecutionGap';
 
-export * from './friction/frictionAnalytics.js';
+export * from './friction/frictionAnalytics';
 
-export * from './insights/confidenceGate.js';
+export * from './insights/confidenceGate';

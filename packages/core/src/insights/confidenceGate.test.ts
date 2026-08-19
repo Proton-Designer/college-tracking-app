@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clampInsightConfidence, gateInsightConfidence, type InsightEvidenceInput } from './confidenceGate.js';
+import { clampInsightConfidence, gateInsightConfidence, type InsightEvidenceInput } from './confidenceGate';
 
 const strongEvidence: InsightEvidenceInput = {
   sampleSize: 25,

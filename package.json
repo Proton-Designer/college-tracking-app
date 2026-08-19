@@ -17,7 +17,7 @@
     "build": "npm run build --workspaces --if-present",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "verify": "npm run typecheck && npm run lint && npm run test",
+    "verify": "npm run check:imports && npm run typecheck && npm run lint && npm run test",
     "test:e2e": "npm run test:e2e --workspace=@collegeos/web",
     "sim:shot": "bash scripts/sim-shot.sh",
     "db:start": "supabase start",
@@ -25,7 +25,8 @@
     "db:reset": "supabase db reset",
     "db:diff": "supabase db diff",
     "db:types": "supabase gen types typescript --local > packages/api/src/database.types.ts",
-    "db:test": "supabase test db"
+    "db:test": "supabase test db",
+    "check:imports": "node scripts/check-imports.mjs"
   },
   "devDependencies": {
     "prettier": "3.9.6"

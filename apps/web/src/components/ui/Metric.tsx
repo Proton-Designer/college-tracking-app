@@ -26,7 +26,7 @@ export function Metric({ label, value, unit, delta, size = "default", className 
   return (
     <div className={cn("flex flex-col gap-1", className)}>
       <span className="text-label uppercase tracking-[0.1em] text-ink-muted">{label}</span>
-      <span className="flex items-baseline gap-1.5">
+      <span className="flex items-baseline gap-[3px]">
         <span
           className={cn(
             "font-mono tabular-nums text-ink",
@@ -35,7 +35,7 @@ export function Metric({ label, value, unit, delta, size = "default", className 
         >
           {value}
         </span>
-        {unit ? <span className="font-mono text-caption text-ink-muted">{unit}</span> : null}
+        {unit ? <span className="font-mono text-caption text-ink-muted whitespace-nowrap">{unit}</span> : null}
       </span>
       {delta ? (
         <span className="font-mono text-caption tabular-nums text-ink-muted">

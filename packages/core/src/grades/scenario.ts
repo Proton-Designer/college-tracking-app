@@ -1,5 +1,5 @@
-import { computeCourseGrade, type ComputeCourseGradeOptions } from './courseGrade.js';
-import type { CourseGradeResult, GradeCategory, GradeItem } from './types.js';
+import { computeCourseGrade, type ComputeCourseGradeOptions } from './courseGrade';
+import type { CourseGradeResult, GradeCategory, GradeItem } from './types';
 
 export interface GradeScenarioHypothetical {
   categoryId: string;

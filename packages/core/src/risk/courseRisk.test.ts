@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeCourseRisk } from './courseRisk.js';
+import { computeCourseRisk } from './courseRisk';
 
 describe('computeCourseRisk', () => {
   it('is dominated by the worst item, not diluted by the mean', () => {

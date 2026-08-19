@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { computeCalibrationWithFallback } from './calibrationWithFallback.js';
-import type { DurationObservation } from './calibration.js';
+import { computeCalibrationWithFallback } from './calibrationWithFallback';
+import type { DurationObservation } from './calibration';
 
 const NOW = '2026-08-18';
 

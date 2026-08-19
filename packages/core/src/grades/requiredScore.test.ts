@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { computeCourseGrade } from './courseGrade.js';
-import { solveRequiredScore } from './requiredScore.js';
-import type { GradeCategory, GradeItem } from './types.js';
+import { computeCourseGrade } from './courseGrade';
+import { solveRequiredScore } from './requiredScore';
+import type { GradeCategory, GradeItem } from './types';
 
 function item(partial: Partial<GradeItem> & Pick<GradeItem, 'id' | 'categoryId'>): GradeItem {
   return { name: partial.id, pointsEarned: null, pointsPossible: 10, isExcused: false, ...partial };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeAssignmentRisk, type AssignmentRiskInput } from './assignmentRisk.js';
+import { computeAssignmentRisk, type AssignmentRiskInput } from './assignmentRisk';
 
 const base: AssignmentRiskInput = {
   today: '2026-08-18',

@@ -1,4 +1,4 @@
-import type { CourseGradeResult } from './types.js';
+import type { CourseGradeResult } from './types';
 
 export type RequiredScoreVerdict = 'final' | 'impossible' | 'secured' | 'onTrack';
 

@@ -227,7 +227,7 @@ export default function DesignPreviewPage() {
 
       <Section title="Metric">
         <div className="flex flex-wrap gap-8">
-          <Metric label="deep work" value="2h 18m" size="xl" />
+          <Metric label="deep work" value="138" unit="min" size="xl" />
           <Metric
             label="sleep"
             value="6.3"
@@ -248,18 +248,33 @@ export default function DesignPreviewPage() {
       </Section>
 
       <Section title="Checkbox & Toggle">
-        <StateRow label="checkbox">
+        <StateRow label="checkbox — unchecked / checked (live)">
           <Checkbox label="No Instagram before 6 PM" checked={checked} onChange={setChecked} />
-          <Checkbox label="Unchecked" checked={false} onChange={() => {}} />
-          <Checkbox label="Disabled" checked={true} onChange={() => {}} disabled />
-          <Checkbox label="Error" checked={false} onChange={() => {}} error="Confirm this commitment." />
         </StateRow>
-        <StateRow label="toggle">
+        <StateRow label="checkbox — disabled (checked)">
+          <Checkbox label="Disabled" checked={true} onChange={() => {}} disabled />
+        </StateRow>
+        <div className="flex flex-col gap-2">
+          <StateRow label="checkbox — error">
+            <Checkbox label="Confirm this commitment" checked={false} onChange={() => {}} error="Confirm this commitment." />
+          </StateRow>
+        </div>
+        <StateRow label="toggle — off (live)">
           <div className="w-56">
             <Toggle label="Weekly digest" checked={toggled} onChange={setToggled} />
           </div>
+        </StateRow>
+        <StateRow label="toggle — on">
+          <div className="w-56">
+            <Toggle label="Weekly digest" checked={true} onChange={() => {}} />
+          </div>
+        </StateRow>
+        <StateRow label="toggle — disabled off / on">
           <div className="w-56">
             <Toggle label="Disabled" checked={false} onChange={() => {}} disabled />
+          </div>
+          <div className="w-56">
+            <Toggle label="Disabled" checked={true} onChange={() => {}} disabled />
           </div>
         </StateRow>
       </Section>

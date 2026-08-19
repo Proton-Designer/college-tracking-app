@@ -1,5 +1,5 @@
-import type { Confidence, LocalDate } from '../types.js';
-import { daysBetween } from '../util/date.js';
+import type { Confidence, LocalDate } from '../types';
+import { daysBetween } from '../util/date';
 
 const OUTLIER_DISCARD_LN_RATIO = Math.log(6);
 const RECENCY_HALF_LIFE_DAYS = 30;

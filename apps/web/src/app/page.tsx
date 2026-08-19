@@ -20,7 +20,7 @@ export default function Home() {
         CollegeOS
       </h1>
       <p className="text-body text-ink-muted">
-        L0 foundation — app shell skeleton. See <code>/_design</code> for the full system.
+        L0 foundation — app shell skeleton. See <code>/design</code> for the full system.
       </p>
       <dl className="mt-4 grid grid-cols-[max-content_1fr] gap-x-6 gap-y-1">
         <dt className="text-label uppercase tracking-[0.1em] text-ink-faint">source</dt>

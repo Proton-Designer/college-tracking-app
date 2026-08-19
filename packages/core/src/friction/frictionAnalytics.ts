@@ -1,4 +1,4 @@
-import type { LocalDate } from '../types.js';
+import type { LocalDate } from '../types';
 
 const TREND_STABLE_THRESHOLD_PP = 0.5;
 

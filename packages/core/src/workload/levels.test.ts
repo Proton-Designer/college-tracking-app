@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeWorkloadLevels, type WorkloadItem } from './levels.js';
+import { computeWorkloadLevels, type WorkloadItem } from './levels';
 
 describe('computeWorkloadLevels — floor', () => {
   it('always includes hard deadlines and attendance, computed not chosen', () => {

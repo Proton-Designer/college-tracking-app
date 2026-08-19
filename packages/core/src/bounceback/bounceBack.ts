@@ -1,5 +1,5 @@
-import type { Confidence, LocalDate } from '../types.js';
-import { compareLocalDate, daysBetween } from '../util/date.js';
+import type { Confidence, LocalDate } from '../types';
+import { compareLocalDate, daysBetween } from '../util/date';
 
 const RECENT_EPISODE_WINDOW = 5;
 const HALF_LIFE_EPISODES = 3;

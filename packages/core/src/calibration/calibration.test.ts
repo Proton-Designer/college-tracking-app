@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeCalibration, type DurationObservation } from './calibration.js';
+import { computeCalibration, type DurationObservation } from './calibration';
 
 const NOW = '2026-08-18';
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clamp01 } from './math.js';
+import { clamp01 } from './math';
 
 describe('clamp01', () => {
   it('clamps values below 0 to 0', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { composeMinimumViableDay, type MvdCandidateItem } from './mvd.js';
+import { composeMinimumViableDay, type MvdCandidateItem } from './mvd';
 
 const items: MvdCandidateItem[] = [
   { id: 'submit-ps4', kind: 'hardDeadline' },

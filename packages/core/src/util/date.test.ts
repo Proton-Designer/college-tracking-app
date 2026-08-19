@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, compareLocalDate, daysBetween, isValidLocalDate } from './date.js';
+import { addDays, compareLocalDate, daysBetween, isValidLocalDate } from './date';
 
 describe('daysBetween', () => {
   it('returns 0 for the same date', () => {

@@ -7,11 +7,26 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./web": "./src/platform/web.ts",
+    "./native": "./src/platform/native.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts"
+  },
+  "dependencies": {
+    "@collegeos/core": "*",
+    "@supabase/supabase-js": "2.112.3"
+  },
+  "peerDependencies": {
+    "@react-native-async-storage/async-storage": "2.2.0",
+    "@supabase/ssr": "0.12.4"
+  },
+  "peerDependenciesMeta": {
+    "@react-native-async-storage/async-storage": { "optional": true },
+    "@supabase/ssr": { "optional": true }
   },
   "devDependencies": {
     "@collegeos/config": "*",

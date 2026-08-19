@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeCapacityMinutes } from './capacity.js';
+import { computeCapacityMinutes } from './capacity';
 
 describe('computeCapacityMinutes', () => {
   it('returns the historical p50 unchanged at neutral recovery and typical free time', () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { computeBounceBack, type DayOutcome } from './bounceBack.js';
-import { addDays } from '../util/date.js';
+import { computeBounceBack, type DayOutcome } from './bounceBack';
+import { addDays } from '../util/date';
 
 const START = '2026-08-01';
 

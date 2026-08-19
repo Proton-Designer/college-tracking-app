@@ -1,4 +1,4 @@
-import { clamp01 } from '../util/math.js';
+import { clamp01 } from '../util/math';
 
 const QUALITY_HIGH_LOW_THRESHOLD = 50;
 

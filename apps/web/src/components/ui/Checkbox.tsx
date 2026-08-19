@@ -41,7 +41,7 @@ export function Checkbox({ checked, onChange, label, disabled = false, error }: 
               "flex items-center justify-center",
               checked ? "border-accent bg-accent" : "border-border bg-surface-sunken",
               !disabled && !checked && "peer-hover:border-ink-muted",
-              "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent",
+              "peer-focus-visible:[outline:2px_solid_var(--color-accent)] peer-focus-visible:outline-offset-2",
               disabled && (checked ? "border-ink-faint bg-ink-faint" : "border-hairline bg-surface-sunken"),
               error && !checked && "border-risk-critical",
             )}

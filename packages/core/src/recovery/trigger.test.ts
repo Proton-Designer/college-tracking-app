@@ -4,7 +4,7 @@ import {
   PHYSIOLOGICAL_MAX_POSSIBLE,
   RECOVERY_MODE_THRESHOLD,
   type RecoveryModeInput,
-} from './trigger.js';
+} from './trigger';
 
 const baseline: RecoveryModeInput = {
   sleepHours: 8,

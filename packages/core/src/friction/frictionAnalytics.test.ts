@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeFrictionDistribution, computeFrictionTrend, type FrictionLog } from './frictionAnalytics.js';
+import { computeFrictionDistribution, computeFrictionTrend, type FrictionLog } from './frictionAnalytics';
 
 function log(cause: string): FrictionLog {
   return { date: '2026-08-01', cause };

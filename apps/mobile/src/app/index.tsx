@@ -19,7 +19,7 @@ export default function Index() {
       <Text testID="app-heading" style={styles.title}>
         CollegeOS
       </Text>
-      <Text style={styles.subtitle}>L0 foundation — app shell skeleton. See /_design for the full system.</Text>
+      <Text style={styles.subtitle}>L0 foundation — app shell skeleton. See /design for the full system.</Text>
       <View style={styles.debugBlock}>
         <View style={styles.debugRow}>
           <Text style={styles.debugLabel}>source</Text>

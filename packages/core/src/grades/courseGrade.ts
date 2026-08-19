@@ -5,7 +5,7 @@ import type {
   GradeCategory,
   GradeIssue,
   GradeItem,
-} from './types.js';
+} from './types';
 
 function resolveCategory(
   category: GradeCategory,

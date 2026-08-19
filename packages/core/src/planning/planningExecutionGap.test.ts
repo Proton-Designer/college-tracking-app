@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computePlanningExecutionGap, type PlanningExecutionInput } from './planningExecutionGap.js';
+import { computePlanningExecutionGap, type PlanningExecutionInput } from './planningExecutionGap';
 
 const base: PlanningExecutionInput = {
   plannedDeepWorkMin: 180,

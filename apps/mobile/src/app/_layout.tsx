@@ -2,6 +2,8 @@ import { color } from "@collegeos/design/native";
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { ToastProvider } from "../components/ui/ToastProvider";
 import { useDesignFonts } from "../design/fonts";
 
 SplashScreen.preventAutoHideAsync();
@@ -22,11 +24,15 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack
-      screenOptions={{
-        headerShown: false,
-        contentStyle: { backgroundColor: color.ground },
-      }}
-    />
+    <SafeAreaProvider>
+      <ToastProvider>
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: color.ground },
+          }}
+        />
+      </ToastProvider>
+    </SafeAreaProvider>
   );
 }
