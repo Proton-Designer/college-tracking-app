@@ -87,3 +87,18 @@ curl -X DELETE http://127.0.0.1:54321/storage/v1/object/<bucket> \
 `public.syllabus_uploads`/`public.proof`-referencing rows should still be cleaned up separately
 afterward (the DB row and the storage object are two different things; deleting one doesn't delete
 the other).
+
+## Kong holds stale upstreams after `supabase db reset`
+**Symptom:** every request through the gateway 502s with *"An invalid response was received from
+the upstream server"* — including `/auth/v1/*`, so all sign-ins fail — while `docker ps` shows every
+container healthy and the auth container's own logs look like a clean startup.
+
+**Cause:** `db reset` restarts auth/db/storage/realtime but **not** Kong. Kong keeps routing to the
+container IPs it resolved at its own startup, which are now dead. The tell is a container-uptime
+mismatch: Kong "Up 2 hours" while auth is "Up About a minute".
+
+**Fix:** `docker restart supabase_kong_college-app` — non-destructive, ~2s, no data loss.
+
+Found twice independently within a minute (a failing admin `createUser`, and a container-uptime
+check). Worth checking uptimes before assuming an application bug: healthy containers plus a
+gateway 502 is an infrastructure symptom, not a code one.

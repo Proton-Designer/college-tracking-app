@@ -28,9 +28,25 @@ const admin = createClient(URL_STR, SERVICE_KEY);
 const { data, error } = await admin.auth.admin.listUsers({ perPage: 1000 });
 if (error) { console.error(error.message); process.exit(1); }
 
-const targets = arg === '--all-verify'
+// A wildcard sweep on shared state is destructive: an account created minutes ago is
+// almost certainly mid-verification by the other engineer. Learned by deleting one out
+// from under a running sim-pilot session. Recent accounts are skipped unless --force.
+const RECENT_MS = 30 * 60 * 1000;
+const force = process.argv.includes('--force');
+
+let targets = arg === '--all-verify'
   ? data.users.filter((u) => u.email?.endsWith('@collegeos.test'))
   : data.users.filter((u) => u.email === arg);
+
+if (arg === '--all-verify' && !force) {
+  const recent = targets.filter((u) => Date.now() - Date.parse(u.created_at) < RECENT_MS);
+  if (recent.length) {
+    console.log(`  skipping ${recent.length} account(s) created in the last 30min (likely in use):`);
+    for (const u of recent) console.log(`    ${u.email}`);
+    console.log('  pass --force to delete them anyway.\n');
+  }
+  targets = targets.filter((u) => Date.now() - Date.parse(u.created_at) >= RECENT_MS);
+}
 
 // Never let a wildcard reach the seeded demo account — its value is its stable data.
 const safe = targets.filter((u) => u.email !== 'demo@collegeos.app');
