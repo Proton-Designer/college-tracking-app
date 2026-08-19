@@ -8,6 +8,7 @@ export type { Database } from "./database.types";
 // platform-only code (@supabase/ssr; react-native + AsyncStorage) that must never reach
 // the other platform's bundle. This barrel only carries the universal types.
 export type { CookieAdapter, TypedSupabaseClient } from "./client/types";
+export type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 export type { AuthError, AuthErrorCode, AuthResult } from "./auth/types";
 export {

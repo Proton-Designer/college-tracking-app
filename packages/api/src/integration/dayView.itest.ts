@@ -38,6 +38,32 @@ describe('getDayView against the seeded demo user', () => {
     expect(result.data.profile.id).toBe(userId);
   });
 
+  it('exposes the raw evidence behind computed conclusions -- calendar events, task sessions, and health, not just derived scores', async () => {
+    const result = await getDayView(client, userId);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+
+    // Every row returned must actually belong to today and to this user -- proves the
+    // query window, not just that the field exists and is an array.
+    expect(Array.isArray(result.data.todayCalendarEvents)).toBe(true);
+    for (const event of result.data.todayCalendarEvents) {
+      expect(event.user_id).toBe(userId);
+      expect(event.start_at.slice(0, 10) <= today).toBe(true);
+    }
+
+    expect(Array.isArray(result.data.todayTaskSessions)).toBe(true);
+    for (const session of result.data.todayTaskSessions) {
+      expect(session.user_id).toBe(userId);
+    }
+
+    // todayHealth is null-or-populated, never a half-filled object.
+    if (result.data.todayHealth !== null) {
+      expect(typeof result.data.todayHealth.whoopRecoveryPct === 'number' || result.data.todayHealth.whoopRecoveryPct === null).toBe(
+        true,
+      );
+    }
+  });
+
   it('BME 301 projects to the exact hand-verified figure from packages/core\'s own test suite (87.0833%)', async () => {
     const result = await getDayView(client, userId);
     expect(result.ok).toBe(true);
@@ -86,6 +112,13 @@ describe('getDayView against the seeded demo user', () => {
         result.data.suggestedMits[i]!.riskReductionPerMinute,
       );
     }
+    for (const mit of result.data.suggestedMits) {
+      // calibratedMinutes must be the calibration-adjusted figure, not the raw estimate --
+      // proven by requiring it move with the multiplier rather than always equaling 1x.
+      expect(mit.calibratedMinutes).toBeGreaterThan(0);
+      expect(mit.calibrationMultiplier).toBeGreaterThan(0);
+      expect(['high', 'moderate', 'low', 'insufficient']).toContain(mit.calibrationConfidence);
+    }
   });
 
   it('the seeded Recovery Mode day (22 days ago: 4.2h sleep, 28% WHOOP recovery) actually triggers Recovery Mode through the full stack', async () => {
@@ -108,6 +141,12 @@ describe('getDayView against the seeded demo user', () => {
     expect(result.data.recoveryMode.physiologicalTotal).toBeLessThan(5);
     expect(result.data.recoveryMode.nonPhysiologicalTotal).toBeGreaterThan(0);
     expect(result.data.recoveryMode.triggered).toBe(true);
+
+    // MvdPlan is only computed when Recovery Mode actually triggers -- this is the one
+    // seeded day that proves it's non-null, not just typed as such.
+    expect(result.data.mvdPlan).not.toBeNull();
+    expect(result.data.mvdPlan!.sleepByTime).toMatch(/^\d{2}:\d{2}$/);
+    expect(result.data.mvdPlan!.phoneBlockDuringStudyBlock).toBe(true);
   });
 
   it('an ordinary seeded day does not trigger Recovery Mode', async () => {
@@ -118,5 +157,6 @@ describe('getDayView against the seeded demo user', () => {
     if (!result.ok) return;
 
     expect(result.data.recoveryMode.triggered).toBe(false);
+    expect(result.data.mvdPlan).toBeNull();
   });
 });

@@ -1,43 +1,46 @@
-import { resolveAppEnvironment, type AppEnvironment } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
+import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Button } from "../components/ui/Button";
 import { textStyle } from "../design/typography";
 
-function getEnvironment(): AppEnvironment {
-  return resolveAppEnvironment({
-    supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
-    supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
-    debugLabel: "mobile",
-  });
-}
-
-export default function Index() {
-  const env = getEnvironment();
+/**
+ * The mobile welcome screen — deliberately NOT a port of web's landing page
+ * (apps/web/src/app/page.tsx). Web is a scrolling marketing argument across several
+ * sections; a phone wants the same argument in one glance and two taps. Per
+ * docs/SCREEN_SPEC.md: calm, inevitable, gets out of the way fast. The hero's core
+ * claim survives ("the day you planned / the day you had") but the loop diagram, the
+ * BME risk-pill example, and the nightly-report quote are cut — those earn their place
+ * on a screen someone scrolls, not one they glance at before tapping in.
+ */
+export default function WelcomeScreen() {
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
-      <Text testID="app-heading" style={styles.title}>
-        CollegeOS
-      </Text>
-      <Text style={styles.subtitle}>L0 foundation — app shell skeleton. See /design for the full system.</Text>
-      <View style={styles.debugBlock}>
-        <View style={styles.debugRow}>
-          <Text style={styles.debugLabel}>source</Text>
-          <Text testID="env-source" style={styles.debugValue}>
-            {env.debugLabel}
+    <View style={[styles.flex, { paddingTop: insets.top, paddingBottom: insets.bottom }]}>
+      <View style={styles.content}>
+        <Text style={textStyle("title", color.ink)}>CollegeOS</Text>
+
+        <View style={styles.hero}>
+          <Text style={textStyle("label", color.inkFaint)}>A closed-loop system for college</Text>
+          <Text testID="app-heading" style={[textStyle("displayL", color.ink), styles.headline]}>
+            The day you planned.{"\n"}The day you had.
+          </Text>
+          <Text style={[textStyle("body", color.inkMuted), styles.subhead]}>
+            CollegeOS measures the gap between the two, explains why it opened, and changes
+            tomorrow&apos;s plan because of it. It doesn&apos;t cheer you on.
           </Text>
         </View>
-        <View style={styles.debugRow}>
-          <Text style={styles.debugLabel}>mode</Text>
-          <Text testID="env-mode" style={styles.debugValue}>
-            {env.mode}
-          </Text>
-        </View>
-        <View style={styles.debugRow}>
-          <Text style={styles.debugLabel}>supabaseUrl</Text>
-          <Text testID="env-supabase-url" style={styles.debugValue}>
-            {env.supabaseUrl}
-          </Text>
+
+        <View style={styles.actions}>
+          <Button testID="hero-signup" onPress={() => router.push("/signup")}>
+            Create your account
+          </Button>
+          <Button testID="hero-login" variant="secondary" onPress={() => router.push("/login")}>
+            Sign in
+          </Button>
         </View>
       </View>
     </View>
@@ -45,23 +48,15 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  flex: { flex: 1, backgroundColor: color.ground },
+  content: {
     flex: 1,
-    justifyContent: "center",
-    paddingHorizontal: space[7],
-    gap: space[3],
-    backgroundColor: color.ground,
+    justifyContent: "space-between",
+    paddingHorizontal: space[6],
+    paddingVertical: space[8],
   },
-  title: textStyle("displayM", color.ink),
-  subtitle: textStyle("body", color.inkMuted),
-  debugBlock: {
-    marginTop: space[5],
-    gap: space[2],
-  },
-  debugRow: {
-    flexDirection: "row",
-    gap: space[5],
-  },
-  debugLabel: { ...textStyle("label", color.inkFaint), width: 100 },
-  debugValue: textStyle("caption", color.ink),
+  hero: { gap: space[4] },
+  headline: { marginTop: space[3] },
+  subhead: {},
+  actions: { gap: space[3] },
 });

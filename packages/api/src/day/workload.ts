@@ -4,6 +4,7 @@ import {
   computeWorkloadLevels,
   daysBetween,
   recoveryAdjustmentFromWhoopPct,
+  type Confidence,
   type LocalDate,
   type WorkloadItem,
   type WorkloadLevels,
@@ -44,13 +45,26 @@ function eventDurationMinutes(event: { start_at: string; end_at: string }): numb
   return Math.max(0, (new Date(event.end_at).getTime() - new Date(event.start_at).getTime()) / 60000);
 }
 
+export interface ItemCalibration {
+  multiplier: number;
+  confidence: Confidence;
+}
+
+export interface WorkloadItemsResult {
+  items: WorkloadItem[];
+  /** Multiplier + confidence behind each discretionary item's (already-calibrated)
+   *  estimatedMinutes, keyed by item id -- see rankSuggestedMits, which surfaces this on
+   *  SuggestedMit so the UI can flag a weak estimate rather than presenting it as fact. */
+  calibrationByItemId: Map<string, ItemCalibration>;
+}
+
 export async function buildTodayWorkloadItems(
   client: TypedSupabaseClient,
   userId: string,
   today: LocalDate,
   deliverableRisks: DeliverableRisk[],
   calibration: CalibrationObservations,
-): Promise<WorkloadItem[]> {
+): Promise<WorkloadItemsResult> {
   const [{ data: tasks, error: taskError }, { data: events, error: eventError }] = await Promise.all([
     client
       .from('tasks')
@@ -72,6 +86,7 @@ export async function buildTodayWorkloadItems(
   const riskByDeliverable = new Map(deliverableRisks.map((r) => [r.deliverableId, r]));
 
   const items: WorkloadItem[] = [];
+  const calibrationByItemId = new Map<string, ItemCalibration>();
 
   for (const event of events ?? []) {
     items.push({ id: `event-${event.id}`, kind: 'attendance', estimatedMinutes: eventDurationMinutes(event) });
@@ -85,21 +100,24 @@ export async function buildTodayWorkloadItems(
     const calibrated = calibrateCategory(calibration, task.category, today);
     const baseEstimate = task.estimated_minutes ?? 30;
     const estimatedMinutes = Math.round(baseEstimate * calibrated.multiplier);
+    const itemId = String(task.id);
 
     items.push({
-      id: String(task.id),
+      id: itemId,
       kind: isHardDeadline ? 'hardDeadline' : 'discretionary',
       estimatedMinutes,
       ...(deliverableRisk ? { riskReduction: marginalRiskReduction(deliverableRisk) } : {}),
     });
+    calibrationByItemId.set(itemId, { multiplier: calibrated.multiplier, confidence: calibrated.confidence });
   }
 
-  return items;
+  return { items, calibrationByItemId };
 }
 
 export interface TodayWorkload {
   items: WorkloadItem[];
   levels: WorkloadLevels;
+  calibrationByItemId: Map<string, ItemCalibration>;
 }
 
 export async function computeTodayWorkload(
@@ -112,7 +130,7 @@ export async function computeTodayWorkload(
   whoopRecoveryPct: number | null,
   sleepBaselineHours: number | null,
 ): Promise<TodayWorkload> {
-  const items = await buildTodayWorkloadItems(client, userId, today, deliverableRisks, calibration);
+  const { items, calibrationByItemId } = await buildTodayWorkloadItems(client, userId, today, deliverableRisks, calibration);
 
   const wakingMinutesPerDay = wakingMinutesPerDayFor(sleepBaselineHours);
   const busyMinutesToday = items
@@ -131,25 +149,43 @@ export async function computeTodayWorkload(
     typicalFreeMinutes: wakingMinutesPerDay,
   });
 
-  return { items, levels: computeWorkloadLevels(items, capacityMinutes) };
+  return { items, levels: computeWorkloadLevels(items, capacityMinutes), calibrationByItemId };
 }
 
 export interface SuggestedMit {
   taskId: number;
   rank: number;
   riskReductionPerMinute: number;
+  /** Already calibration-adjusted -- see WorkloadItem.estimatedMinutes in
+   *  buildTodayWorkloadItems -- never the raw Task.estimated_minutes. */
+  calibratedMinutes: number;
+  calibrationMultiplier: number;
+  calibrationConfidence: Confidence;
 }
 
 /** Top 3 discretionary items ranked by risk reduction per calibrated minute — packages/core
  *  §7's own selection criterion, just surfaced directly rather than only used to fill Target. */
-export function rankSuggestedMits(items: WorkloadItem[], limit = 3): SuggestedMit[] {
+export function rankSuggestedMits(
+  items: WorkloadItem[],
+  calibrationByItemId: Map<string, ItemCalibration>,
+  limit = 3,
+): SuggestedMit[] {
   return items
     .filter((i) => i.kind === 'discretionary')
     .map((i) => ({
       taskId: Number(i.id),
+      estimatedMinutes: i.estimatedMinutes,
       ratio: (i.riskReduction ?? 0) / Math.max(i.estimatedMinutes, 1e-9),
+      calibration: calibrationByItemId.get(i.id) ?? { multiplier: 1, confidence: 'insufficient' as Confidence },
     }))
     .sort((a, b) => b.ratio - a.ratio)
     .slice(0, limit)
-    .map((i, index) => ({ taskId: i.taskId, rank: index + 1, riskReductionPerMinute: i.ratio }));
+    .map((i, index) => ({
+      taskId: i.taskId,
+      rank: index + 1,
+      riskReductionPerMinute: i.ratio,
+      calibratedMinutes: i.estimatedMinutes,
+      calibrationMultiplier: i.calibration.multiplier,
+      calibrationConfidence: i.calibration.confidence,
+    }));
 }

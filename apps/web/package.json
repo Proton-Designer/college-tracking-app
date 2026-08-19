@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@collegeos/api": "*",
+    "@collegeos/core": "*",
     "@collegeos/design": "*",
     "@supabase/ssr": "0.12.4",
     "@supabase/supabase-js": "2.112.3",

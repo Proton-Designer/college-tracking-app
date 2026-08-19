@@ -1,5 +1,6 @@
-import type { LocalDate, PlanningExecutionResult, RecoveryModeResult, WorkloadLevels } from '@collegeos/core';
+import type { LocalDate, MvdPlan, PlanningExecutionResult, RecoveryModeResult, WorkloadLevels } from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
+import type { Database } from '../database.types';
 import { dataErr, dataOk, type DataResult } from '../data/types';
 import { mapDataError } from '../data/errors';
 import { getUserLocalToday } from './today';
@@ -7,6 +8,7 @@ import { loadCalibrationObservations } from './calibration';
 import { loadCourseGradeProjections, type CourseGradeProjection } from './grades';
 import { computeRiskAssessment, type RiskAssessment } from './risk';
 import { computeTodayRecoveryMode } from './recoveryMode';
+import { composeMvdPlanForToday } from './mvd';
 import { computeHistoricalCapacityP50Min, computeYesterdayPlanningExecution } from './planningExecution';
 import { computeTodayWorkload, rankSuggestedMits, type SuggestedMit } from './workload';
 import type { DailyCheckin } from '../data/dailyCheckins';
@@ -15,18 +17,40 @@ import type { Profile } from '../data/profiles';
 import type { Course } from '../data/courses';
 import type { Task } from '../data/tasks';
 
+export type CalendarEvent = Database['public']['Tables']['calendar_events']['Row'];
+export type TaskSession = Database['public']['Tables']['task_sessions']['Row'];
+
+export interface TodayHealth {
+  sleepHours: number | null;
+  whoopRecoveryPct: number | null;
+}
+
 export interface DayView {
   today: LocalDate;
   profile: Profile;
   todayCheckin: DailyCheckin | null;
   todayReview: DailyReview | null;
   todayTasks: Task[];
+  /** Time-positioned so the UI can place them on an hour axis -- see DESIGN_SYSTEM.md
+   *  §6.1 (Day Trace). Class meetings are is_class_meeting=true; everything else on the
+   *  calendar is just committed time. */
+  todayCalendarEvents: CalendarEvent[];
+  /** Planned vs. actual start/duration per session -- the other half of the Day Trace's
+   *  planned-vs-executed axis, alongside todayCalendarEvents. */
+  todayTaskSessions: TaskSession[];
+  /** Already computed internally to drive the workload recovery adjustment; returned so
+   *  SCREEN_SPEC §1.2's header readout ("Sleep 7h 19m · Recovery 68") doesn't need its own
+   *  query. Null (not zeroed) when no health_daily row exists for today. */
+  todayHealth: TodayHealth | null;
   upcomingDeliverables: Array<{ id: number; courseId: number; title: string; dueAt: string; localDueDate: LocalDate }>;
   gradeProjections: CourseGradeProjection[];
   risk: RiskAssessment;
   workload: WorkloadLevels;
   suggestedMits: SuggestedMit[];
   recoveryMode: RecoveryModeResult;
+  /** Only computed when recoveryMode.triggered -- see docs/SCREEN_SPEC.md §1: "Only the
+   *  Minimum Viable Day is shown" in recovery mode. Null on a normal day, not an empty plan. */
+  mvdPlan: MvdPlan | null;
   yesterdayPlanningExecution: PlanningExecutionResult | null;
 }
 
@@ -49,19 +73,38 @@ export async function getDayView(
   if (profileError) return dataErr(mapDataError(profileError));
 
   const today = getUserLocalToday(profile.timezone, now);
-  const horizonEnd = new Date(`${today}T00:00:00Z`);
+  const todayStart = new Date(`${today}T00:00:00Z`);
+  const todayEnd = new Date(todayStart);
+  todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
+  const horizonEnd = new Date(todayStart);
   horizonEnd.setUTCDate(horizonEnd.getUTCDate() + DEADLINE_HORIZON_DAYS);
 
   const [
     { data: todayCheckin, error: checkinError },
     { data: todayReview, error: reviewError },
     { data: todayTasks, error: taskError },
+    { data: todayCalendarEvents, error: calendarEventError },
+    { data: todayTaskSessions, error: taskSessionError },
     { data: courses, error: courseError },
     { data: upcomingDeliverables, error: deliverableError },
   ] = await Promise.all([
     client.from('daily_checkins').select('*').eq('user_id', userId).eq('local_date', today).maybeSingle(),
     client.from('daily_reviews').select('*').eq('user_id', userId).eq('local_date', today).maybeSingle(),
     client.from('tasks').select('*').eq('user_id', userId).eq('planned_date', today).order('mit_rank', { nullsFirst: false }),
+    client
+      .from('calendar_events')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('start_at', todayStart.toISOString())
+      .lt('start_at', todayEnd.toISOString())
+      .order('start_at'),
+    client
+      .from('task_sessions')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('planned_start', todayStart.toISOString())
+      .lt('planned_start', todayEnd.toISOString())
+      .order('planned_start'),
     client.from('courses').select('id, difficulty_rating, confidence_rating, target_grade_pct'),
     client
       .from('deliverables')
@@ -74,6 +117,8 @@ export async function getDayView(
   if (checkinError) return dataErr(mapDataError(checkinError));
   if (reviewError) return dataErr(mapDataError(reviewError));
   if (taskError) return dataErr(mapDataError(taskError));
+  if (calendarEventError) return dataErr(mapDataError(calendarEventError));
+  if (taskSessionError) return dataErr(mapDataError(taskSessionError));
   if (courseError) return dataErr(mapDataError(courseError));
   if (deliverableError) return dataErr(mapDataError(deliverableError));
 
@@ -94,23 +139,34 @@ export async function getDayView(
     computeHistoricalCapacityP50Min(client, userId, today),
   ]);
 
-  const { data: todayHealth } = await client
+  const { data: healthRow } = await client
     .from('health_daily')
-    .select('whoop_recovery_pct')
+    .select('sleep_hours, whoop_recovery_pct')
     .eq('user_id', userId)
     .eq('local_date', today)
     .maybeSingle();
 
-  const { levels, items } = await computeTodayWorkload(
+  const todayHealth: TodayHealth | null = healthRow
+    ? {
+        sleepHours: healthRow.sleep_hours != null ? Number(healthRow.sleep_hours) : null,
+        whoopRecoveryPct: healthRow.whoop_recovery_pct != null ? Number(healthRow.whoop_recovery_pct) : null,
+      }
+    : null;
+
+  const { levels, items, calibrationByItemId } = await computeTodayWorkload(
     client,
     userId,
     today,
     risk.deliverableRisks,
     calibration,
     historicalCapacityP50Min,
-    todayHealth?.whoop_recovery_pct != null ? Number(todayHealth.whoop_recovery_pct) : null,
+    todayHealth?.whoopRecoveryPct ?? null,
     profile.sleep_baseline_hours,
   );
+
+  const mvdPlan = recoveryMode.triggered
+    ? await composeMvdPlanForToday(client, userId, today, risk.deliverableRisks, profile.sleep_baseline_hours)
+    : null;
 
   return dataOk({
     today,
@@ -118,6 +174,9 @@ export async function getDayView(
     todayCheckin,
     todayReview,
     todayTasks: todayTasks ?? [],
+    todayCalendarEvents: todayCalendarEvents ?? [],
+    todayTaskSessions: todayTaskSessions ?? [],
+    todayHealth,
     upcomingDeliverables: (upcomingDeliverables ?? []).map((d) => ({
       id: d.id,
       courseId: d.course_id,
@@ -128,8 +187,9 @@ export async function getDayView(
     gradeProjections,
     risk,
     workload: levels,
-    suggestedMits: rankSuggestedMits(items),
+    suggestedMits: rankSuggestedMits(items, calibrationByItemId),
     recoveryMode,
+    mvdPlan,
     yesterdayPlanningExecution,
   });
 }
