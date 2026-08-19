@@ -15,6 +15,7 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "zod";
 import { apiErr, apiOk, getVerifiedCaller, handleCorsPreflight } from "../_shared/http.ts";
 import { syncBrightspaceFeed } from "../_shared/brightspace/syncFeed.ts";
+import { assertSafeFeedUrl } from "../_shared/brightspace/urlSafety.ts";
 
 const RequestSchema = z.object({ icsUrl: z.string().url().optional() });
 
@@ -40,6 +41,15 @@ Deno.serve(async (req: Request) => {
   if (!parsed.success) return apiErr(`Invalid request body: ${parsed.error.message}`, 400);
 
   if (parsed.data.icsUrl) {
+    // SSRF guard, checked BEFORE the URL is even stored -- a user-supplied fetch
+    // target is the one place in this product where a server-side request goes
+    // wherever the user points it (WHOOP/RescueTime always fetch a fixed, hardcoded
+    // API host). Without this, icsUrl could target an internal service or a cloud
+    // metadata endpoint and the Edge Function would fetch it with server-side network
+    // access on the user's behalf.
+    const safety = await assertSafeFeedUrl(parsed.data.icsUrl);
+    if (!safety.ok) return apiErr(`Refusing to connect this feed URL: ${safety.reason}`, 400);
+
     const { error: storeError } = await client.rpc("store_brightspace_feed_url", { p_user_id: userId, p_ics_url: parsed.data.icsUrl });
     if (storeError) return apiErr(`Failed to store feed URL: ${storeError.message}`, 500);
   }
@@ -50,6 +60,13 @@ Deno.serve(async (req: Request) => {
 
   const { data: feed, error: feedError } = await client.from("brightspace_feeds").select("id").eq("user_id", userId).single();
   if (feedError) return apiErr(`Failed to load feed record: ${feedError.message}`, 500);
+
+  // Re-checked here too, not just at connect time: a re-sync fetches this same URL
+  // again later, DNS answers can change between syncs, and a URL stored before this
+  // guard existed (or via any future path that bypasses the check above) must not get
+  // a permanent pass.
+  const resyncSafety = await assertSafeFeedUrl(feedUrl);
+  if (!resyncSafety.ok) return apiErr(`Refusing to sync the stored feed URL: ${resyncSafety.reason}`, 400);
 
   let icsText: string;
   try {

@@ -38,3 +38,5 @@ export * from './interventions/exceptionNotification';
 export * from './interventions/deviationPrompt';
 export * from './interventions/escalationLadder';
 export * from './integrations/icsParser';
+export * from './integrations/ssrfGuard';
+export * from './integrations/whoopNormalize';
