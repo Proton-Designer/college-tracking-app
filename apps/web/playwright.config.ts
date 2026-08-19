@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import path from "node:path";
+import { STORAGE_STATE_PATH } from "./e2e/constants";
 
 // Playwright runs outside Next.js, so .env.local isn't loaded automatically the way it is for
 // `next dev`/`next build`. Load it explicitly (Node 20.6+ built-in, no extra dependency).
@@ -27,10 +28,9 @@ export default defineConfig({
     screenshot: "only-on-failure",
     video: "retain-on-failure",
   },
-  // "setup" produces e2e/.auth/user.json (see auth.setup.ts) but currently skips itself — no
-  // /login page exists yet (L3). Once it lands, an authenticated spec/project should add
-  // `dependencies: ["setup"]` and `storageState: STORAGE_STATE_PATH` (from ./e2e/constants) to
-  // reuse the session instead of signing in per test.
+  // "setup" produces e2e/.auth/user.json (see auth.setup.ts). "authenticated" specs consume it via
+  // dependencies + storageState to skip a UI login per test; "desktop"/"mobile" run everything
+  // else (including the unauthenticated parts of the auth flow itself) from a clean session.
   projects: [
     {
       name: "setup",
@@ -44,15 +44,21 @@ export default defineConfig({
       testMatch: /fixtures\/.*\.spec\.ts/,
     },
     {
+      name: "authenticated",
+      testMatch: /authenticated\/.*\.spec\.ts/,
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 }, storageState: STORAGE_STATE_PATH },
+    },
+    {
       name: "desktop",
       testMatch: /.*\.spec\.ts/,
-      testIgnore: /fixtures\//,
+      testIgnore: [/fixtures\//, /authenticated\//],
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
     },
     {
       name: "mobile",
       testMatch: /.*\.spec\.ts/,
-      testIgnore: /fixtures\//,
+      testIgnore: [/fixtures\//, /authenticated\//],
       use: { ...devices["Desktop Chrome"], viewport: { width: 390, height: 844 } },
     },
   ],

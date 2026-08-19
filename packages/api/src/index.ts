@@ -48,3 +48,7 @@ export { computeRiskAssessment } from "./day/risk";
 export type { DeliverableRisk, CourseRiskSummary, RiskAssessment } from "./day/risk";
 export { loadCourseGradeProjections } from "./day/grades";
 export type { CourseGradeProjection } from "./day/grades";
+
+export { generateAndPersistBackplan } from "./academic/backplan";
+export type { GenerateBackplanResult } from "./academic/backplan";
+export { computeCourseGradeScenario, computeCourseRequiredScore } from "./academic/gradeScenario";

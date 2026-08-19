@@ -1,13 +1,18 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { buttonClassName } from "@/components/ui/buttonStyles";
 import { RiskPill } from "@/components/ui/RiskPill";
 import { DayReading } from "@/components/marketing/DayReading";
+import { AuthCodeRedirect } from "./AuthCodeRedirect";
 
 const LOOP = ["Observe", "Plan", "Execute", "Detect deviation", "Intervene", "Reflect", "Learn"];
 
 export default function LandingPage() {
   return (
     <main className="flex flex-1 flex-col">
+      <Suspense>
+        <AuthCodeRedirect />
+      </Suspense>
       <header className="mx-auto flex w-full max-w-app items-center justify-between px-6 pt-8 sm:px-10">
         <span className="font-serif text-title font-semibold text-ink">CollegeOS</span>
         <Link href="/login" className="text-body-s text-ink-muted underline-offset-2 hover:text-ink hover:underline">
@@ -25,7 +30,7 @@ export default function LandingPage() {
         >
           The day you planned. The day you had.
         </h1>
-        <p className="max-w-prose text-body-l text-ink-muted">
+        <p className="max-w-report text-body-l text-ink-muted">
           CollegeOS measures the gap between the two, explains why it opened, and changes
           tomorrow&apos;s plan because of it. It is not a to-do list, and it does not cheer you on.
         </p>
@@ -66,7 +71,7 @@ export default function LandingPage() {
             <p className="mb-3 font-mono text-label uppercase tracking-[0.1em] text-ink-faint">
               Built to argue with you
             </p>
-            <p className="max-w-prose text-body text-ink-muted">
+            <p className="max-w-report text-body text-ink-muted">
               Every course carries a risk score that recalculates as the semester moves — not a
               vibe, a weighted trace of deadline proximity, grade weight, and how much of the
               planned work actually happened. When the story you&apos;re telling yourself
@@ -88,7 +93,7 @@ export default function LandingPage() {
       </section>
 
       <section className="border-t border-hairline bg-surface">
-        <div className="mx-auto w-full max-w-prose px-6 py-16 sm:px-10">
+        <div className="mx-auto w-full max-w-report px-6 py-16 sm:px-10">
           <p className="mb-5 font-mono text-label uppercase tracking-[0.1em] text-ink-faint">
             The report speaks — nightly analysis, skeptic
           </p>

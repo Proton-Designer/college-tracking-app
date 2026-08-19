@@ -1,0 +1,22 @@
+- generic [active] [ref=f24e1]:
+  - main [ref=f24e2]:
+    - generic [ref=f24e3]:
+      - link "CollegeOS" [ref=f24e4] [cursor=pointer]:
+        - /url: /
+      - heading "Sign in" [level=1] [ref=f24e5]
+      - generic [ref=f24e7]:
+        - generic [ref=f24e8]:
+          - generic [ref=f24e9]: Email
+          - textbox "Email" [ref=f24e10]
+        - generic [ref=f24e11]:
+          - generic [ref=f24e12]: Password
+          - textbox "Password" [ref=f24e13]
+        - button "Sign in" [ref=f24e14]
+      - generic [ref=f24e15]:
+        - link "Forgot your password?" [ref=f24e16] [cursor=pointer]:
+          - /url: /forgot-password
+        - paragraph [ref=f24e17]:
+          - text: No account?
+          - link "Create one" [ref=f24e18] [cursor=pointer]:
+            - /url: /signup
+  - alert [ref=f24e19]

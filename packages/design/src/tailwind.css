@@ -89,9 +89,12 @@
   --ease-decelerate: cubic-bezier(0.2, 0, 0, 1);
   --ease-exit: cubic-bezier(0.4, 0, 1, 1);
 
-  /* Content width, §4 — produces `max-w-app` / `max-w-prose` utilities, not breakpoints. */
+  /* Content width, §4 — produces `max-w-app` / `max-w-report` utilities, not breakpoints.
+     NOT named `--container-prose`: Tailwind v4 ships a built-in `max-w-prose` (65ch) that a
+     custom `--container-prose` does not override, so a same-named token silently loses to the
+     built-in — found when the "report speaks" section rendered at ~430px instead of 720px. */
   --container-app: 1120px;
-  --container-prose: 720px;
+  --container-report: 720px;
 
   /* Z-index — not numerically specified in DESIGN_SYSTEM.md, inferred for layering consistency.
      See packages/design/src/tokens.ts `zIndex` for the same scale. */

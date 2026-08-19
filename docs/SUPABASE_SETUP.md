@@ -203,14 +203,83 @@ syllabi and proof attachments are personal academic records.
 
 ## 7. Edge Functions & secrets ⬜
 
-Set secrets **before** deploying, or the first invocation will fail:
+### Anthropic — what a key needs to do, and how to verify it (populated at L5)
+
+**As of L5 there is no `ANTHROPIC_API_KEY` in any environment this product has been built
+against.** Everything in `supabase/functions/_shared/llm/` was built and tested entirely
+offline against golden fixtures (`gateway.test.ts`, `anthropicProvider.test.ts`,
+`confirm.test.ts`, `extract.test.ts` — `deno test` from `supabase/functions/`, 32
+assertions, zero network calls to Anthropic). **The real API has never been called.**
+This section is the checklist for the first time a key exists — local or cloud.
+
+**Secrets to set:**
 
 ```bash
+# Cloud:
 supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
-supabase secrets set LLM_MONTHLY_BUDGET_USD=10
+supabase secrets set LLM_MONTHLY_BUDGET_USD=10   # matches profiles.llm_monthly_budget_usd's
+                                                   # per-user default; this is the platform-
+                                                   # wide backstop, not the per-user ceiling
 supabase secrets set CRON_SHARED_SECRET="$(openssl rand -hex 32)"
 supabase secrets list
+
+# Local: add to .env.local (never commit a real key). The Edge Runtime container reads
+# it the same way cloud does; a `supabase stop && supabase start` picks up a new
+# .env.local value (see D13 in .brain/memory/decisions.md — config/env changes need a
+# restart, `db reset` alone does not reload container-level env).
 ```
+
+**Model per call type** (`docs/LLM_LAYER_SPEC.md` §1 — `LlmModel`/`LlmCallType` in
+`supabase/functions/_shared/llm/types.ts`):
+
+| Call type | Model | Why |
+|---|---|---|
+| `syllabus_extraction` | Haiku 4.5 | cheap, structured extraction, no reasoning needed |
+| `nightly_analysis` | Sonnet 5 | the main reasoning call, multi-lens |
+| `weekly_synthesis` | Sonnet 5 | deeper reasoning over a week |
+| `monthly_longitudinal` | Sonnet 5 | trend analysis |
+| `semester_retrospective` | Opus 5 | rare, highest-stakes synthesis |
+| `coach_chat` | Sonnet 5 | on-demand, user-facing |
+| `morning_plan_rationale` | Haiku 4.5 | one line per MIT, cheap |
+| `friction_classify` | Haiku 4.5 | trivial classification |
+| `deadline_change_detection` | Haiku 4.5 | trivial classification |
+
+**Budget ceiling:** the gateway (`gateway.ts`'s `callLlm`) checks
+`getMonthlySpendUsd(userId)` (sum of `llm_usage_log.cost_usd` since the 1st of the
+current UTC month, via `budget.ts`) against `profiles.llm_monthly_budget_usd`
+(per-user, default `$5.00` — see `docs/DATA_MODEL.md` §10 item 3) **before** making any
+HTTP call. A projected spend over the ceiling returns `BudgetExceeded` and the caller
+must degrade to the deterministic-only output — this is asserted directly in
+`gateway.test.ts`'s budget-breach test (`provider.callCount()` stays `0`).
+
+**Pricing** (`costs.ts`) is date-aware: Sonnet 5 has an introductory rate through
+2026-08-31 (`$2`/`$10` per M input/output) stepping to `$3`/`$15` on 2026-09-01. Verify
+`costs.ts`'s `PRICE_TIERS` still matches Anthropic's published pricing before relying on
+budget numbers in production — this table is transcribed from the brief and dated
+2026-08-11.
+
+**Exactly what to verify once a real key exists**, in order:
+
+1. `deno test --allow-net --allow-env supabase/functions/_shared/` — confirm the 32
+   offline tests still pass unchanged (they must never need the key).
+2. **Live smoke test** (`docs/LLM_LAYER_SPEC.md` §10) — one real call per model, run
+   manually, gated behind an env flag so it never runs in normal CI. Not written as of
+   L5; write it against `createAnthropicProvider` directly, and confirm the *real*
+   response shape matches what `anthropicProvider.test.ts`'s golden fixture assumed —
+   if Anthropic's actual response shape has drifted from the fixture, the fixture is
+   now wrong and must be updated from the real response, not patched to make the test
+   pass.
+3. Trigger a real `syllabus_extraction` call end-to-end with a real syllabus PDF and
+   confirm: the staged `syllabus_extractions` rows have real `source_snippet` text
+   (not empty), a plausible `extraction_confidence`, and **critically** that nothing
+   appears in `courses`/`deliverables`/`grade_categories` until you explicitly confirm
+   through `promoteExtraction` — the confirmation gate is the whole point of L5, prove
+   it holds against a real model response too, not just the fixture.
+4. Check `llm_usage_log` after each of the above: `content_hash` is populated,
+   `model`/`call_type`/token counts look right, and — grep the whole row — **no prompt
+   or response text appears anywhere in it.**
+5. Confirm a deliberately-tiny `LLM_MONTHLY_BUDGET_USD`/`profiles.llm_monthly_budget_usd`
+   value actually blocks a real call (not just the fixture-based test).
 
 Deploy:
 
@@ -222,7 +291,9 @@ supabase functions list
 > `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are injected into Edge
 > Functions automatically. Do not set them manually.
 
-*(Function inventory populated in L7 / L10.)*
+*(Function inventory: `_shared/llm/` (gateway) and `_shared/syllabus/` (extraction +
+confirmation) exist as of L5, callable modules only — no deployable `Deno.serve` HTTP
+handlers wired up yet. Populated further in L7 / L10.)*
 
 ---
 
