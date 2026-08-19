@@ -1673,6 +1673,7 @@ export type Database = {
           connected_at: string
           created_at: string
           expires_at: string | null
+          external_account_id: string | null
           id: number
           provider: string
           scope: string | null
@@ -1685,6 +1686,7 @@ export type Database = {
           connected_at?: string
           created_at?: string
           expires_at?: string | null
+          external_account_id?: string | null
           id?: never
           provider: string
           scope?: string | null
@@ -1697,6 +1699,7 @@ export type Database = {
           connected_at?: string
           created_at?: string
           expires_at?: string | null
+          external_account_id?: string | null
           id?: never
           provider?: string
           scope?: string | null

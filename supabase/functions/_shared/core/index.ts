@@ -44,3 +44,4 @@ export * from './integrations/icsParser.ts';
 export * from './integrations/ssrfGuard.ts';
 export * from './integrations/whoopNormalize.ts';
 export * from './integrations/healthDailyRollup.ts';
+export * from './integrations/oauthTokenExpiry.ts';

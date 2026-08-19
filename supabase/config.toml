@@ -420,6 +420,17 @@ verify_jwt = true
 [functions.brightspace-confirm]
 verify_jwt = true
 
+# A real, logged-in caller connecting their own WHOOP account -- same trust model as
+# brightspace-sync's connect step.
+[functions.whoop-oauth-callback]
+verify_jwt = true
+
+# WHOOP calls this directly with no Supabase session -- the HMAC signature check inside
+# the handler (webhookSignature.ts) IS the authentication, same reasoning nightly-analysis
+# uses a shared-secret header instead of a JWT.
+[functions.whoop-webhook]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

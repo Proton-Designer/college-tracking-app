@@ -41,3 +41,4 @@ export * from './integrations/icsParser';
 export * from './integrations/ssrfGuard';
 export * from './integrations/whoopNormalize';
 export * from './integrations/healthDailyRollup';
+export * from './integrations/oauthTokenExpiry';
