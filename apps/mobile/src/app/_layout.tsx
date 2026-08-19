@@ -14,7 +14,7 @@ SplashScreen.preventAutoHideAsync();
 // welcome screen) and `/auth/callback` (which manages its own post-confirm redirect) are
 // deliberately excluded from both sets, matching web's behavior (its landing page and
 // /auth/confirm don't force-redirect an already-authenticated visitor either).
-const PROTECTED_ROOTS = new Set(["today"]);
+const PROTECTED_ROOTS = new Set(["today", "review"]);
 const AUTH_ONLY_ROOTS = new Set(["login", "signup", "forgot-password", "reset-password"]);
 
 function useAuthRouting(loading: boolean, isAuthenticated: boolean) {

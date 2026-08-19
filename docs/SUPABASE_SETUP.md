@@ -327,22 +327,97 @@ supabase functions list
   call itself still needs the live smoke test above the first time a real key exists —
   without one, this returns a clear 503, not a crash or a silent no-op (confirmed live).
 
+- `nightly-analysis` — deployed, `verify_jwt = false` (cron-triggered, not a user
+  session; gated by the `CRON_SHARED_SECRET` header check inside the handler instead).
+  Always assembles + stores the deterministic report and daily summary first
+  (`_shared/nightly/assembleReport.ts`, `summaryPyramid.ts`), unconditionally; attempts
+  model enrichment only after that succeeds
+  (`_shared/nightly/runNightlyAnalysis.ts`), and degrades to the already-stored
+  deterministic report with an honest `note` on ANY failure in the model path — budget
+  breach, schema validation failure, or an unexpected error. `model` is stored as the
+  literal string `'deterministic'` when no LLM call ran; it never fakes a model name
+  (the pre-existing seed.sql sample nightly report does fake one — `'claude-sonnet-5'`
+  on a row that was hand-authored for UI/demo purposes, not model-generated; flagged as
+  a known, deliberate discrepancy for /review UI fixture data, not a pipeline bug).
+  Golden-fixture proof (`_shared/nightly/runNightlyAnalysis.itest.ts`, real local DB +
+  `createFixtureProvider`, no network to Anthropic): the model-entirely-absent case
+  produces a complete, useful report on its own; a malformed/truncated model response
+  retries once then falls back; a budget breach makes zero network calls
+  (`provider.callCount() === 0`) and still stores a report; a valid response is stored
+  under its real model name; re-running the same night replaces rather than duplicates
+  the row; and a dedicated privacy test asserts `llm_usage_log` rows have no free-text
+  column at all (structural, not just substring-checked) so journal text has nowhere to
+  leak into. Verified live via `supabase functions serve` + curl against the real demo
+  account's seeded Recovery Mode day (2026-07-28): wrong/missing secret → 401, malformed
+  body → 400, valid call → a real, rich deterministic report (Recovery Mode correctly
+  triggered with its full 7-signal breakdown, zero data gaps). The verification row was
+  deleted afterward to leave the demo account exactly as seed.sql curated it.
+
 Populated further in L7 (scheduled jobs) / L10.
 
 ---
 
-## 8. Scheduled jobs ⬜
+## 8. Scheduled jobs ✅ (local proof) / ⬜ (cloud opt-in)
 
-*(Populated in L7.)* Nightly analysis and weekly synthesis run via `pg_cron` calling an Edge
-Function through `pg_net`.
+Nightly analysis and weekly synthesis run via `pg_cron` calling an Edge Function through `pg_net`,
+registered by `supabase/migrations/00000000000014_scheduled_jobs.sql`.
 
-Because `pg_cron`/`pg_net` are not present in the local stack, these jobs are exercised locally by
-invoking the function directly. The cron registration SQL therefore lives in a migration guarded to
-be a no-op when the extensions are unavailable.
+**Correction to an earlier note in this doc:** an earlier version of this section said `pg_cron`/
+`pg_net` "are not present in the local stack." That was never actually verified against this
+project's local stack and turned out to be wrong — **both extensions work locally, and jobs really
+fire.** Confirmed live: `create extension if not exists pg_cron` succeeds, `cron.schedule(...)`
+registers a real job, `net.http_post` from inside the `db` container reaches the local Edge Runtime
+at `http://kong:8000/functions/v1/<name>` (the `db` and `kong`/edge-runtime containers share
+`supabase_network_college-app`; `127.0.0.1:54321` only works from the *host*, not from inside another
+container — use the `kong` service name for any URL a migration or cron job constructs), and
+`cron.job_run_details` shows `status = 'succeeded'` with a real `agent_reports` row landing afterward.
+Proven for both `nightly-analysis` and the exact SQL the migration registers (not a simplified stand-in).
 
-**Timezone caution:** `pg_cron` schedules in UTC. The nightly job must fire after the *user's* local
-midnight, so the schedule is computed from the user's stored timezone rather than hardcoded. Verify
-after deploy with `select * from cron.job;`.
+**Why the migration still gates registration behind a Vault secret, even though pg_cron works locally:**
+a plain `create extension`-availability guard would leave every fresh `npm run db:reset` scheduling
+real jobs against the seeded local stack — including `demo@collegeos.app`, whose entire value is its
+stable, curated, screenshot-worthy semester data. So the actual gate the migration checks is narrower
+and more deliberate: **do the `cron_shared_secret` / `edge_functions_base_url` / `edge_functions_anon_key`
+Vault secrets already exist?** Nothing sets them by default (not in seed.sql, not automatically), so a
+fresh local reset registers zero jobs — confirmed: `select count(*) from cron.job;` → `0` right after
+`npm run db:reset`. An operator opts in explicitly:
+
+```sql
+-- Run once, after deploying this migration, in the Studio SQL editor (or via a one-off
+-- migration if this is meant to be permanent from day one — never commit the real values
+-- to a checked-in migration file):
+select vault.create_secret('<a random 32+ byte value>', 'cron_shared_secret');
+select vault.create_secret('https://<project-ref>.supabase.co/functions/v1', 'edge_functions_base_url');
+select vault.create_secret('<the project anon key>', 'edge_functions_anon_key');
+```
+
+The `x-cron-secret` header value must match whatever `CRON_SHARED_SECRET` is set to as an Edge
+Function secret (`supabase secrets set CRON_SHARED_SECRET=...`, §7 above) — they're the same value in
+two different stores (Vault for the cron job to send, Edge Function secrets for the handler to check),
+not one shared reference, since a cron job's SQL body and a Deno Edge Function don't share a secret store.
+
+**Operationally important, discovered live:** the seeded demo account's hand-authored nightly report
+fixture (`seed.sql`, anchored to `current_date - 1`) and the real nightly job's own date math
+(`addDays(localDateFromInstant(now, tz), -1)`, i.e. also "yesterday" relative to *now*) land on the
+**same** `(user_id, report_type, local_date)` key whenever the job actually runs for demo on the day
+after a reset. `storeNightlyAgentReport`'s upsert-on-that-key then **overwrites the seed fixture row**
+— not a bug in the upsert itself (re-running the real job for a real user on a real night is
+*supposed* to replace that night's row, not duplicate it), but a real interaction between fixture
+data and real generation that cost a `db:reset` to recover from during this verification. If demo's
+nightly-report fixture is meant to stay hand-authored and stable, do not let the real
+`nightly-analysis`/`weekly-synthesis` cron run against `demo@collegeos.app` in an environment where
+that fixture matters — exclude demo from the all-users loop, or accept that the fixture becomes
+real-generated content the first time the job runs.
+
+**Timezone:** `pg_cron` schedules in UTC. `0 12 * * *` (nightly) / `0 12 * * 1` (weekly, Mondays) is
+deliberately noon UTC — the latest point in the day by which literally every real-world UTC offset
+(down to UTC-12) has already crossed its own local midnight for the target day, so the schedule never
+needs one entry per timezone. `nightly-analysis`/`weekly-synthesis` compute each user's own last-
+completed local day from their profile's `timezone` column internally
+(`addDays(localDateFromInstant(now, tz), -1)`) — the UTC firing hour only has to be late enough that
+every timezone has already had its midnight; it is not itself a per-user value. Verify after deploy
+with `select jobid, jobname, schedule, active from cron.job;` and, after the first scheduled fire,
+`select * from cron.job_run_details order by start_time desc limit 5;`.
 
 ---
 

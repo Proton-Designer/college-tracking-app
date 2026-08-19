@@ -402,6 +402,16 @@ verify_jwt = true
 [functions.syllabus-extract]
 verify_jwt = true
 
+# No user session drives this call -- it's cron-triggered (pg_cron/pg_net) and processes
+# every user in one invocation, so there is no single caller's JWT to verify. Gated
+# instead by a shared secret header checked inside the handler (CRON_SHARED_SECRET, per
+# docs/SUPABASE_SETUP.md §7/§8).
+[functions.nightly-analysis]
+verify_jwt = false
+
+[functions.weekly-synthesis]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

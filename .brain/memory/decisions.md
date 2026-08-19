@@ -151,3 +151,35 @@ report disagree with my Today screen?" months later, categorically worse than th
 Same reasoning will apply to any future Edge Function needing `packages/api`'s day-layer
 query/compute functions (not just `packages/core`) — scope that out explicitly if/when it's built,
 rather than assuming the mirror already covers it.
+
+## D17 — `pg_cron`/`pg_net` actually work on the local stack; gate scheduling on a Vault secret, not extension availability
+
+An earlier, unverified note (docs/SUPABASE_SETUP.md §8) claimed `pg_cron`/`pg_net` "are not present
+in the local stack." Never actually tested — corrected after live verification while building L7's
+cron scheduling migration. Both extensions are present and fully functional locally: `create
+extension if not exists pg_cron` succeeds, `cron.schedule(...)` registers a real job, and — the part
+that matters — a scheduled job actually **fires**: `net.http_post` issued from inside the `db`
+container reaches the local Edge Runtime at `http://kong:8000/functions/v1/<name>` (the `db` and
+`kong` containers share `supabase_network_college-app`; `127.0.0.1:54321` is host-only and unreachable
+from inside another container), and produces a real stored `agent_reports` row end to end. Proven with
+the exact SQL `supabase/migrations/00000000000014_scheduled_jobs.sql` registers, not a simplified
+stand-in.
+
+Since the extensions genuinely work, an "is pg_cron installed" guard would not have stopped a fresh
+`npm run db:reset` from silently scheduling real nightly/weekly jobs against every seeded local
+profile — including `demo@collegeos.app`, whose entire value is its stable, curated data (same
+concern the "reads against demo, writes against a throwaway" rule exists for). The migration
+therefore gates actual job **registration** (not extension creation) behind three Vault secrets
+(`cron_shared_secret`, `edge_functions_base_url`, `edge_functions_anon_key`) that nothing sets by
+default — a fresh reset registers zero jobs (`select count(*) from cron.job` → `0`), and an operator
+opts in explicitly via `vault.create_secret(...)`, documented in SUPABASE_SETUP.md §8. The pg_cron-
+extension-availability check still exists too (wrapped in an exception-handling `DO` block, for hosts
+that genuinely lack it), but it is a secondary guard, not the one doing the actual safety work.
+
+Also discovered live during this verification: the real job's date math (`addDays(localDateFromInstant
+(now, tz), -1)`) and seed.sql's hand-authored nightly-report fixture (`current_date - 1`) land on the
+same `(user_id, report_type, local_date)` key the day after a reset — running the real job against
+demo silently overwrote and then (via cleanup) deleted the seed fixture, recovered by another
+`db:reset`. Documented as an operational caution in SUPABASE_SETUP.md §8, not fixed in code: the
+upsert-replaces-not-duplicates behavior itself is correct for real users, this is purely a fixture-
+data collision.

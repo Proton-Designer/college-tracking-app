@@ -35,3 +35,4 @@ export * from './planning/planningExecutionGap.ts';
 export * from './friction/frictionAnalytics.ts';
 
 export * from './insights/confidenceGate.ts';
+export * from './insights/calibrationInsight.ts';

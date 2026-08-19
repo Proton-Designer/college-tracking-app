@@ -172,6 +172,12 @@ export function buildWeeklySynthesis(
   let totalResisted = 0;
 
   for (const { summary } of dailySummaries) {
+    // `summary` is a jsonb column -- nothing at the DB layer guarantees a stored row
+    // actually has every DailySummaryPayload field (seed.sql's hand-authored demo rows
+    // predate this shape and only carry a subset; a future schema addition would create
+    // the same gap for real rows written by an older deploy). Every field access below
+    // treats the value as genuinely optional, not just TypeScript-optional -- found live
+    // when the seeded demo week crashed this function on a missing frictionCauses array.
     totalMitsPlanned += summary.mitsPlanned ?? 0;
     totalMitsCompleted += summary.mitsCompleted ?? 0;
     totalDeepWorkActualMin += summary.deepWorkActualMin ?? 0;
@@ -184,13 +190,13 @@ export function buildWeeklySynthesis(
       const current = peakScoreByCourse.get(summary.topRiskCourseId) ?? -Infinity;
       if (summary.topRiskScore > current) peakScoreByCourse.set(summary.topRiskCourseId, summary.topRiskScore);
     }
-    for (const cause of summary.frictionCauses) {
+    for (const cause of summary.frictionCauses ?? []) {
       frictionCauseCounts[cause] = (frictionCauseCounts[cause] ?? 0) + 1;
     }
-    totalRelapses += summary.killListRelapses;
-    totalResisted += summary.killListResisted;
+    totalRelapses += summary.killListRelapses ?? 0;
+    totalResisted += summary.killListResisted ?? 0;
     if (summary.mitsPlanned == null) daysWithNoReview += 1;
-    if (summary.dataGapCount > 0) daysWithDataGaps += 1;
+    if ((summary.dataGapCount ?? 0) > 0) daysWithDataGaps += 1;
   }
 
   return {

@@ -20,6 +20,7 @@ import { assembleDeterministicNightlyReport, type DeterministicNightlyReport } f
 import { buildDailySummary, loadRecentDailySummaries, storeDailySummary } from "./summaryPyramid.ts";
 import { buildNightlyAnalysisRequest, loadDurableProfile, loadHorizon } from "./buildContext.ts";
 import type { DailyAnalysis } from "./dailyAnalysisSchema.ts";
+import { detectAndStoreCalibrationInsights } from "./insightDetection.ts";
 
 export interface NightlyAnalysisDeps {
   client: AnySupabaseClient;
@@ -45,6 +46,9 @@ export interface NightlyAnalysisOutcome {
   reportId: number;
   model: string;
   usedModel: boolean;
+  /** Insight detection failing must never take the report down with it -- null means it
+   *  threw (a real defect worth investigating), never silently absent-and-unmentioned. */
+  insightsDetected: number | null;
 }
 
 function estimateTokens(text: string): number {
@@ -99,6 +103,23 @@ export async function runNightlyAnalysisForUser(
   const dailySummary = buildDailySummary(report);
   await storeDailySummary(deps.client, userId, localDate, dailySummary);
 
+  // Pure code, no model dependency -- runs unconditionally, same as the report itself.
+  // A failure here must not take the report down with it, so it's isolated in its own
+  // try/catch rather than sharing the model-path one below.
+  let insightsDetected: number | null;
+  try {
+    const { data: profileForInsights, error: profileForInsightsError } = await deps.client
+      .from("profiles")
+      .select("timezone")
+      .eq("id", userId)
+      .single();
+    if (profileForInsightsError) throw profileForInsightsError;
+    const stored = await detectAndStoreCalibrationInsights(deps.client, userId, profileForInsights.timezone, deps.now());
+    insightsDetected = stored.length;
+  } catch {
+    insightsDetected = null;
+  }
+
   if (!deps.provider) {
     const reportId = await storeNightlyAgentReport(
       deps.client,
@@ -107,7 +128,7 @@ export async function runNightlyAnalysisForUser(
       { deterministic: report, analysis: null, note: "No ANTHROPIC_API_KEY configured -- deterministic report only." },
       "deterministic",
     );
-    return { userId, localDate, reportId, model: "deterministic", usedModel: false };
+    return { userId, localDate, reportId, model: "deterministic", usedModel: false, insightsDetected };
   }
 
   try {
@@ -157,7 +178,7 @@ export async function runNightlyAnalysisForUser(
         { deterministic: report, analysis: result.data, note: null },
         deps.model,
       );
-      return { userId, localDate, reportId, model: deps.model, usedModel: true };
+      return { userId, localDate, reportId, model: deps.model, usedModel: true, insightsDetected };
     }
 
     const note =
@@ -171,7 +192,7 @@ export async function runNightlyAnalysisForUser(
       { deterministic: report, analysis: null, note },
       "deterministic",
     );
-    return { userId, localDate, reportId, model: "deterministic", usedModel: false };
+    return { userId, localDate, reportId, model: "deterministic", usedModel: false, insightsDetected };
   } catch (err) {
     // Any unexpected failure in the model path (a durable-profile query error, a
     // network exception the gateway didn't itself catch) must still land on the
@@ -188,6 +209,6 @@ export async function runNightlyAnalysisForUser(
       },
       "deterministic",
     );
-    return { userId, localDate, reportId, model: "deterministic", usedModel: false };
+    return { userId, localDate, reportId, model: "deterministic", usedModel: false, insightsDetected };
   }
 }

@@ -1,0 +1,76 @@
+import type { DurationObservation } from '../calibration/calibration';
+import { gateInsightConfidence, type InsightConfidenceLevel, type InsightEvidenceInput } from './confidenceGate';
+
+export interface CalibrationInsightCandidate {
+  category: string;
+  claim: string;
+  confidence: InsightConfidenceLevel;
+  evidence: InsightEvidenceInput;
+  ratioPct: number;
+  direction: 'underestimate' | 'overestimate';
+}
+
+// Need enough observations to meaningfully split in half and still have signal in each
+// half -- below this, effectHoldsInBothHalves would be noise, not evidence.
+const MIN_OBSERVATIONS_TO_DETECT = 6;
+// A real-world threshold, not a statistical one: less than ~15% off isn't a pattern
+// worth surfacing to a student, even if it were technically nonzero. Mirrors the
+// nightly system prompt's own rule 5, "do not manufacture patterns from insufficient
+// data," applied here in code rather than left to the model to self-police.
+const NOISE_FLOOR_LOG_RATIO = Math.log(1.15);
+const DIRECTION_CONSISTENCY_THRESHOLD = 0.7;
+
+function meanLogRatio(observations: DurationObservation[]): number {
+  if (observations.length === 0) return 0;
+  return observations.reduce((sum, o) => sum + Math.log(o.actualMin / o.estimatedMin), 0) / observations.length;
+}
+
+/**
+ * Deterministic pattern detection for "this category's estimates are systematically
+ * off" -- the calibration-ratio-by-category example from L7's build list. Works in log
+ * space for the same reason computeCalibration does: duration ratios are multiplicative
+ * and right-skewed. Returns null when there isn't enough data to say anything, or when
+ * whatever deviation exists is too small to be worth a claim at all -- both are honest
+ * "nothing to report" outcomes, not the caller's problem to filter.
+ */
+export function detectCalibrationInsight(
+  observations: DurationObservation[],
+  category: string,
+): CalibrationInsightCandidate | null {
+  const valid = observations.filter((o) => o.estimatedMin > 0 && o.actualMin > 0);
+  if (valid.length < MIN_OBSERVATIONS_TO_DETECT) return null;
+
+  const sorted = [...valid].sort((a, b) => a.completedAt.localeCompare(b.completedAt));
+  const mid = Math.floor(sorted.length / 2);
+  const firstHalf = sorted.slice(0, mid);
+  const secondHalf = sorted.slice(mid);
+
+  const overallMean = meanLogRatio(sorted);
+  const overallSign = Math.sign(overallMean);
+  if (overallSign === 0) return null;
+
+  const effectHoldsInBothHalves =
+    Math.sign(meanLogRatio(firstHalf)) === overallSign && Math.sign(meanLogRatio(secondHalf)) === overallSign;
+
+  const consistentCount = sorted.filter((o) => Math.sign(Math.log(o.actualMin / o.estimatedMin)) === overallSign).length;
+  const consistentDirection = consistentCount / sorted.length >= DIRECTION_CONSISTENCY_THRESHOLD;
+
+  const ratioPct = Math.round((Math.exp(Math.abs(overallMean)) - 1) * 100);
+  if (ratioPct < 1) return null; // no real effect to claim, regardless of what the gate would say
+
+  const evidence: InsightEvidenceInput = {
+    sampleSize: sorted.length,
+    effectHoldsInBothHalves,
+    effectSize: overallMean,
+    noiseFloor: NOISE_FLOOR_LOG_RATIO,
+    consistentDirection,
+  };
+  const confidence = gateInsightConfidence(evidence);
+  const direction: 'underestimate' | 'overestimate' = overallMean > 0 ? 'underestimate' : 'overestimate';
+  const claim =
+    direction === 'underestimate'
+      ? `Estimated durations for "${category}" tasks run about ${ratioPct}% short of actual time spent.`
+      : `Estimated durations for "${category}" tasks run about ${ratioPct}% longer than actual time spent.`;
+
+  return { category, claim, confidence, evidence, ratioPct, direction };
+}
