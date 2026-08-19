@@ -99,3 +99,39 @@ React version alignment between Next.js and Expo — the thing most likely to dr
 monorepo — is **not** a problem right now. Next 16.3.1 accepts React `^19.0.0`; Expo SDK 57 bundles
 React 19.2 (unchanged from SDK 56). Both apps land on React 19.2.x with no manual reconciliation
 needed.
+
+## Landmine 6 — Tailwind v4's built-in `max-w-prose` (65ch) silently wins over a same-named custom token
+
+`packages/design/src/tailwind.css` originally defined `--container-prose: 720px` inside `@theme`,
+expecting it to generate a `max-w-prose` utility at 720px per DESIGN_SYSTEM §4. It doesn't —
+Tailwind v4 ships `max-w-prose` as a built-in typography utility (`65ch`), and a custom
+`--container-prose` does **not** override it; the built-in wins. The landing page's "report
+speaks" section rendered at ~430px instead of 720px as a result — found by the Lead reviewing a
+screenshot, not by any tooling (typecheck/lint/tests all pass regardless of which value wins).
+
+**Renamed the token to `--container-report` → `max-w-report`.** Any future custom container/spacing
+token should be checked against Tailwind's own built-in utility names before assuming a same-named
+`@theme` entry will override it — some utility families are known/reserved (this one is a
+typography-plugin holdover) and don't follow the plain override rule that `app`/`sm`/`lg`-style
+custom names do.
+
+## Landmine 7 — Next.js 16 deprecated `middleware.ts` in favor of `proxy.ts`
+
+`middleware.ts` still works but prints a deprecation warning and is on its way out; the
+`export function middleware` convention became `export function proxy` in a file named
+`proxy.ts`. Functionally identical (same `NextRequest`/`NextResponse` API, same `config.matcher`),
+this project uses `apps/web/src/proxy.ts`. If you're referencing Next.js docs/blog posts/Stack
+Overflow answers written before ~16.1, they'll say `middleware.ts` — that's now the deprecated
+form, not the current one.
+
+## Discovery — E2E specs sharing one `storageState` snapshot can race Supabase's refresh-token rotation
+
+`supabase/config.toml` has `enable_refresh_token_rotation = true`. Two Playwright tests that both
+restore the same on-disk `storageState` file into independent browser contexts, and both trigger a
+session refresh (e.g. via `proxy.ts`'s `auth.getUser()` on every navigation) at close to the same
+time, can race — Supabase only tolerates concurrent reuse of an already-rotated refresh token
+within `refresh_token_reuse_interval` (10s locally), and outside that window one context's session
+silently breaks (looks like a session that "sometimes" doesn't survive reload — flaky, not
+deterministic). Fix: `test.describe.serial(...)` for spec files that share the "authenticated"
+project's storageState, so they never refresh concurrently. See
+`apps/web/e2e/authenticated/session.spec.ts`.

@@ -27,3 +27,15 @@ Message them with `mcp__claude-peers__send_message`. They reply into my session 
 1. Stop the heartbeat watchdog loop.
 2. Tell both peers to stand down.
 3. Kill the `caffeinate -i` background process (ID recorded in the session) so the laptop can sleep.
+
+## Ownership split (revised after L5 — backend ran two layers ahead of UI)
+- **NOVA (`a9bsul1i`)** — owns **web** and **sets every screen's pattern**. Design authority.
+- **ATLAS (`mapw9to2`)** — ports Nova's established pattern to **mobile**. Follows, does not redesign.
+- Exception to routing-through-the-lead: Atlas may ask Nova directly about *design intent*,
+  because pattern fidelity is the entire point of the split. Anything else still routes via Lead.
+- If Atlas thinks a web pattern is wrong, he reports it to the Lead — he never "improves" it
+  unilaterally on mobile. **Divergence is the failure mode this split exists to prevent.**
+
+> Near-miss worth remembering: both engineers were assigned mobile L3 within minutes of each other
+> (crossed messages) and Nova was seconds from duplicating Atlas's work. When switching an
+> engineer's lane, immediately tell the *other* engineer too.
