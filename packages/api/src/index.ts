@@ -65,8 +65,17 @@ export type {
   TaskSessionRow,
   FocusSessionStatus,
   StartFocusSessionInput,
+  StartFocusSessionResult,
   EndFocusSessionInput,
 } from "./day/focusSessions";
+export { computeHabitBounceBack } from "./day/killLoopBounceBack";
+export { createKillHabit, listKillHabits, deactivateKillHabit } from "./data/killHabits";
+export type { KillHabitRow, CommitmentLevel, CreateKillHabitInput } from "./data/killHabits";
+export { logKillEvent, listKillEvents } from "./data/killEvents";
+export type { KillEventRow, KillEventOutcome, LogKillEventInput } from "./data/killEvents";
+export { logFriction, listFrictionLogs } from "./data/frictionLogs";
+export type { FrictionLogRow, FrictionCause, LogFrictionInput } from "./data/frictionLogs";
+export { computeUserFrictionDistribution, computeUserFrictionTrend } from "./day/frictionAnalytics";
 
 export { generateAndPersistBackplan, computeCapacityHorizon } from "./academic/backplan";
 export type { GenerateBackplanResult, CapacityDay } from "./academic/backplan";

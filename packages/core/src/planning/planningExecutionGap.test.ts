@@ -78,6 +78,16 @@ describe('computePlanningExecutionGap — reported fields', () => {
     expect(result.mitPlanned).toBe(3);
     expect(result.mitCompleted).toBe(2);
   });
+
+  it('reports startDelayMin as null (not 0) when there was no timeboxed task to measure against', () => {
+    const result = computePlanningExecutionGap({ ...base, plannedStartMin: null, actualStartMin: null });
+    expect(result.startDelayMin).toBeNull();
+  });
+
+  it('reports null even if only one side is missing -- a delay needs both a plan and an actual', () => {
+    const result = computePlanningExecutionGap({ ...base, plannedStartMin: null, actualStartMin: 16 * 60 });
+    expect(result.startDelayMin).toBeNull();
+  });
 });
 
 describe('computePlanningExecutionGap — division guards', () => {

@@ -51,7 +51,13 @@ export async function computeYesterdayPlanningExecution(
       computeHistoricalCapacityP50Min(client, userId, today),
       client
         .from('task_sessions')
-        .select('planned_start, actual_start, tasks!inner(planned_date, user_id)')
+        .select('planned_start, actual_start, tasks!inner(planned_date, planned_start_at, user_id)')
+        // Only sessions from a task that was actually timeboxed (A2, docs/FOLLOWUPS.md)
+        // carry a real plan to be early/late against -- an untimeboxed task's session
+        // has planned_start defaulted to its own actual_start (see focusSessions.ts) and
+        // including it here would silently manufacture a "started right on time" delay
+        // of 0 for a task that was never scheduled at all.
+        .not('tasks.planned_start_at', 'is', null)
         .eq('tasks.planned_date', yesterday)
         .eq('tasks.user_id', userId)
         .order('planned_start', { ascending: true })
@@ -68,8 +74,8 @@ export async function computeYesterdayPlanningExecution(
     plannedDeepWorkMin: review.deep_work_planned_min ?? 0,
     actualDeepWorkMin: review.deep_work_actual_min ?? 0,
     historicalCapacityP50Min,
-    plannedStartMin: firstSession ? minutesSinceMidnightUTC(firstSession.planned_start) : 0,
-    actualStartMin: firstSession?.actual_start ? minutesSinceMidnightUTC(firstSession.actual_start) : 0,
+    plannedStartMin: firstSession ? minutesSinceMidnightUTC(firstSession.planned_start) : null,
+    actualStartMin: firstSession?.actual_start ? minutesSinceMidnightUTC(firstSession.actual_start) : null,
     mitPlanned: review.mits_planned,
     mitCompleted: review.mits_completed,
   });

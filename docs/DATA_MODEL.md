@@ -178,9 +178,17 @@ assertions total across the suite.
   personal and open-ended; `packages/core` §3 buckets by whatever string is there.
   `mit_rank` (1-3) plus a partial unique index `(user_id, planned_date, mit_rank) WHERE
   mit_rank IS NOT NULL` enforces at most one task per MIT slot per day without forcing
-  every task to have a rank.
+  every task to have a rank. `planned_start_at` (timestamptz, nullable) and
+  `planned_location` (text, nullable) hold the implementation-intention's when/where
+  (A2, `docs/FOLLOWUPS.md`) — nullable because not every task is timeboxed, and a task
+  with no real plan must be able to say so rather than being coerced into a fake time.
 - **`task_sessions`** — the actual/estimated duration pairs that `packages/core` §3
-  calibration trains on.
+  calibration trains on. `status` (`active`/`completed`/`abandoned`, migration 0012) is
+  the focus-session lifecycle; a partial unique index enforces at most one `active`
+  session per user (what makes a session "resumable" well-defined). Calibration
+  observations are filtered to `status = 'completed'` only — an abandoned session's
+  `actual_duration_min` is real elapsed time, not an observation of how long the task
+  actually takes, and must never train the multiplier as if it were.
 
 ### Daily loop
 - **`daily_checkins`** — morning check-in, plus a snapshot of that day's Floor/Target/

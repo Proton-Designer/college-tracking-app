@@ -1,7 +1,51 @@
 import type { CalendarEvent, Task, TaskSession } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
-import { StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { textStyle } from "../../design/typography";
+
+// RN's `borderStyle: 'dashed'` frequently renders as solid on iOS once `borderRadius > 0` —
+// a long-standing platform bug, not a styling mistake. Since the confidence line-style
+// convention (§6.2, ratified system-wide) depends on dashed/dotted actually looking different
+// from solid, this can't be left to chance on the signature element: the ghost/planned outline
+// is composed from small Views instead of relying on the native border renderer at all.
+const DASH_LEN = 4;
+const DASH_GAP = 3;
+const DASH_THICKNESS = 1.5;
+
+function DashedRect({
+  left,
+  top,
+  width,
+  height,
+  color: strokeColor,
+}: {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  color: string;
+}) {
+  const segCount = Math.max(1, Math.round(width / (DASH_LEN + DASH_GAP)));
+  const dashes = Array.from({ length: segCount }, (_, i) => i);
+
+  return (
+    <View style={{ position: "absolute", left, top, width, height }}>
+      <View style={[styles.dashRow, { top: 0 }]}>
+        {dashes.map((i) => (
+          <View key={i} style={{ width: DASH_LEN, height: DASH_THICKNESS, backgroundColor: strokeColor, marginRight: DASH_GAP }} />
+        ))}
+      </View>
+      <View style={[styles.dashRow, { bottom: 0 }]}>
+        {dashes.map((i) => (
+          <View key={i} style={{ width: DASH_LEN, height: DASH_THICKNESS, backgroundColor: strokeColor, marginRight: DASH_GAP }} />
+        ))}
+      </View>
+      <View style={[styles.dashSide, { left: 0, backgroundColor: strokeColor }]} />
+      <View style={[styles.dashSide, { right: 0, backgroundColor: strokeColor }]} />
+    </View>
+  );
+}
 
 // The signature element, DESIGN_SYSTEM §6.1 — ported from web's DayTrace with identical
 // semantics (same merge-free, per-item planned/actual logic, same late-start/missed
@@ -88,6 +132,11 @@ export function DayTrace({
 }) {
   const tasksById = new Map(tasks.map((t) => [t.id, t]));
   const nowMin = minutesInZone(now, timezone);
+  const [timelineWidth, setTimelineWidth] = useState(0);
+
+  function handleTimelineLayout(e: LayoutChangeEvent) {
+    setTimelineWidth(e.nativeEvent.layout.width);
+  }
 
   const calendarBlocks: Interval[] = calendarEvents.map((e) => ({
     startMin: minutesInZone(new Date(e.start_at), timezone),
@@ -180,7 +229,7 @@ export function DayTrace({
           <Text style={[textStyle("caption", color.ink), { height: ROW_H, lineHeight: ROW_H }]}>ACT</Text>
         </View>
 
-        <View style={[styles.timeline, { height: TIMELINE_H }]}>
+        <View style={[styles.timeline, { height: TIMELINE_H }]} onLayout={handleTimelineLayout}>
           {deviations.map((d, i) => (
             <View
               key={`dev-${i}`}
@@ -197,21 +246,38 @@ export function DayTrace({
             />
           ))}
 
-          {plannedBlocks.map((iv, i) => (
-            <View
-              key={`p-${i}`}
-              style={[
-                styles.plannedBlock,
-                {
-                  left: `${pct(iv.startMin)}%`,
-                  width: `${Math.max(1, pct(iv.endMin) - pct(iv.startMin))}%`,
-                  top: PLANNED_TOP,
-                  height: ROW_H,
-                  borderColor: iv.missed ? color.riskHigh : color.inkFaint,
-                },
-              ]}
-            />
-          ))}
+          {timelineWidth > 0
+            ? plannedBlocks.map((iv, i) => {
+                const left = (pct(iv.startMin) / 100) * timelineWidth;
+                const width = Math.max(2, ((pct(iv.endMin) - pct(iv.startMin)) / 100) * timelineWidth);
+                return (
+                  <DashedRect
+                    key={`p-${i}`}
+                    left={left}
+                    top={PLANNED_TOP}
+                    width={width}
+                    height={ROW_H}
+                    color={iv.missed ? color.riskHigh : color.inkFaint}
+                  />
+                );
+              })
+            : null}
+
+          {plannedBlocks
+            .filter((iv) => iv.missed)
+            .map((iv, i) => (
+              <View
+                key={`miss-${i}`}
+                style={[
+                  styles.missedLine,
+                  {
+                    left: `${pct(iv.startMin)}%`,
+                    width: `${Math.max(1, pct(iv.endMin) - pct(iv.startMin))}%`,
+                    top: PLANNED_TOP + ROW_H / 2,
+                  },
+                ]}
+              />
+            ))}
 
           {actualBlocks.map((iv, i) => (
             <View
@@ -295,11 +361,23 @@ const styles = StyleSheet.create({
     position: "absolute",
     borderRadius: 3,
   },
-  plannedBlock: {
+  dashRow: {
     position: "absolute",
-    borderRadius: 3,
-    borderWidth: 1.5,
-    borderStyle: "dashed",
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    overflow: "hidden",
+  },
+  missedLine: {
+    position: "absolute",
+    height: 1.5,
+    backgroundColor: color.riskHigh,
+  },
+  dashSide: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: DASH_THICKNESS,
   },
   actualBlock: {
     position: "absolute",

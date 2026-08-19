@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { signIn } from '../auth/auth';
 import {
   abandonFocusSession,
@@ -56,14 +56,25 @@ describe('focus sessions against the seeded demo user', () => {
     taskId = task.id;
   });
 
+  // An assertion failure partway through a test must not leave an active session
+  // lingering and cascade-fail every test after it (the one-active-session-per-user
+  // constraint makes this a real risk here) -- guarantee cleanup regardless of outcome.
+  afterEach(async () => {
+    const active = await getActiveFocusSession(client, userId);
+    if (active.ok && active.data) {
+      await abandonFocusSession(client, userId, { sessionId: active.data.id });
+    }
+  });
+
   it('starts a session and makes it the one resumable active session', async () => {
     const started = await startFocusSession(client, userId, { taskId, plannedDurationMin: 25 });
     expect(started.ok).toBe(true);
     if (!started.ok) return;
     expect(started.data.status).toBe('active');
     expect(started.data.actual_start).not.toBeNull();
-    // No advance-scheduling mechanism exists yet -- see the module comment -- so start
-    // delay is 0 by construction: planned_start and actual_start are stamped together.
+    // This throwaway task has no planned_start_at (never timeboxed) -- so there's no
+    // real plan to be early/late against, and startDelayMin must be null, not 0.
+    expect(started.data.startDelayMin).toBeNull();
     expect(started.data.planned_start).toBe(started.data.actual_start);
 
     const active = await getActiveFocusSession(client, userId);
@@ -73,6 +84,40 @@ describe('focus sessions against the seeded demo user', () => {
     // Clean up so later tests in this file get a clean slate.
     const cleanup = await abandonFocusSession(client, userId, { sessionId: started.data.id });
     expect(cleanup.ok).toBe(true);
+  });
+
+  it('reports a real, nonzero startDelayMin when the task was actually timeboxed (A2)', async () => {
+    const plannedStartAt = new Date(Date.now() - 42 * 60_000); // "planned" 42 minutes ago
+    const { data: timeboxedTask, error } = await client
+      .from('tasks')
+      .insert({
+        user_id: userId,
+        course_id: (await client.from('courses').select('id').limit(1).single()).data!.id,
+        title: `focus-session-test-timeboxed-${Date.now()}`,
+        category: 'testing',
+        estimated_minutes: 30,
+        planned_date: new Date().toISOString().slice(0, 10),
+        planned_start_at: plannedStartAt.toISOString(),
+        status: 'pending',
+      })
+      .select('id')
+      .single();
+    expect(error).toBeNull();
+
+    const started = await startFocusSession(client, userId, { taskId: timeboxedTask!.id, plannedDurationMin: 25 });
+    expect(started.ok).toBe(true);
+    if (!started.ok) return;
+    // Started ~42 minutes after the planned time -- real, derived, not client-asserted.
+    expect(started.data.startDelayMin).toBeGreaterThanOrEqual(41);
+    expect(started.data.startDelayMin).toBeLessThanOrEqual(43);
+    // Postgres round-trips timestamptz as +00:00, not Z -- compare parsed instants, not
+    // raw strings, so this doesn't become a formatting test by accident.
+    expect(new Date(started.data.planned_start).getTime()).toBe(plannedStartAt.getTime());
+    expect(started.data.planned_start).not.toBe(started.data.actual_start);
+
+    const cleanup = await abandonFocusSession(client, userId, { sessionId: started.data.id });
+    expect(cleanup.ok).toBe(true);
+    await client.from('tasks').delete().eq('id', timeboxedTask!.id);
   });
 
   it('refuses to start a second session while one is already active', async () => {

@@ -12,9 +12,11 @@ export interface PlanningExecutionInput {
   plannedDeepWorkMin: number;
   actualDeepWorkMin: number;
   historicalCapacityP50Min: number;
-  /** Minutes since midnight. */
-  plannedStartMin: number;
-  actualStartMin: number;
+  /** Minutes since midnight. Null when no task that day was timeboxed (tasks.planned_start_at
+   *  unset) -- there is then no real plan to measure a delay against. Zero and "no plan
+   *  exists" are different facts and must never collapse to the same reported value. */
+  plannedStartMin: number | null;
+  actualStartMin: number | null;
   mitPlanned: number;
   mitCompleted: number;
 }
@@ -22,7 +24,8 @@ export interface PlanningExecutionInput {
 export interface PlanningExecutionResult {
   executionQuality: number;
   planningQuality: number;
-  startDelayMin: number;
+  /** Null when the day had no timeboxed task to measure against -- see PlanningExecutionInput. */
+  startDelayMin: number | null;
   mitPlanned: number;
   mitCompleted: number;
   diagnosis: PlanningExecutionDiagnosis;
@@ -61,7 +64,10 @@ export function computePlanningExecutionGap(input: PlanningExecutionInput): Plan
   return {
     executionQuality,
     planningQuality,
-    startDelayMin: input.actualStartMin - input.plannedStartMin,
+    startDelayMin:
+      input.plannedStartMin != null && input.actualStartMin != null
+        ? input.actualStartMin - input.plannedStartMin
+        : null,
     mitPlanned: input.mitPlanned,
     mitCompleted: input.mitCompleted,
     diagnosis,

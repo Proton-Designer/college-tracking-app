@@ -16,14 +16,36 @@ export interface MitItem {
   calibrationConfidence: Confidence;
 }
 
+type LineStyle = "solid" | "dashed" | "dotted";
+
 /** DESIGN_SYSTEM §6.2: line style encodes epistemic status, ratified system-wide. `low` and
  *  `insufficient` both read as "hypothesis" — there's no fourth visual tier. */
-const CONFIDENCE_BORDER: Record<Confidence, "solid" | "dashed" | "dotted"> = {
+const CONFIDENCE_BORDER: Record<Confidence, LineStyle> = {
   high: "solid",
   moderate: "dashed",
   low: "dotted",
   insufficient: "dotted",
 };
+
+// RN's `borderStyle: 'dashed'/'dotted'` frequently renders as solid on iOS — composing the
+// rule from small Views (same fix as DayTrace.tsx) so dashed/dotted/solid are genuinely three
+// distinct states rather than gambling on the native renderer for a ratified convention.
+const RULE_SEGMENTS = 16;
+const RULE_GAP = 3;
+
+function ConfidenceRule({ lineStyle, ruleColor }: { lineStyle: LineStyle; ruleColor: string }) {
+  if (lineStyle === "solid") {
+    return <View style={[styles.ruleTrack, { backgroundColor: ruleColor }]} />;
+  }
+  const segLen = lineStyle === "dotted" ? 2 : 5;
+  return (
+    <View style={styles.ruleTrack}>
+      {Array.from({ length: RULE_SEGMENTS }, (_, i) => i).map((i) => (
+        <View key={i} style={{ width: 2, height: segLen, marginBottom: RULE_GAP, backgroundColor: ruleColor }} />
+      ))}
+    </View>
+  );
+}
 
 export function MitList({ items }: { items: MitItem[] }) {
   const [completedIds, setCompletedIds] = useState<Set<number>>(
@@ -69,23 +91,20 @@ export function MitList({ items }: { items: MitItem[] }) {
         const completed = completedIds.has(item.taskId);
         const failed = failedIds.has(item.taskId);
         return (
-          <View
-            key={item.taskId}
-            style={[
-              styles.item,
-              { borderLeftColor: color.inkMuted, borderStyle: CONFIDENCE_BORDER[item.calibrationConfidence] },
-            ]}
-          >
-            <Checkbox
-              label={item.title}
-              checked={completed}
-              disabled={isPending && !failed}
-              onValueChange={(checked) => handleToggle(item.taskId, checked)}
-              error={failed ? "Couldn't save — check your connection and try again." : undefined}
-            />
-            <View style={styles.captionRow}>
-              {item.courseCode ? <Text style={textStyle("caption", color.inkFaint)}>{item.courseCode}</Text> : null}
-              <Text style={textStyle("caption", color.inkFaint)}>~{Math.round(item.calibratedMinutes)} min</Text>
+          <View key={item.taskId} style={styles.item}>
+            <ConfidenceRule lineStyle={CONFIDENCE_BORDER[item.calibrationConfidence]} ruleColor={color.inkMuted} />
+            <View style={styles.itemContent}>
+              <Checkbox
+                label={item.title}
+                checked={completed}
+                disabled={isPending && !failed}
+                onValueChange={(checked) => handleToggle(item.taskId, checked)}
+                error={failed ? "Couldn't save — check your connection and try again." : undefined}
+              />
+              <View style={styles.captionRow}>
+                {item.courseCode ? <Text style={textStyle("caption", color.inkFaint)}>{item.courseCode}</Text> : null}
+                <Text style={textStyle("caption", color.inkFaint)}>~{Math.round(item.calibratedMinutes)} min</Text>
+              </View>
             </View>
           </View>
         );
@@ -99,8 +118,15 @@ const styles = StyleSheet.create({
     gap: space[5],
   },
   item: {
-    borderLeftWidth: 2,
-    paddingLeft: space[3],
+    flexDirection: "row",
+  },
+  ruleTrack: {
+    width: 2,
+    marginRight: space[3],
+    overflow: "hidden",
+  },
+  itemContent: {
+    flex: 1,
     gap: space[1],
   },
   captionRow: {

@@ -1932,6 +1932,8 @@ export type Database = {
           id: number
           mit_rank: number | null
           planned_date: string
+          planned_location: string | null
+          planned_start_at: string | null
           proof_of_work_content: string | null
           proof_of_work_type: string | null
           requires_proof_of_work: boolean
@@ -1951,6 +1953,8 @@ export type Database = {
           id?: never
           mit_rank?: number | null
           planned_date: string
+          planned_location?: string | null
+          planned_start_at?: string | null
           proof_of_work_content?: string | null
           proof_of_work_type?: string | null
           requires_proof_of_work?: boolean
@@ -1970,6 +1974,8 @@ export type Database = {
           id?: never
           mit_rank?: number | null
           planned_date?: string
+          planned_location?: string | null
+          planned_start_at?: string | null
           proof_of_work_content?: string | null
           proof_of_work_type?: string | null
           requires_proof_of_work?: boolean
