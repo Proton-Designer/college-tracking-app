@@ -1,9 +1,27 @@
 import type { LocalDate } from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
+import type { Database } from '../database.types';
 import { dataErr, dataOk, type DataResult } from '../data/types';
 import { mapDataError } from '../data/errors';
 import type { DailyCheckin } from '../data/dailyCheckins';
 import type { DailyPredictionRow } from './predictions';
+
+type TaskUpdate = Database['public']['Tables']['tasks']['Update'];
+
+/** A MIT's optional implementation intention -- "when, where" -- the brief's own phrase
+ *  for what separates a plan that outperforms a vague one. Both fields optional
+ *  independently: a time with no location, or vice versa, is still a real improvement
+ *  over neither. `null` explicitly clears an existing value (the user set a time, then
+ *  changed their mind); `undefined`/omitted leaves whatever the task already has
+ *  untouched -- same three-state (set / clear / leave alone) shape the rest of this
+ *  schema uses for optional writes. */
+export interface MitTimebox {
+  /** ISO instant. Never defaulted when absent (SCREEN_SPEC §2): a fabricated start time
+   *  would manufacture a start delay against a plan the user never actually made, the
+   *  same null-vs-zero rule already applied to targetAchieved and startDelayMin. */
+  plannedStartAt?: string | null;
+  plannedLocation?: string | null;
+}
 
 export interface SubmitMorningCheckinInput {
   userId: string;
@@ -17,6 +35,13 @@ export interface SubmitMorningCheckinInput {
   hardestTaskId?: number;
   /** Up to 3 task ids, in priority order. Replaces any prior MIT selection for the day. */
   topMitTaskIds: number[];
+  /** Optional per-task timebox, keyed by task id -- a strict subset of topMitTaskIds.
+   *  Most mornings this is empty or absent entirely: checking in must stay roughly a
+   *  minute (SCREEN_SPEC §2), and forcing a time on every MIT would be exactly the kind
+   *  of friction that gets a daily ritual abandoned. A task with no entry here keeps
+   *  whatever planned_start_at/planned_location it already had (or null, if it never had
+   *  one) -- this only ever ADDS or CHANGES a timebox, never silently clears one. */
+  mitTimeboxes?: Record<number, MitTimebox>;
   capacityMinutes?: number;
   floorMinutes?: number;
   targetMinutes?: number;
@@ -48,11 +73,15 @@ export async function submitMorningCheckin(
   if (clearError) return dataErr(mapDataError(clearError));
 
   for (const [index, taskId] of input.topMitTaskIds.entries()) {
-    const { error } = await client
-      .from('tasks')
-      .update({ mit_rank: index + 1 })
-      .eq('id', taskId)
-      .eq('user_id', input.userId);
+    const timebox = input.mitTimeboxes?.[taskId];
+    const updates: TaskUpdate = { mit_rank: index + 1 };
+    // Only touch these columns when the caller actually supplied a key for this task --
+    // `undefined`/absent must leave whatever the task already has alone, never silently
+    // clear a timebox that wasn't part of this submission.
+    if (timebox && 'plannedStartAt' in timebox) updates.planned_start_at = timebox.plannedStartAt ?? null;
+    if (timebox && 'plannedLocation' in timebox) updates.planned_location = timebox.plannedLocation ?? null;
+
+    const { error } = await client.from('tasks').update(updates).eq('id', taskId).eq('user_id', input.userId);
     if (error) return dataErr(mapDataError(error));
   }
 

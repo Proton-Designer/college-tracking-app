@@ -44,7 +44,7 @@ export { getUserLocalToday } from "./day/today";
 export { getDayView } from "./day/dayView";
 export type { DayView, CalendarEvent, TaskSession, TodayHealth } from "./day/dayView";
 export { submitMorningCheckin } from "./day/submitCheckin";
-export type { SubmitMorningCheckinInput } from "./day/submitCheckin";
+export type { SubmitMorningCheckinInput, MitTimebox } from "./day/submitCheckin";
 export { submitNightReview, getNightReviewDraft, completionPctFromDraft } from "./day/submitReview";
 export type { SubmitNightReviewInput, NightReviewDraft } from "./day/submitReview";
 export { scorePredictionForDate, getPredictionForDate } from "./day/predictions";
