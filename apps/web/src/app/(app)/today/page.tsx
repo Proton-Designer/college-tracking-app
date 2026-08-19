@@ -120,6 +120,7 @@ export default async function TodayPage({
       ) : mode === "unplanned" ? (
         <UnplannedGate
           today={dayView.today}
+          timezone={dayView.profile.timezone}
           todayTasks={dayView.todayTasks}
           courses={courses}
           suggestedMits={dayView.suggestedMits}

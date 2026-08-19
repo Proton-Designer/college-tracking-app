@@ -13,6 +13,7 @@ import type { Course, DayView, Task } from "@collegeos/api";
  */
 export function UnplannedGate({
   today,
+  timezone,
   todayTasks,
   courses,
   suggestedMits,
@@ -22,6 +23,7 @@ export function UnplannedGate({
   children,
 }: {
   today: string;
+  timezone: string;
   todayTasks: Task[];
   courses: Record<number, Course>;
   suggestedMits: DayView["suggestedMits"];
@@ -37,6 +39,7 @@ export function UnplannedGate({
   return (
     <CheckinForm
       today={today}
+      timezone={timezone}
       todayTasks={todayTasks}
       courses={courses}
       suggestedMits={suggestedMits}

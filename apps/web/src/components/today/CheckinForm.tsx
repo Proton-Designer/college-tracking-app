@@ -1,6 +1,8 @@
 "use client";
 
 import type { Course, DayView, Task } from "@collegeos/api";
+import type { MitTimebox } from "@collegeos/api";
+import { localTimeToInstant } from "@collegeos/core";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { Button, ChipGroup, Label, Panel } from "@/components/ui";
@@ -20,8 +22,30 @@ function formatSleep(hours: number): string {
   return m === 0 ? `${h}h` : `${h}h ${m}m`;
 }
 
+/** Formats an already-known instant back into an "HH:MM" the <input type="time"> can
+ *  display, in the user's own timezone -- presentational, not a domain computation
+ *  (localTimeToInstant, the actual local-time -> instant conversion this form submits
+ *  through, is the packages/core call that does real work). */
+function instantToTimeInputValue(iso: string | null, timezone: string): string {
+  if (!iso) return "";
+  return new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
+}
+
+interface TimeboxFieldState {
+  time: string; // "HH:MM" or ""
+  location: string;
+  revealed: boolean;
+}
+
+function initialTimeboxState(task: Task | undefined, timezone: string): TimeboxFieldState {
+  const time = instantToTimeInputValue(task?.planned_start_at ?? null, timezone);
+  const location = task?.planned_location ?? "";
+  return { time, location, revealed: time !== "" || location !== "" };
+}
+
 export function CheckinForm({
   today,
+  timezone,
   todayTasks,
   courses,
   suggestedMits,
@@ -32,6 +56,7 @@ export function CheckinForm({
   onSkip,
 }: {
   today: string;
+  timezone: string;
   todayTasks: Task[];
   courses: Record<number, Course>;
   suggestedMits: DayView["suggestedMits"];
@@ -53,6 +78,15 @@ export function CheckinForm({
   const [swapTarget, setSwapTarget] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [timeboxes, setTimeboxes] = useState<Record<number, TimeboxFieldState>>({});
+
+  function timeboxFor(taskId: number): TimeboxFieldState {
+    return timeboxes[taskId] ?? initialTimeboxState(tasksById.get(taskId), timezone);
+  }
+
+  function updateTimebox(taskId: number, patch: Partial<TimeboxFieldState>) {
+    setTimeboxes((prev) => ({ ...prev, [taskId]: { ...timeboxFor(taskId), ...patch } }));
+  }
 
   const remainingTasks = availableTasks.filter((t) => !selectedIds.includes(t.id));
 
@@ -71,12 +105,28 @@ export function CheckinForm({
       return;
     }
     setError(null);
+
+    // Every selected MIT gets a real entry -- for an untouched task this just resolves
+    // to whatever it already had (initialTimeboxState mirrors the existing DB value), so
+    // this is never a silent clear. A real "HH:MM" is converted to a real UTC instant via
+    // packages/core's localTimeToInstant -- the UI never does that conversion itself.
+    const mitTimeboxes: Record<number, MitTimebox> = {};
+    for (const taskId of selectedIds) {
+      const box = timeboxFor(taskId);
+      const [hourStr, minuteStr] = box.time.split(":");
+      mitTimeboxes[taskId] = {
+        plannedStartAt: box.time && hourStr && minuteStr ? localTimeToInstant(today, Number(hourStr), Number(minuteStr), timezone) : null,
+        plannedLocation: box.location.trim() || null,
+      };
+    }
+
     startTransition(async () => {
       const result = await submitCheckin({
         localDate: today,
         energy,
         mood,
         topMitTaskIds: selectedIds,
+        mitTimeboxes,
         predictedCompletionPct,
         capacityMinutes: workload.capacityMinutes,
         floorMinutes: workload.floorMinutes,
@@ -132,19 +182,59 @@ export function CheckinForm({
           {selectedIds.map((taskId) => {
             const task = tasksById.get(taskId);
             const course = task?.course_id != null ? courses[task.course_id] : undefined;
+            const box = timeboxFor(taskId);
             return (
-              <li key={taskId} className="flex items-center justify-between gap-3 rounded-sm border border-border px-3 py-2">
-                <div className="flex flex-col">
-                  <span className="text-body-s text-ink">{task?.title ?? "Untitled task"}</span>
-                  {course ? <span className="font-mono text-caption text-ink-faint">{course.code}</span> : null}
+              <li key={taskId} className="flex flex-col gap-2 rounded-sm border border-border px-3 py-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-col">
+                    <span className="text-body-s text-ink">{task?.title ?? "Untitled task"}</span>
+                    {course ? <span className="font-mono text-caption text-ink-faint">{course.code}</span> : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => removeMit(taskId)}
+                    className="font-mono text-caption uppercase tracking-[0.08em] text-ink-faint hover:text-ink"
+                  >
+                    Remove
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => removeMit(taskId)}
-                  className="font-mono text-caption uppercase tracking-[0.08em] text-ink-faint hover:text-ink"
-                >
-                  Remove
-                </button>
+
+                {box.revealed ? (
+                  <div className="flex items-center gap-2 pl-0.5">
+                    <input
+                      type="time"
+                      aria-label={`When for ${task?.title ?? "this task"}`}
+                      value={box.time}
+                      onChange={(e) => updateTimebox(taskId, { time: e.target.value })}
+                      className="h-8 rounded-sm border border-border bg-surface px-2 font-mono text-caption tabular-nums text-ink outline-none focus-visible:[outline:2px_solid_var(--color-accent)] focus-visible:outline-offset-2"
+                    />
+                    <input
+                      type="text"
+                      aria-label={`Where for ${task?.title ?? "this task"}`}
+                      placeholder="Where? (optional)"
+                      value={box.location}
+                      onChange={(e) => updateTimebox(taskId, { location: e.target.value })}
+                      className="h-8 min-w-0 flex-1 rounded-sm border border-border bg-surface px-2 font-sans text-body-s text-ink outline-none placeholder:text-ink-faint focus-visible:[outline:2px_solid_var(--color-accent)] focus-visible:outline-offset-2"
+                    />
+                    {box.time === "" && box.location === "" ? (
+                      <button
+                        type="button"
+                        onClick={() => updateTimebox(taskId, { revealed: false })}
+                        className="shrink-0 font-mono text-caption uppercase tracking-[0.08em] text-ink-faint hover:text-ink"
+                      >
+                        Cancel
+                      </button>
+                    ) : null}
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => updateTimebox(taskId, { revealed: true })}
+                    className="self-start font-mono text-caption uppercase tracking-[0.08em] text-ink-faint hover:text-ink"
+                  >
+                    + Add time
+                  </button>
+                )}
               </li>
             );
           })}

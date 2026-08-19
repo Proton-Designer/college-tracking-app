@@ -1,10 +1,33 @@
-import type { Course, DayView, Task } from "@collegeos/api";
+import type { Course, DayView, MitTimebox, Task } from "@collegeos/api";
+import { localTimeToInstant } from "@collegeos/core";
 import { color, radius, space } from "@collegeos/design/native";
 import { useMemo, useState, useTransition } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { Button, ChipGroup, Label, Panel } from "../ui";
 import { textStyle } from "../../design/typography";
 import { submitCheckin } from "../../lib/todayActions";
+
+const TIME_INPUT_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
+
+/** Formats an already-known instant back into "HH:MM" for display, in the user's own
+ *  timezone -- presentational only; localTimeToInstant (the actual local-time -> instant
+ *  conversion this form submits through) is the packages/core call that does real work. */
+function instantToTimeInputValue(iso: string | null, timezone: string): string {
+  if (!iso) return "";
+  return new Intl.DateTimeFormat("en-GB", { timeZone: timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(new Date(iso));
+}
+
+interface TimeboxFieldState {
+  time: string; // "HH:MM" or a partial/invalid string mid-edit, or ""
+  location: string;
+  revealed: boolean;
+}
+
+function initialTimeboxState(task: Task | undefined, timezone: string): TimeboxFieldState {
+  const time = instantToTimeInputValue(task?.planned_start_at ?? null, timezone);
+  const location = task?.planned_location ?? "";
+  return { time, location, revealed: time !== "" || location !== "" };
+}
 
 const DERAILMENT_OPTIONS = [
   { value: "phone", label: "Phone" },
@@ -31,6 +54,7 @@ function buildSteps(hasHealth: boolean): StepId[] {
 export function CheckinFlow({
   userId,
   today,
+  timezone,
   todayTasks,
   courses,
   suggestedMits,
@@ -42,6 +66,7 @@ export function CheckinFlow({
 }: {
   userId: string;
   today: string;
+  timezone: string;
   todayTasks: Task[];
   courses: Record<number, Course>;
   suggestedMits: DayView["suggestedMits"];
@@ -64,6 +89,15 @@ export function CheckinFlow({
 
   const [energy, setEnergy] = useState<number | null>(null);
   const [mood, setMood] = useState<number | null>(null);
+  const [timeboxes, setTimeboxes] = useState<Record<number, TimeboxFieldState>>({});
+
+  function timeboxFor(taskId: number): TimeboxFieldState {
+    return timeboxes[taskId] ?? initialTimeboxState(tasksById.get(taskId), timezone);
+  }
+
+  function updateTimebox(taskId: number, patch: Partial<TimeboxFieldState>) {
+    setTimeboxes((prev) => ({ ...prev, [taskId]: { ...timeboxFor(taskId), ...patch } }));
+  }
   const [selectedIds, setSelectedIds] = useState<number[]>(() => suggestedMits.map((m) => m.taskId).slice(0, 3));
   const [predictedCompletionPct, setPredictedCompletionPct] = useState(80);
   const [derailment, setDerailment] = useState<string | null>(null);
@@ -97,6 +131,21 @@ export function CheckinFlow({
 
   function handleSubmit() {
     setError(null);
+
+    // Every selected MIT gets a real entry -- for an untouched task this just resolves
+    // to whatever it already had (initialTimeboxState mirrors the existing DB value), so
+    // this is never a silent clear. A malformed/partial time (the field is free text on
+    // mobile) is treated as not-set rather than sent to localTimeToInstant.
+    const mitTimeboxes: Record<number, MitTimebox> = {};
+    for (const taskId of selectedIds) {
+      const box = timeboxFor(taskId);
+      const match = TIME_INPUT_PATTERN.exec(box.time);
+      mitTimeboxes[taskId] = {
+        plannedStartAt: match ? localTimeToInstant(today, Number(match[1]), Number(match[2]), timezone) : null,
+        plannedLocation: box.location.trim() || null,
+      };
+    }
+
     startTransition(async () => {
       const result = await submitCheckin({
         userId,
@@ -104,6 +153,7 @@ export function CheckinFlow({
         energy: energy ?? 5,
         mood: mood ?? 5,
         topMitTaskIds: selectedIds,
+        mitTimeboxes,
         predictedCompletionPct,
         capacityMinutes: workload.capacityMinutes,
         floorMinutes: workload.floorMinutes,
@@ -170,18 +220,53 @@ export function CheckinFlow({
               selectedIds.map((taskId) => {
                 const task = tasksById.get(taskId);
                 const c = task?.course_id != null ? courses[task.course_id] : undefined;
+                const box = timeboxFor(taskId);
                 return (
-                  <View key={taskId} style={styles.mitRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={textStyle("bodyS", color.ink)}>{task?.title ?? "Untitled task"}</Text>
-                      {c ? <Text style={textStyle("caption", color.inkFaint)}>{c.code}</Text> : null}
+                  <View key={taskId} style={styles.mitCard}>
+                    <View style={styles.mitRow}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={textStyle("bodyS", color.ink)}>{task?.title ?? "Untitled task"}</Text>
+                        {c ? <Text style={textStyle("caption", color.inkFaint)}>{c.code}</Text> : null}
+                      </View>
+                      <Pressable
+                        onPress={() => setSelectedIds((prev) => prev.filter((id) => id !== taskId))}
+                        hitSlop={8}
+                      >
+                        <Text style={textStyle("caption", color.inkFaint)}>Remove</Text>
+                      </Pressable>
                     </View>
-                    <Pressable
-                      onPress={() => setSelectedIds((prev) => prev.filter((id) => id !== taskId))}
-                      hitSlop={8}
-                    >
-                      <Text style={textStyle("caption", color.inkFaint)}>Remove</Text>
-                    </Pressable>
+
+                    {box.revealed ? (
+                      <View style={styles.timeboxRow}>
+                        <TextInput
+                          value={box.time}
+                          onChangeText={(text) => updateTimebox(taskId, { time: text })}
+                          placeholder="HH:MM"
+                          placeholderTextColor={color.inkFaint}
+                          keyboardType="numbers-and-punctuation"
+                          maxLength={5}
+                          accessibilityLabel={`When for ${task?.title ?? "this task"}`}
+                          style={[styles.timeInput, textStyle("caption", color.ink)]}
+                        />
+                        <TextInput
+                          value={box.location}
+                          onChangeText={(text) => updateTimebox(taskId, { location: text })}
+                          placeholder="Where? (optional)"
+                          placeholderTextColor={color.inkFaint}
+                          accessibilityLabel={`Where for ${task?.title ?? "this task"}`}
+                          style={[styles.locationInput, textStyle("bodyS", color.ink)]}
+                        />
+                        {box.time === "" && box.location === "" ? (
+                          <Pressable onPress={() => updateTimebox(taskId, { revealed: false })} hitSlop={8}>
+                            <Text style={textStyle("caption", color.inkFaint)}>Cancel</Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                    ) : (
+                      <Pressable onPress={() => updateTimebox(taskId, { revealed: true })} hitSlop={8} style={styles.addTimeButton}>
+                        <Text style={textStyle("caption", color.inkFaint)}>+ Add time</Text>
+                      </Pressable>
+                    )}
                   </View>
                 );
               })
@@ -320,16 +405,47 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  mitRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: space[3],
+  mitCard: {
+    gap: space[2],
     borderRadius: radius.sm,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: color.border,
     paddingHorizontal: space[4],
     paddingVertical: space[3],
+  },
+  mitRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: space[3],
+  },
+  timeboxRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space[2],
+  },
+  timeInput: {
+    width: 64,
+    height: 32,
+    borderRadius: radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: color.border,
+    backgroundColor: color.surface,
+    paddingHorizontal: space[2],
+  },
+  locationInput: {
+    flex: 1,
+    height: 32,
+    borderRadius: radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: color.border,
+    backgroundColor: color.surface,
+    paddingHorizontal: space[2],
+  },
+  addTimeButton: {
+    alignSelf: "flex-start",
+    minHeight: 32,
+    justifyContent: "center",
   },
   addTaskButton: {
     minHeight: 44,

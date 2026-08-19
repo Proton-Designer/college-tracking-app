@@ -174,6 +174,7 @@ function TodayReady({
         <CheckinFlow
           userId={dayView.profile.id}
           today={dayView.today}
+          timezone={dayView.profile.timezone}
           todayTasks={dayView.todayTasks}
           courses={courses}
           suggestedMits={dayView.suggestedMits}
