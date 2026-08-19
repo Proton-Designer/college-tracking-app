@@ -30,7 +30,9 @@
     "build:core-for-deno": "node scripts/build-core-for-deno.mjs",
     "check:core-mirror": "node scripts/check-core-mirror.mjs",
     "check:barrel-exports": "node scripts/check-barrel-exports.mjs",
-    "check:demo-clean": "node scripts/check-demo-clean.mjs"
+    "check:demo-clean": "node scripts/check-demo-clean.mjs",
+    "make:test-user": "node scripts/make-test-user.mjs",
+    "clean:test-users": "node scripts/delete-test-user.mjs --all-verify"
   },
   "devDependencies": {
     "prettier": "3.9.6"
