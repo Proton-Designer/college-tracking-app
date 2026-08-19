@@ -1,12 +1,25 @@
 "use client";
 
-import type { Task } from "@collegeos/api";
+import type { DailyPredictionRow, NightReviewDraft, Task } from "@collegeos/api";
 import { useState, useTransition } from "react";
 import { Button, Panel, Textarea } from "@/components/ui";
 import { submitReview } from "@/app/review/actions";
 import { FrictionPicker } from "./FrictionPicker";
+import { ReviewDraft } from "./ReviewDraft";
 
-export function ReviewForm({ today, incompleteMits }: { today: string; incompleteMits: Task[] }) {
+export function ReviewForm({
+  today,
+  incompleteMits,
+  draft,
+  draftCompletionPct,
+  prediction,
+}: {
+  today: string;
+  incompleteMits: Task[];
+  draft: NightReviewDraft;
+  draftCompletionPct: number;
+  prediction: DailyPredictionRow | null;
+}) {
   const [proudText, setProudText] = useState("");
   const [wentWrongText, setWentWrongText] = useState("");
   const [importantNoteText, setImportantNoteText] = useState("");
@@ -42,6 +55,8 @@ export function ReviewForm({ today, incompleteMits }: { today: string; incomplet
 
   return (
     <div className="flex flex-col gap-6">
+      <ReviewDraft draft={draft} draftCompletionPct={draftCompletionPct} prediction={prediction} />
+
       {incompleteMits.length > 0 ? (
         <Panel title="What got in the way?">
           <div className="flex flex-col gap-4">

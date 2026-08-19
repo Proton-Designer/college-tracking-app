@@ -1,4 +1,4 @@
-import type { DailyReview } from "@collegeos/api";
+import type { DailyPredictionRow, DailyReview } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -34,16 +34,24 @@ export default function ReviewScreen() {
 
       {result.status === "ready" && session?.user.id ? (
         result.data.existingReview ? (
-          <ReviewSaved review={result.data.existingReview} />
+          <ReviewSaved review={result.data.existingReview} prediction={result.data.prediction} />
         ) : (
-          <ReviewForm userId={session.user.id} today={result.data.today} incompleteMits={result.data.incompleteMits} onSaved={result.refetch} />
+          <ReviewForm
+            userId={session.user.id}
+            today={result.data.today}
+            incompleteMits={result.data.incompleteMits}
+            draft={result.data.draft}
+            draftCompletionPct={result.data.draftCompletionPct}
+            prediction={result.data.prediction}
+            onSaved={result.refetch}
+          />
         )
       ) : null}
     </ScrollView>
   );
 }
 
-function ReviewSaved({ review }: { review: DailyReview }) {
+function ReviewSaved({ review, prediction }: { review: DailyReview; prediction: DailyPredictionRow | null }) {
   return (
     <Panel style={styles.savedPanel}>
       <Text style={textStyle("label", color.inkMuted)}>Already saved tonight</Text>
@@ -54,6 +62,11 @@ function ReviewSaved({ review }: { review: DailyReview }) {
         MITs {review.mits_completed}/{review.mits_planned} ·{" "}
         {review.deep_work_actual_min != null ? `${review.deep_work_actual_min} min deep work` : "no session data"}
       </Text>
+      {prediction && prediction.actual_completion_pct != null ? (
+        <Text style={textStyle("caption", color.inkFaint)}>
+          Predicted {Math.round(prediction.predicted_completion_pct)}% · actual {Math.round(prediction.actual_completion_pct)}%
+        </Text>
+      ) : null}
     </Panel>
   );
 }

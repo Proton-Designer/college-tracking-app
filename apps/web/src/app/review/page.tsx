@@ -18,7 +18,7 @@ export default async function ReviewPage() {
     );
   }
 
-  const { today, incompleteMits, existingReview } = result.data;
+  const { today, incompleteMits, existingReview, draft, draftCompletionPct, prediction } = result.data;
 
   return (
     <main className="mx-auto flex w-full max-w-report flex-1 flex-col gap-6 px-8 py-10">
@@ -40,9 +40,14 @@ export default async function ReviewPage() {
             MITs {existingReview.mits_completed}/{existingReview.mits_planned} ·{" "}
             {existingReview.deep_work_actual_min != null ? `${existingReview.deep_work_actual_min} min deep work` : "no session data"}
           </p>
+          {prediction && prediction.actual_completion_pct != null ? (
+            <p className="font-mono text-caption text-ink-faint">
+              Predicted {Math.round(prediction.predicted_completion_pct)}% · actual {Math.round(prediction.actual_completion_pct)}%
+            </p>
+          ) : null}
         </Panel>
       ) : (
-        <ReviewForm today={today} incompleteMits={incompleteMits} />
+        <ReviewForm today={today} incompleteMits={incompleteMits} draft={draft} draftCompletionPct={draftCompletionPct} prediction={prediction} />
       )}
     </main>
   );

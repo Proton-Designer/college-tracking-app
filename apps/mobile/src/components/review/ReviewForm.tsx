@@ -1,4 +1,4 @@
-import type { Task } from "@collegeos/api";
+import type { DailyPredictionRow, NightReviewDraft, Task } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
 import { useState, useTransition } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -6,16 +6,23 @@ import { Button, Panel, Textarea } from "../ui";
 import { textStyle } from "../../design/typography";
 import { submitReview } from "../../lib/reviewActions";
 import { FrictionPicker } from "./FrictionPicker";
+import { ReviewDraft } from "./ReviewDraft";
 
 export function ReviewForm({
   userId,
   today,
   incompleteMits,
+  draft,
+  draftCompletionPct,
+  prediction,
   onSaved,
 }: {
   userId: string;
   today: string;
   incompleteMits: Task[];
+  draft: NightReviewDraft;
+  draftCompletionPct: number;
+  prediction: DailyPredictionRow | null;
   onSaved: () => void;
 }) {
   const [proudText, setProudText] = useState("");
@@ -44,6 +51,8 @@ export function ReviewForm({
 
   return (
     <View style={styles.stack}>
+      <ReviewDraft draft={draft} draftCompletionPct={draftCompletionPct} prediction={prediction} />
+
       {incompleteMits.length > 0 ? (
         <Panel title="What got in the way?">
           <View style={styles.taskStack}>

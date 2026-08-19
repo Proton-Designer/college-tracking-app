@@ -1,24 +1,31 @@
 import { createClient } from '@supabase/supabase-js';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { signIn } from '../auth/auth';
 import { uploadSyllabus } from '../data/syllabusUploads';
-import { DEMO_EMAIL, DEMO_PASSWORD, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
+import { createConfirmedUser, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from '../client/types';
 
 // Proves the P5 storage upload helper against the real local Supabase storage service
 // (migration 0011's private `syllabi` bucket) -- not a mock, a real multipart upload
 // and a real syllabus_uploads row.
-
+//
+// Dedicated throwaway user, not demo -- "reads against demo, writes against a
+// throwaway" (same line focusSessions.itest.ts already draws). A real file lands in
+// storage and a real syllabus_uploads row is created; demo's value is its stable,
+// curated data.
 describe('uploadSyllabus against the real local storage service', () => {
   let client: TypedSupabaseClient;
   let userId: string;
 
   beforeAll(async () => {
+    const email = `itest-syllabus-${Date.now()}@collegeos.test`;
+    const password = 'itest-syllabus-password-1';
+    const user = await createConfirmedUser(email, password);
+    userId = user.id;
+
     client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY!);
-    const result = await signIn(client, { email: DEMO_EMAIL, password: DEMO_PASSWORD });
-    if (!result.ok) throw new Error(`demo signIn failed: ${result.error.code}`);
-    userId = result.data.session.user.id;
+    const { error: signInError } = await client.auth.signInWithPassword({ email, password });
+    if (signInError) throw signInError;
   });
 
   it('uploads a real file to the private syllabi bucket and creates the tracking row', async () => {

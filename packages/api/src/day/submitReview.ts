@@ -118,6 +118,15 @@ export async function getNightReviewDraft(
 }
 
 /**
+ * Same ratio `submitNightReview` scores the morning prediction against, exposed so a
+ * pre-submit "so far" readout can never disagree with what actually gets stored --
+ * the UI never derives this itself, it only ever reads the shared computation.
+ */
+export function completionPctFromDraft(draft: NightReviewDraft): number {
+  return draft.mitsPlanned > 0 ? (draft.mitsCompleted / draft.mitsPlanned) * 100 : 0;
+}
+
+/**
  * "Auto-populated actuals" per the brief: MIT completion, deep-work minutes, kill-list
  * results, and workout status are computed via the same function getNightReviewDraft
  * uses -- never trusted from client input -- so a client can't misreport what actually
@@ -157,8 +166,7 @@ export async function submitNightReview(
     .single();
   if (reviewError) return dataErr(mapDataError(reviewError));
 
-  const actualCompletionPct = draft.mitsPlanned > 0 ? (draft.mitsCompleted / draft.mitsPlanned) * 100 : 0;
-  await scorePredictionForDate(client, input.userId, input.localDate, actualCompletionPct);
+  await scorePredictionForDate(client, input.userId, input.localDate, completionPctFromDraft(draft));
 
   return dataOk(review);
 }

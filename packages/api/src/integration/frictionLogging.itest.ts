@@ -1,33 +1,38 @@
 import { createClient } from '@supabase/supabase-js';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { signIn } from '../auth/auth';
 import { logFriction, listFrictionLogs } from '../data/frictionLogs';
 import { computeUserFrictionDistribution, computeUserFrictionTrend } from '../day/frictionAnalytics';
 import { getUserLocalToday } from '../day/today';
-import { DEMO_EMAIL, DEMO_PASSWORD, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
+import { createConfirmedUser, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from '../client/types';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
-// Windows placed far in the future (seed.sql only ever writes friction_logs within the
-// last 30 days of "today") so this file's distribution/trend assertions are isolated
-// from real seeded data and stay idempotent across repeated runs -- deleted and
-// recreated fresh in beforeAll each time, rather than accumulating.
+// Windows placed far in the future (well past any realistic seed data) so this file's
+// distribution/trend assertions never depend on what else has been logged for the day
+// -- redundant with the throwaway-user isolation below, but cheap insurance since a
+// window this file's own "today" test writes into could otherwise overlap it.
 const PREVIOUS_WINDOW = { since: '2099-01-01', until: '2099-01-07' };
 const CURRENT_WINDOW = { since: '2099-01-08', until: '2099-01-14' };
 
-describe('friction logging against the seeded demo user', () => {
+// Dedicated throwaway user, not demo -- "reads against demo, writes against a
+// throwaway" (same line focusSessions.itest.ts already draws). Demo's value is its
+// stable, curated semester data; every friction_logs row this file writes there would
+// degrade that for anyone using it for screenshots or manual review.
+describe('friction logging against a dedicated throwaway user', () => {
   let client: TypedSupabaseClient;
   let userId: string;
 
   beforeAll(async () => {
-    client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY!);
-    const result = await signIn(client, { email: DEMO_EMAIL, password: DEMO_PASSWORD });
-    if (!result.ok) throw new Error(`demo signIn failed: ${result.error.code}`);
-    userId = result.data.session.user.id;
+    const email = `itest-friction-${Date.now()}@collegeos.test`;
+    const password = 'itest-friction-password-1';
+    const user = await createConfirmedUser(email, password);
+    userId = user.id;
 
-    await client.from('friction_logs').delete().eq('user_id', userId).gte('local_date', '2099-01-01');
+    client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY!);
+    const { error: signInError } = await client.auth.signInWithPassword({ email, password });
+    if (signInError) throw signInError;
   });
 
   it('logs a friction event with just a cause, and the trigger computes a real local_date', async () => {
@@ -48,12 +53,12 @@ describe('friction logging against the seeded demo user', () => {
   });
 
   it('links a friction log to the real task it explains', async () => {
-    const { data: course } = await client.from('courses').select('id').limit(1).single();
+    // No course dependency -- tasks.course_id is nullable, and a throwaway user has no
+    // seeded courses to link to anyway.
     const { data: task } = await client
       .from('tasks')
       .insert({
         user_id: userId,
-        course_id: course!.id,
         title: `friction-test-${Date.now()}`,
         category: 'testing',
         estimated_minutes: 30,

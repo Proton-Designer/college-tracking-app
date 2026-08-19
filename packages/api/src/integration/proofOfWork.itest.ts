@@ -1,32 +1,34 @@
 import { createClient } from '@supabase/supabase-js';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { signIn } from '../auth/auth';
 import { updateTaskStatus, createTask } from '../data/tasks';
 import { submitProofOfWork } from '../data/proofOfWork';
-import { DEMO_EMAIL, DEMO_PASSWORD, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
+import { createConfirmedUser, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from '../client/types';
 
-describe('proof of work against the seeded demo user', () => {
+// Dedicated throwaway user, not demo -- "reads against demo, writes against a
+// throwaway" (same line focusSessions.itest.ts already draws). These tests write real
+// tasks and a real proof attachment upload; demo's value is its stable, curated data.
+describe('proof of work against a dedicated throwaway user', () => {
   let client: TypedSupabaseClient;
   let userId: string;
-  let courseId: number;
 
   beforeAll(async () => {
-    client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY!);
-    const result = await signIn(client, { email: DEMO_EMAIL, password: DEMO_PASSWORD });
-    if (!result.ok) throw new Error(`demo signIn failed: ${result.error.code}`);
-    userId = result.data.session.user.id;
+    const email = `itest-pow-${Date.now()}@collegeos.test`;
+    const password = 'itest-pow-password-1';
+    const user = await createConfirmedUser(email, password);
+    userId = user.id;
 
-    await client.from('tasks').delete().eq('user_id', userId).like('title', 'pow-test-%');
-    const { data: course } = await client.from('courses').select('id').limit(1).single();
-    courseId = course!.id;
+    client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY!);
+    const { error: signInError } = await client.auth.signInWithPassword({ email, password });
+    if (signInError) throw signInError;
   });
 
   async function makeTask(overrides: Partial<Database['public']['Tables']['tasks']['Insert']> = {}) {
+    // No course dependency -- tasks.course_id is nullable, and a throwaway user has no
+    // seeded courses to link to anyway.
     const result = await createTask(client, {
       user_id: userId,
-      course_id: courseId,
       title: `pow-test-${Date.now()}-${Math.random()}`,
       category: 'testing',
       estimated_minutes: 30,

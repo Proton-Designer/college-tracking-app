@@ -1,32 +1,35 @@
 import { createClient } from '@supabase/supabase-js';
 import { addDays } from '@collegeos/core';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { signIn } from '../auth/auth';
 import { createKillHabit, deactivateKillHabit, listKillHabits } from '../data/killHabits';
 import { logKillEvent, listKillEvents } from '../data/killEvents';
 import { computeHabitBounceBack } from '../day/killLoopBounceBack';
 import { getUserLocalToday } from '../day/today';
-import { DEMO_EMAIL, DEMO_PASSWORD, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
+import { createConfirmedUser, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from '../client/types';
 
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
-describe('the Kill Loop against the seeded demo user', () => {
+// Dedicated throwaway user, not demo -- these tests create/deactivate real kill_habits
+// and log real kill_events. "Reads against demo, writes against a throwaway" (same line
+// focusSessions.itest.ts already draws) -- demo's value is its stable, curated data, and
+// every write to it degrades that for anyone using it for screenshots or manual review.
+describe('the Kill Loop against a dedicated throwaway user', () => {
   let client: TypedSupabaseClient;
   let userId: string;
   let today: string;
 
   beforeAll(async () => {
-    client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY!);
-    const result = await signIn(client, { email: DEMO_EMAIL, password: DEMO_PASSWORD });
-    if (!result.ok) throw new Error(`demo signIn failed: ${result.error.code}`);
-    userId = result.data.session.user.id;
-    today = getUserLocalToday(TIMEZONE);
+    const email = `itest-killloop-${Date.now()}@collegeos.test`;
+    const password = 'itest-killloop-password-1';
+    const user = await createConfirmedUser(email, password);
+    userId = user.id;
 
-    // This file's own tests create/deactivate habits and log events -- clean up prior
-    // runs' rows so repeated runs against the same local db stay idempotent.
-    await client.from('kill_habits').delete().eq('user_id', userId).like('name', 'kill-loop-test-%');
+    client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY!);
+    const { error: signInError } = await client.auth.signInWithPassword({ email, password });
+    if (signInError) throw signInError;
+    today = getUserLocalToday(TIMEZONE);
   });
 
   it('creates a habit carrying the brief\'s full chain, including the single implementation intention', async () => {

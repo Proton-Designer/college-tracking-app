@@ -2,45 +2,62 @@
 
 **Always current.** Updated at every layer boundary by the Lead.
 
-## Current layer
-**L5 web — courses & semester intelligence** (Nova) · **L3 mobile — auth** (Atlas, verifying)
+## Verified state (all green)
 
-## Complete
-- **L0 Foundation** — monorepo (npm workspaces), all packages source-resolved (D4)
-- **`packages/core` domain engine** — all 10 DOMAIN_ENGINE_SPEC sections, **171 tests**,
-  98.75% stmts / 93.62% branch. Anti-excuse invariant enforced at import time.
-- **App shells** — `apps/web` (Next 16.3.1 + Tailwind v4), `apps/mobile` (Expo SDK 57 + Router),
-  cross-boundary types proven flowing through both bundlers
-- **Test infrastructure** — Playwright (desktop + mobile viewports, isolated per-spec users,
-  Mailpit integration), Jest + RNTL, repeatable `scripts/sim-shot.sh`
-- **Design system ratified + implemented** — direction **"Instrument"**; `packages/design`
-  tokens, primitives on both platforms, `/design` preview. 3 review passes.
-- **L1 data model** — 41 tables, 46 RLS policies, **261 pgTAP assertions**, realistic seeded
-  semester, generated types
-- **L3 backend** — SSR + native clients, enumeration-safe auth, hardened profile trigger,
-  typed data layer, live-stack integration tests
-- **L3 web** — landing page, auth flows, route protection; **17/17 E2E** against the real stack
-- **L4 backend** — day-assembly service; engine meets real data (BME 301 = 87.0833% agrees
-  across engine, DB, and API)
-- **L4 web** — Today screen on real data: Day Trace signature element, all three modes,
-  morning check-in, full state matrix
-- **L5 backend** — LLM gateway (offline-tested, no API key needed), syllabus ingestion with
-  proven confirmation gate + prompt-injection test, deadline radar, grade scenarios
+| Suite | Count |
+|---|---|
+| `packages/core` unit | **194** |
+| `packages/api` unit | 17 |
+| `packages/api` integration (live DB) | 50 |
+| pgTAP (RLS, constraints, triggers) | **265** |
+| Deno edge (offline, no API key) | 45 |
+| Web E2E (Playwright, real stack) | 17 |
+
+`npm run verify` → exit 0. Guards in the chain: `check:imports`, `check:core-mirror`.
+
+## Built
+
+**Backend (L0–L7 complete)**
+- 14 migrations · 41 tables · RLS on every user-scoped table (dynamically enumerated in tests)
+- `packages/core` — the whole deterministic engine: risk + explanation traces, grade projection
+  & scenario solver, duration calibration, backplanning, bounce-back, Recovery Mode, workload
+  levels, planning-vs-execution, friction analytics, insight confidence gating
+- `packages/api` — typed data layer, auth (enumeration-safe), day assembly, academic, focus
+  sessions, kill loop, friction, proof-of-work
+- Edge functions: `syllabus-extract`, `syllabus-confirm`, `nightly-analysis`, `weekly-synthesis`
+- LLM gateway: budget gate proven to block *before* the HTTP call, Zod validation, retry ladder,
+  deterministic fallback. **Fully tested offline — no `ANTHROPIC_API_KEY` needed or present.**
+
+**Web** — `/` landing · auth (login/signup/forgot/reset/confirm) · `/today` · `/courses` ·
+`/courses/[id]` Semester Map · `/calendar` horizon · `/review` · `/design` preview
+
+**Mobile** — welcome · auth (login/signup/forgot/reset/callback) · `/today` (all three modes) ·
+`/review` · `/design` preview
 
 ## In flight
-- **NOVA** (`a9bsul1i`): L5 web — /courses index, Semester Map with risk trace, grade
-  scenario planner, deadline horizon, syllabus confirmation screen
-- **ATLAS** (`mapw9to2`): L3 mobile — welcome + auth flows, verifying on simulator;
-  then seed coverage for 2026-07-28 so the MVD kept/deferred path produces real output
+- **ATLAS** (`qtqzxwut`): L8 backend — experiments (testing-tier insight → N-of-1 trial),
+  decision journal, semester retrospective
+- **NOVA** (`8h36nekc`): night-review preview + prediction wiring → **navigation shell** →
+  mobile parity (Courses, Semester Map, Calendar)
 
-## Blocked / waiting
-- Supabase **cloud** credentials not yet provided. Building against local stack.
-  All cloud-only steps accumulate in `docs/SUPABASE_SETUP.md`.
+## Biggest known gap
+**No navigation.** Every screen above exists and works, but there is no way to move between them —
+the product is currently a set of URLs, not an application. This is Nova's priority after the
+night review.
 
-## Next (per MASTER_PLAN §6)
-L3 auth + landing/welcome → L4 core loop → L5 courses/syllabus → L6 focus/kill loop →
-L7 Claude layer → L8 insights/experiments → L9 interventions → L10 integrations → L11 hardening
+## Not yet built
+`/insights` · `/settings` · `/focus/[sessionId]` · `/review/[date]` history · mobile Courses /
+Semester Map / Calendar · L9 interventions & notifications · L10 integrations (WHOOP, Brightspace
+iCal, RescueTime, calendar) · L11 hardening pass
+
+## Blocked on credentials (not on us)
+- **Supabase cloud** — everything is built and tested against a local stack; `docs/SUPABASE_SETUP.md`
+  is the ordered provisioning runbook, including four must-fix-before-launch security items.
+- **Anthropic API key** — the LLM layer is complete and offline-tested. `SUPABASE_SETUP.md` §7 has
+  the 5-step activation checklist, including: if a live response shape differs from a fixture,
+  **update the fixture from reality, never patch the test to pass.**
 
 ## Key reference
 `CLAUDE.md` · `docs/MASTER_PLAN.md` · `docs/DOMAIN_ENGINE_SPEC.md` · `docs/LLM_LAYER_SPEC.md` ·
-`docs/DESIGN_SYSTEM.md` · `docs/SUPABASE_SETUP.md` · `.brain/memory/decisions.md`
+`docs/DESIGN_SYSTEM.md` · `docs/SCREEN_SPEC.md` · `docs/DATA_MODEL.md` · `docs/SUPABASE_SETUP.md` ·
+`docs/FOLLOWUPS.md` · `.brain/memory/decisions.md` (D1–D17)
