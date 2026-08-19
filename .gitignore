@@ -48,3 +48,8 @@ ios/Pods/
 android/.gradle/
 *.keystore
 !debug.keystore
+
+# scratch / throwaway scripts (must never be committed)
+*.tmp-*
+.tmp-*
+**/.tmp-*

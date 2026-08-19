@@ -76,6 +76,8 @@ export type { KillEventRow, KillEventOutcome, LogKillEventInput } from "./data/k
 export { logFriction, listFrictionLogs } from "./data/frictionLogs";
 export type { FrictionLogRow, FrictionCause, LogFrictionInput } from "./data/frictionLogs";
 export { computeUserFrictionDistribution, computeUserFrictionTrend } from "./day/frictionAnalytics";
+export { submitProofOfWork } from "./data/proofOfWork";
+export type { ProofOfWorkType, SubmitProofOfWorkInput } from "./data/proofOfWork";
 
 export { generateAndPersistBackplan, computeCapacityHorizon } from "./academic/backplan";
 export type { GenerateBackplanResult, CapacityDay } from "./academic/backplan";

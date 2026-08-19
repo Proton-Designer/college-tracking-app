@@ -48,6 +48,24 @@ export async function updateTaskStatus(
   taskId: number,
   status: TaskStatus,
 ): Promise<DataResult<Task>> {
+  if (status === 'completed') {
+    const { data: task, error: fetchError } = await client
+      .from('tasks')
+      .select('requires_proof_of_work, proof_of_work_content')
+      .eq('id', taskId)
+      .single();
+    if (fetchError) return dataErr(mapDataError(fetchError));
+    // The gate that makes requires_proof_of_work mean something: without this, it's a
+    // column the UI can choose to check, not a real requirement -- same class of issue
+    // as a client-side-only confirmation check (see syllabus-confirm's own reasoning).
+    if (task.requires_proof_of_work && !task.proof_of_work_content) {
+      return dataErr({
+        code: 'validation',
+        message: 'This task requires proof of work before it can be marked complete.',
+      });
+    }
+  }
+
   const { data, error } = await client
     .from('tasks')
     .update({ status, completed_at: status === 'completed' ? new Date().toISOString() : null })
