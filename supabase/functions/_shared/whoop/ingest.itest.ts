@@ -89,3 +89,28 @@ Deno.test("ingestWhoopTelemetry: an empty events array is a no-op, not an error"
   const { data: rollups } = await admin.from("health_daily").select("id").eq("user_id", userId);
   assertEquals(rollups!.length, 0);
 });
+
+Deno.test("ingestWhoopTelemetry: re-ingesting the same external resource id is a no-op, not a duplicate write (webhook retry safety)", async () => {
+  const { admin, userId } = await createThrowawayUser();
+  const events = normalizeWhoopWorkout({ id: "retry-workout-1", start: "2026-08-19T08:00:00.000Z", end: "2026-08-19T09:00:00.000Z", score: { strain: 9.1 } });
+
+  const first = await ingestWhoopTelemetry(admin, userId, events, "retry-workout-1");
+  assertEquals(first.deduped, false);
+  assertEquals(first.localDatesUpdated, ["2026-08-19"]);
+
+  const retry = await ingestWhoopTelemetry(admin, userId, events, "retry-workout-1");
+  assertEquals(retry.deduped, true);
+  assertEquals(retry.localDatesUpdated, []);
+
+  const { data: stored } = await admin.from("telemetry_events").select("id").eq("user_id", userId).eq("external_id", "retry-workout-1");
+  assertEquals(stored!.length, events.length); // not doubled
+});
+
+Deno.test("ingestWhoopTelemetry: two different external resource ids on the same day both ingest normally", async () => {
+  const { admin, userId } = await createThrowawayUser();
+  await ingestWhoopTelemetry(admin, userId, normalizeWhoopWorkout({ id: "a", start: "2026-08-19T08:00:00.000Z", end: "2026-08-19T09:00:00.000Z", score: { strain: 5.0 } }), "workout-a");
+  await ingestWhoopTelemetry(admin, userId, normalizeWhoopWorkout({ id: "b", start: "2026-08-19T18:00:00.000Z", end: "2026-08-19T19:00:00.000Z", score: { strain: 11.0 } }), "workout-b");
+
+  const { data: rollup } = await admin.from("health_daily").select("strain").eq("user_id", userId).eq("local_date", "2026-08-19").single();
+  assertEquals(Number(rollup!.strain), 11.0);
+});

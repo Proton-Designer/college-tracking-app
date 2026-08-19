@@ -2170,6 +2170,7 @@ export type Database = {
       telemetry_events: {
         Row: {
           created_at: string
+          external_id: string | null
           id: number
           local_date: string
           metric: string
@@ -2182,6 +2183,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          external_id?: string | null
           id?: never
           local_date: string
           metric: string
@@ -2194,6 +2196,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          external_id?: string | null
           id?: never
           local_date?: string
           metric?: string
