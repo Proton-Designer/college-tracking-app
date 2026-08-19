@@ -101,6 +101,7 @@ export type { Insight } from "./data/insights";
 export {
   createExperiment,
   getExperiment,
+  getExperimentOutcome,
   listExperiments,
   logExperimentMeasurement,
   listExperimentMeasurements,
@@ -112,6 +113,7 @@ export type {
   CreateExperimentInput,
   LogExperimentMeasurementInput,
   ScoreExperimentInput,
+  ScoreExperimentResult,
 } from "./data/experiments";
 export { logDecision, scoreDecision, getDecision, listDecisions } from "./data/decisionJournal";
 export type { DecisionJournalRow, LogDecisionInput, ScoreDecisionInput } from "./data/decisionJournal";

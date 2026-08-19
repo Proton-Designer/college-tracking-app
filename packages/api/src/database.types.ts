@@ -875,9 +875,11 @@ export type Database = {
       }
       experiments: {
         Row: {
+          baseline_value: number | null
           created_at: string
           end_date: string | null
           hypothesis: string
+          hypothesized_direction: string | null
           id: number
           insight_id: number | null
           outcome_summary: string | null
@@ -888,9 +890,11 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          baseline_value?: number | null
           created_at?: string
           end_date?: string | null
           hypothesis: string
+          hypothesized_direction?: string | null
           id?: never
           insight_id?: number | null
           outcome_summary?: string | null
@@ -901,9 +905,11 @@ export type Database = {
           user_id: string
         }
         Update: {
+          baseline_value?: number | null
           created_at?: string
           end_date?: string | null
           hypothesis?: string
+          hypothesized_direction?: string | null
           id?: never
           insight_id?: number | null
           outcome_summary?: string | null

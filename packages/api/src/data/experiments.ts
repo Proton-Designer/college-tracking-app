@@ -1,3 +1,4 @@
+import { computeExperimentOutcome, type ExperimentDirection, type ExperimentOutcome } from '@collegeos/core';
 import type { LocalDate } from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
 import type { Database } from '../database.types';
@@ -17,6 +18,16 @@ export interface CreateExperimentInput {
   protocol?: string;
   startDate: LocalDate;
   endDate?: LocalDate;
+  /** The metric's value BEFORE the trial started -- what computeExperimentOutcome
+   *  (packages/core) measures movement against. Optional: a trial can be created (and
+   *  measurements logged) before a real baseline is known, same as any other "0 means
+   *  nothing planned yet, not missing data" field in this schema -- but no real outcome
+   *  can ever be scored without it. */
+  baselineValue?: number;
+  /** Which way the hypothesis predicts the metric moves. Optional for the same reason
+   *  as baselineValue -- both must be present for computeExperimentOutcome to run at
+   *  all, see getExperimentOutcome below. */
+  hypothesizedDirection?: ExperimentDirection;
 }
 
 /** "Observe → hypothesize → N-of-1 experiment → measure" -- the brief's alternative to
@@ -35,6 +46,8 @@ export async function createExperiment(
       protocol: input.protocol ?? null,
       start_date: input.startDate,
       end_date: input.endDate ?? null,
+      baseline_value: input.baselineValue ?? null,
+      hypothesized_direction: input.hypothesizedDirection ?? null,
       status: 'running',
     })
     .select()
@@ -94,6 +107,39 @@ export async function listExperimentMeasurements(
   return dataOk(data);
 }
 
+/**
+ * The deterministic verdict for a trial, live -- callable at any point, running or
+ * closed, not just at scoring time. Never persisted: same "computed values: live
+ * compute" rule as risk scores and grade projections (DATA_MODEL.md §3), rebuilt from
+ * `experiments`/`experiment_measurements` every call rather than cached, so it can never
+ * go stale relative to a newly-logged measurement.
+ *
+ * Returns null (not an error) whenever a real verdict genuinely can't be computed yet:
+ * no `baseline_value`, no `hypothesized_direction`, or too few measurements
+ * (computeExperimentOutcome's own MIN_MEASUREMENTS floor) -- the caller (a "so far"
+ * display, e.g.) must handle that null explicitly rather than treating a missing verdict
+ * as a bug.
+ */
+export async function getExperimentOutcome(client: TypedSupabaseClient, experimentId: number): Promise<DataResult<ExperimentOutcome | null>> {
+  const { data: experiment, error: experimentError } = await client
+    .from('experiments')
+    .select('baseline_value, hypothesized_direction')
+    .eq('id', experimentId)
+    .single();
+  if (experimentError) return dataErr(mapDataError(experimentError));
+  if (experiment.baseline_value == null || experiment.hypothesized_direction == null) return dataOk(null);
+
+  const measurementsResult = await listExperimentMeasurements(client, experimentId);
+  if (!measurementsResult.ok) return measurementsResult;
+
+  const outcome = computeExperimentOutcome(
+    Number(experiment.baseline_value),
+    experiment.hypothesized_direction as ExperimentDirection,
+    measurementsResult.data.map((m) => ({ value: Number(m.value), localDate: m.local_date })),
+  );
+  return dataOk(outcome);
+}
+
 export interface ScoreExperimentInput {
   status: 'completed' | 'abandoned';
   outcomeSummary: string;
@@ -102,15 +148,26 @@ export interface ScoreExperimentInput {
   endDate?: LocalDate;
 }
 
+export interface ScoreExperimentResult {
+  experiment: Experiment;
+  /** The same live-computed verdict getExperimentOutcome returns, included here so a
+   *  caller closing the trial gets both the write's result and the real outcome in one
+   *  round trip -- null under the exact same conditions getExperimentOutcome returns
+   *  null for (no baseline/direction, or not enough measurements). */
+  outcome: ExperimentOutcome | null;
+}
+
 /** Closes a trial with a real, human-legible summary of what happened -- the
  *  deterministic side (computeExperimentOutcome's confidence/direction verdict) is
  *  meant to inform this text, not replace it; the summary is written by whatever
- *  caller assembled the outcome (UI, or eventually a model call), not derived here. */
+ *  caller assembled the outcome (UI, or eventually a model call), not derived here. The
+ *  verdict itself is never stored on the row -- it's recomputed live and handed back
+ *  alongside the write, same as getExperimentOutcome. */
 export async function scoreExperiment(
   client: TypedSupabaseClient,
   experimentId: number,
   input: ScoreExperimentInput,
-): Promise<DataResult<Experiment>> {
+): Promise<DataResult<ScoreExperimentResult>> {
   const { data, error } = await client
     .from('experiments')
     .update({
@@ -122,5 +179,9 @@ export async function scoreExperiment(
     .select()
     .single();
   if (error) return dataErr(mapDataError(error));
-  return dataOk(data);
+
+  const outcomeResult = await getExperimentOutcome(client, experimentId);
+  if (!outcomeResult.ok) return outcomeResult;
+
+  return dataOk({ experiment: data, outcome: outcomeResult.data });
 }

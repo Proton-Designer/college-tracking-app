@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import {
   createExperiment,
   getExperiment,
+  getExperimentOutcome,
   listExperiments,
   logExperimentMeasurement,
   listExperimentMeasurements,
@@ -90,14 +91,84 @@ describe('L8: experiments, decision journal, semester lessons', () => {
       });
       expect(scored.ok).toBe(true);
       if (!scored.ok) return;
-      expect(scored.data.status).toBe('completed');
-      expect(scored.data.outcome_summary).toContain('0.4/day');
-      expect(scored.data.end_date).toBe('2026-08-07');
+      expect(scored.data.experiment.status).toBe('completed');
+      expect(scored.data.experiment.outcome_summary).toContain('0.4/day');
+      // No baseline_value/hypothesized_direction were set on this trial -- a real
+      // verdict genuinely cannot be computed, and the result says so honestly rather
+      // than fabricating one from the human-written summary text.
+      expect(scored.data.outcome).toBeNull();
+      expect(scored.data.experiment.end_date).toBe('2026-08-07');
 
       // No longer shows up in the running list once closed.
       const runningAfter = await listExperiments(client, 'running');
       expect(runningAfter.ok).toBe(true);
       if (runningAfter.ok) expect(runningAfter.data.some((e) => e.id === created.data.id)).toBe(false);
+    });
+
+    it('computes a real outcome verdict once baseline_value and hypothesized_direction are set -- the engine getting a real caller', async () => {
+      const { data: insight, error: insightError } = await client
+        .from('insights')
+        .insert({
+          user_id: userId,
+          claim: 'Late-night study sessions run short.',
+          confidence_stored: 'testing',
+          sample_size: 6,
+          status: 'active',
+        })
+        .select('id')
+        .single();
+      expect(insightError).toBeNull();
+
+      const created = await createExperiment(client, userId, {
+        insightId: insight!.id,
+        hypothesis: 'Studying before 9pm increases session length.',
+        startDate: '2026-08-10',
+        baselineValue: 30, // baseline: 30-minute average session length
+        hypothesizedDirection: 'increase',
+      });
+      expect(created.ok).toBe(true);
+      if (!created.ok) return;
+      expect(created.data.baseline_value).not.toBeNull();
+      expect(Number(created.data.baseline_value)).toBe(30);
+      expect(created.data.hypothesized_direction).toBe('increase');
+
+      // Before any measurements are logged, there isn't enough data for a verdict yet --
+      // null, not a fabricated early guess.
+      const tooEarly = await getExperimentOutcome(client, created.data.id);
+      expect(tooEarly.ok).toBe(true);
+      if (tooEarly.ok) expect(tooEarly.data).toBeNull();
+
+      // Consistently above the 30-minute baseline, matching the hypothesized direction.
+      for (const [i, value] of [45, 50, 48, 55].entries()) {
+        const logged = await logExperimentMeasurement(client, userId, {
+          experimentId: created.data.id,
+          metric: 'session_length_min',
+          value,
+          localDate: `2026-08-1${i + 1}`,
+        });
+        expect(logged.ok).toBe(true);
+      }
+
+      const liveOutcome = await getExperimentOutcome(client, created.data.id);
+      expect(liveOutcome.ok).toBe(true);
+      if (!liveOutcome.ok) return;
+      expect(liveOutcome.data).not.toBeNull();
+      expect(liveOutcome.data!.measurementCount).toBe(4);
+      expect(liveOutcome.data!.baselineValue).toBe(30);
+      expect(liveOutcome.data!.movedInHypothesizedDirection).toBe(true);
+      expect(liveOutcome.data!.percentChange).toBeGreaterThan(0);
+
+      const scored = await scoreExperiment(client, created.data.id, {
+        status: 'completed',
+        outcomeSummary: 'Session length rose from a 30-minute baseline once study time moved earlier.',
+        endDate: '2026-08-14',
+      });
+      expect(scored.ok).toBe(true);
+      if (!scored.ok) return;
+      // scoreExperiment returns the SAME real verdict getExperimentOutcome does -- one
+      // round trip for the close-and-see-the-result flow, not two separate calls.
+      expect(scored.data.outcome).not.toBeNull();
+      expect(scored.data.outcome!.movedInHypothesizedDirection).toBe(true);
     });
   });
 
