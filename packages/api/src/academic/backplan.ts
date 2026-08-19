@@ -11,6 +11,18 @@ function wakingMinutesPerDayFor(sleepBaselineHours: number | null): number {
   return hours * 60;
 }
 
+export interface CapacityDay extends DayCapacity {
+  /** Minutes of committed (busy) calendar time this day -- what availableMinutes was
+   *  derived FROM. SCREEN_SPEC.md §5: /calendar must show committed time against
+   *  available capacity so congestion is visible, not inferred -- a bare
+   *  availableMinutes doesn't convey whether that's a light day or a crushed one, only
+   *  committedMinutes/wakingMinutes together do. */
+  committedMinutes: number;
+  /** The waking-window total (derived from sleep_baseline_hours, or the default) that
+   *  availableMinutes and committedMinutes are both measured against. */
+  wakingMinutes: number;
+}
+
 /**
  * Committed-vs-available minutes per day across [today, horizonEnd] -- originally
  * private to backplan generation (windowEnd was always one deliverable's due date), now
@@ -24,7 +36,7 @@ export async function computeCapacityHorizon(
   today: LocalDate,
   horizonEnd: LocalDate,
   sleepBaselineHours: number | null,
-): Promise<DataResult<DayCapacity[]>> {
+): Promise<DataResult<CapacityDay[]>> {
   const windowDays = Math.max(daysBetween(today, horizonEnd), 0);
   const wakingMinutesPerDay = wakingMinutesPerDayFor(sleepBaselineHours);
 
@@ -48,8 +60,13 @@ export async function computeCapacityHorizon(
     const date = new Date(`${today}T00:00:00Z`);
     date.setUTCDate(date.getUTCDate() + i);
     const localDate = date.toISOString().slice(0, 10);
-    const busy = busyMinutesByDate.get(localDate) ?? 0;
-    return { date: localDate, availableMinutes: Math.max(0, wakingMinutesPerDay - busy) };
+    const committedMinutes = busyMinutesByDate.get(localDate) ?? 0;
+    return {
+      date: localDate,
+      availableMinutes: Math.max(0, wakingMinutesPerDay - committedMinutes),
+      committedMinutes,
+      wakingMinutes: wakingMinutesPerDay,
+    };
   });
 
   return dataOk(days);

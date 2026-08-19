@@ -392,6 +392,16 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# verify_jwt = true is the default, but set explicitly per function rather than relying
+# on it -- these two are exactly the functions where "some caller forgot this was on"
+# would be a real security regression (syllabus-confirm is the ONLY server-side gate
+# between staged extractions and real academic data; see its own header comment).
+[functions.syllabus-confirm]
+verify_jwt = true
+
+[functions.syllabus-extract]
+verify_jwt = true
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

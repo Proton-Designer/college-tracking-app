@@ -57,7 +57,7 @@ export { loadCourseGradeProjections } from "./day/grades";
 export type { CourseGradeProjection } from "./day/grades";
 
 export { generateAndPersistBackplan, computeCapacityHorizon } from "./academic/backplan";
-export type { GenerateBackplanResult } from "./academic/backplan";
+export type { GenerateBackplanResult, CapacityDay } from "./academic/backplan";
 export { computeCourseGradeScenario, computeCourseRequiredScore } from "./academic/gradeScenario";
 export { getBackplan, listMilestones } from "./data/backplans";
 export type { DeliverableBackplanRow, BackplanMilestoneRow } from "./data/backplans";

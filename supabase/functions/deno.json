@@ -4,5 +4,6 @@
   },
   "compilerOptions": {
     "strict": true
-  }
+  },
+  "nodeModulesDir": "none"
 }

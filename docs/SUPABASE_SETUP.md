@@ -272,8 +272,14 @@ budget numbers in production — this table is transcribed from the brief and da
 
 **Exactly what to verify once a real key exists**, in order:
 
-1. `deno test --allow-net --allow-env supabase/functions/_shared/` — confirm the 32
-   offline tests still pass unchanged (they must never need the key).
+1. `cd supabase/functions && deno test --allow-net --allow-env _shared/` — confirm the 39
+   offline tests still pass unchanged (they must never need the key). **Must run from
+   `supabase/functions/`, not the repo root** -- as of P4 (`npm:unpdf` for PDF text
+   extraction), running from the repo root makes Deno discover the JS monorepo's own
+   `node_modules` via npm workspaces and try to resolve npm: specifiers from it instead
+   of its own npm cache, which fails for any package not also installed there even
+   though `supabase/functions/deno.json` sets `"nodeModulesDir": "none"` -- confirmed
+   live, the setting doesn't override cwd-based discovery for this Deno version (2.9.5).
 2. **Live smoke test** (`docs/LLM_LAYER_SPEC.md` §10) — one real call per model, run
    manually, gated behind an env flag so it never runs in normal CI. Not written as of
    L5; write it against `createAnthropicProvider` directly, and confirm the *real*
@@ -303,9 +309,25 @@ supabase functions list
 > `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY` are injected into Edge
 > Functions automatically. Do not set them manually.
 
-*(Function inventory: `_shared/llm/` (gateway) and `_shared/syllabus/` (extraction +
-confirmation) exist as of L5, callable modules only — no deployable `Deno.serve` HTTP
-handlers wired up yet. Populated further in L7 / L10.)*
+**Function inventory** (as of P4):
+- `_shared/llm/` (gateway), `_shared/syllabus/` (extraction, confirmation, text-quality
+  gate, PDF text extraction), `_shared/http.ts` (the JWT-verification + response-shape
+  pattern every function below follows) — callable modules, unit-tested offline, no HTTP
+  surface of their own.
+- `syllabus-confirm` — deployed, `verify_jwt = true`. The **only** path from a staged
+  `syllabus_extractions` row to a real `courses`/`deliverables`/`grade_categories` write
+  — see its own header comment for why this must be server-side, not a client call to
+  `promoteExtraction`. Verified live: real JWT auth, real course creation, idempotent
+  double-confirm refusal (409), cross-user isolation (a second real user gets 404, not
+  another user's data), reject path. No Anthropic dependency — fully provable without a key.
+- `syllabus-extract` — deployed, `verify_jwt = true`. Downloads the uploaded file,
+  extracts its text (`npm:unpdf`, verified live against both a real generated PDF and
+  garbage input), then runs the existing text → quality-gate → LLM-gateway → staging
+  pipeline. Verified live up through the budget/profile lookup; the actual Anthropic
+  call itself still needs the live smoke test above the first time a real key exists —
+  without one, this returns a clear 503, not a crash or a silent no-op (confirmed live).
+
+Populated further in L7 (scheduled jobs) / L10.
 
 ---
 

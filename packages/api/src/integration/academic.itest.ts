@@ -155,9 +155,17 @@ describe('deadline radar + grade scenarios against the seeded demo user', () => 
     // course_meetings coverage is the thing to check.)
     const wakingMinutes = result.data.reduce((max, d) => Math.max(max, d.availableMinutes), 0);
     expect(result.data.some((d) => d.availableMinutes < wakingMinutes)).toBe(true);
+
+    // committedMinutes and wakingMinutes are the inputs availableMinutes was derived
+    // from (SCREEN_SPEC §5: congestion must be visible, not inferred) -- every day's
+    // three numbers must actually reconcile, not just individually look plausible.
     for (const day of result.data) {
       expect(day.availableMinutes).toBeGreaterThanOrEqual(0);
+      expect(day.committedMinutes).toBeGreaterThanOrEqual(0);
+      expect(day.wakingMinutes).toBeGreaterThan(0);
+      expect(day.availableMinutes).toBe(Math.max(0, day.wakingMinutes - day.committedMinutes));
     }
+    expect(result.data.some((d) => d.committedMinutes > 0)).toBe(true);
   });
 
   it('every persisted milestone lands on or after today, matching packages/core\'s own invariant', async () => {

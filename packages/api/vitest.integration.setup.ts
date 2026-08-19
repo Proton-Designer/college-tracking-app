@@ -21,3 +21,23 @@ if (missing.length > 0) {
       'This suite fails loudly rather than skipping -- a silently-skipped integration run is worse than none.',
   );
 }
+
+// S1: every itest file signs in as the seeded demo@collegeos.app account. That
+// credential is mutable shared state -- something (never definitively root-caused; see
+// the seed-coverage report) once changed its password mid-session, and every test in
+// every file failed with an opaque "signIn failed", not "the fixture moved". Rather than
+// depend on the credential staying whatever seed.sql last set it to, assert-and-repair
+// it here, every time any integration file starts: force it back to the canonical value
+// via the admin API (service-role, bypasses the normal auth flow entirely) before any
+// test gets a chance to sign in. Idempotent -- resetting an already-correct password is
+// a no-op in effect, so this is safe to run once per test file, not just once per run.
+const { createClient } = await import('@supabase/supabase-js');
+const { DEMO_USER_ID, DEMO_PASSWORD } = await import('./src/integration/testSupport');
+const adminClient = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+const { error: repairError } = await adminClient.auth.admin.updateUserById(DEMO_USER_ID, {
+  password: DEMO_PASSWORD,
+  email_confirm: true,
+});
+if (repairError) {
+  throw new Error(`Failed to assert-and-repair the demo user credential before running integration tests: ${repairError.message}`);
+}
