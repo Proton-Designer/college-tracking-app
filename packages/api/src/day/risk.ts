@@ -32,12 +32,13 @@ function wakingHoursPerDayFor(sleepBaselineHours: number | null): number {
  * whenever this fallback is the one actually used (see assignmentRisk.ts's
  * `usingGlobalFallback` check) — verify that still holds if this constant ever moves.
  */
-// @barrel-internal -- flagged, not a confident call: the Lead's L5 ruling emphasized this being
-// visible to a "future reader," which this file's own `export const` + comment already satisfies for
-// anyone reading the source; nothing currently consumes it from outside day/risk.ts (only
-// assignmentRisk.ts's own confidence-downgrade check references it, indirectly, via the returned
-// result). Left internal rather than assuming the ruling meant "part of the package's public
-// surface too" -- easy to promote if that's what was actually intended.
+// @barrel-internal -- the L5 ruling's intent was reader visibility INSIDE the engine (so anyone
+// reading risk.ts can see 1.5 days is a prior, not a measurement, and verify the confidence
+// downgrade still fires when it's used), not package-surface visibility. Putting it on the package
+// surface would work against that intent: it invites a consumer to import and display it, and a UI
+// rendering "1.5 days average start delay" would present a made-up placeholder as an observed fact --
+// exactly the fabrication this product refuses everywhere else. Stays invisible until there's a real
+// population to average, at which point it stops being a prior and the question changes entirely.
 export const GLOBAL_MEAN_START_DELAY_DAYS_PRIOR = 1.5;
 
 export interface DeliverableRisk {
