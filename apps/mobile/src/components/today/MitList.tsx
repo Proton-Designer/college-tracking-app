@@ -30,7 +30,13 @@ const CONFIDENCE_BORDER: Record<Confidence, LineStyle> = {
 // RN's `borderStyle: 'dashed'/'dotted'` frequently renders as solid on iOS — composing the
 // rule from small Views (same fix as DayTrace.tsx) so dashed/dotted/solid are genuinely three
 // distinct states rather than gambling on the native renderer for a ratified convention.
-const RULE_SEGMENTS = 16;
+// The dash/dot segments are absolutely positioned inside ruleTrack so they never contribute to
+// its own layout size — ruleTrack's height comes purely from `alignSelf: stretch` matching
+// itemContent, same as the solid case. A prior version stacked the segments as normal flow
+// children, which gave ruleTrack a large intrinsic height of its own and forced the whole row
+// (and itemContent, via the row's default stretch) to grow to fit it, producing dead space
+// below short rows — worse for dashed/dotted than solid since they had more/taller segments.
+const RULE_SEGMENTS = 20;
 const RULE_GAP = 3;
 
 function ConfidenceRule({ lineStyle, ruleColor }: { lineStyle: LineStyle; ruleColor: string }) {
@@ -41,7 +47,16 @@ function ConfidenceRule({ lineStyle, ruleColor }: { lineStyle: LineStyle; ruleCo
   return (
     <View style={styles.ruleTrack}>
       {Array.from({ length: RULE_SEGMENTS }, (_, i) => i).map((i) => (
-        <View key={i} style={{ width: 2, height: segLen, marginBottom: RULE_GAP, backgroundColor: ruleColor }} />
+        <View
+          key={i}
+          style={{
+            position: "absolute",
+            top: i * (segLen + RULE_GAP),
+            width: 2,
+            height: segLen,
+            backgroundColor: ruleColor,
+          }}
+        />
       ))}
     </View>
   );
@@ -123,6 +138,7 @@ const styles = StyleSheet.create({
   ruleTrack: {
     width: 2,
     marginRight: space[3],
+    alignSelf: "stretch",
     overflow: "hidden",
   },
   itemContent: {

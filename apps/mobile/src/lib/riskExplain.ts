@@ -1,5 +1,3 @@
-import { daysBetween, type LocalDate } from "@collegeos/core";
-
 /**
  * Renders a risk engine's TraceEntry[] (packages/core, DOMAIN_ENGINE_SPEC.md §1) into the
  * plain-language "Why:" lines the doc's own example uses ("Exam worth 22% in 9 days"). This is
@@ -17,22 +15,10 @@ interface TraceEntryLike {
   contribution: number;
 }
 
-function formatDueIn(today: LocalDate, dueDate: LocalDate): string {
-  const days = daysBetween(today, dueDate);
-  if (days < 0) return "past due";
-  if (days === 0) return "due today";
-  if (days === 1) return "due tomorrow";
-  return `due in ${days} days`;
-}
-
 function explainOne(entry: TraceEntryLike): string | null {
   const raw = entry.rawInput as Record<string, unknown> | number | null;
 
   switch (entry.key) {
-    case "proximity": {
-      const r = raw as { today: LocalDate; dueDate: LocalDate };
-      return formatDueIn(r.today, r.dueDate);
-    }
     case "weight": {
       const pct = raw as number;
       return `Worth ${pct}% of the grade`;
@@ -74,10 +60,13 @@ function explainOne(entry: TraceEntryLike): string | null {
   }
 }
 
-/** Top N trace entries by contribution, rendered as plain-language lines. Excluded/zero-weight factors are skipped. */
+/** Top N trace entries by contribution, rendered as plain-language lines. Excluded/zero-weight
+ *  factors are skipped, and so is `proximity` — every current call site already shows a due-date
+ *  label (daysRemainingLabel) right next to where this runs, so restating "past due"/"due in N
+ *  days" here would just duplicate it rather than add a new reason. */
 export function explainTopFactors(trace: TraceEntryLike[], limit = 3): string[] {
   return trace
-    .filter((entry) => entry.weight > 0)
+    .filter((entry) => entry.weight > 0 && entry.key !== "proximity")
     .sort((a, b) => b.contribution - a.contribution)
     .map(explainOne)
     .filter((line): line is string => line != null)

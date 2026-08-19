@@ -3,22 +3,13 @@ import { describe, expect, it } from 'vitest';
 import { getSession, signIn } from '../auth/auth';
 import { getOwnProfile } from '../data/profiles';
 import { createCourse, listCourses } from '../data/courses';
-import { SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
+import { createConfirmedUser, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 
 // Proves the real thing the L3 assignment asked for: real signup (via the admin API,
 // pre-confirmed -- matching Nova's own E2E fixture convention) -> real session issued by
 // the actual local GoTrue server -> an RLS-scoped read that returns only that user's rows,
 // verified against a second real user rather than assumed from the schema.
-
-const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-async function createConfirmedUser(email: string, password: string) {
-  const admin = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY!);
-  const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
-  if (error || !data.user) throw error ?? new Error('admin.createUser returned no user');
-  return data.user;
-}
 
 describe('real signup -> real session -> RLS-scoped read', () => {
   const passwordA = 'itest-password-aaa-111';

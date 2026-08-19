@@ -81,7 +81,10 @@ function minutesInZone(date: Date, timeZone: string): number {
 }
 
 function formatHour(min: number): string {
-  const h = Math.floor(min / 60);
+  // dayEnd can legitimately clamp to exactly 24:00 (midnight) — normalize back to hour 0 first
+  // so that reads as 12AM, not 12PM (h=24 % 12 === 0, same digit as noon, so AM/PM must be
+  // decided before the %12 collapses the two together).
+  const h = Math.floor(min / 60) % 24;
   const display = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return `${display}${h >= 12 ? "PM" : "AM"}`;
 }

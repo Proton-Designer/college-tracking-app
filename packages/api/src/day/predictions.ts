@@ -7,6 +7,26 @@ import { mapDataError } from '../data/errors';
 export type DailyPredictionRow = Database['public']['Tables']['daily_predictions']['Row'];
 
 /**
+ * The morning's prediction for one day, read-only -- so the night-review screen can
+ * display "you predicted X%" against today's actuals without going through
+ * scorePredictionForDate (a write). Null if no prediction was made that morning.
+ */
+export async function getPredictionForDate(
+  client: TypedSupabaseClient,
+  userId: string,
+  localDate: LocalDate,
+): Promise<DataResult<DailyPredictionRow | null>> {
+  const { data, error } = await client
+    .from('daily_predictions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('local_date', localDate)
+    .maybeSingle();
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(data);
+}
+
+/**
  * Scores the same-day morning prediction against the night's actuals — this is the
  * calibration training signal for the user's own self-assessment (predicted vs actual
  * MIT completion). A no-op (not an error) if no prediction was made that morning.

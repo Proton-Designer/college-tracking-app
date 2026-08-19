@@ -114,3 +114,40 @@ Two real product bugs were found only because the seed models a genuine 10-week 
 
 Both were invisible to unit tests, which pass happily against constructed fixtures. Keep the seed
 realistic and keep verifying against it rather than against mocks.
+
+## D16 — `packages/core` can't be imported directly into a Deno Edge Function
+L7's nightly/weekly analysis needs the real domain engine (risk traces, planning-execution
+diagnosis, bounce-back, friction distribution) — `risk_snapshots`/`grade_snapshots`' own migration
+comment says these are "written by the nightly job," so the recompute has to happen there.
+
+Confirmed live, not assumed from docs: `deno check --unstable-sloppy-imports` resolves
+`packages/core`'s extensionless relative imports fine via the full Deno CLI, but the actual
+deployed Edge Runtime (`supabase-edge-runtime`, distinct from the CLI) rejects them outright at
+boot — `Module not found` — even with the identical `unstable: ["sloppy-imports"]` setting in
+`deno.json`. Verified by deploying a real test function both ways, not by reading documentation.
+
+Alternatives considered and rejected:
+- **Give `packages/core` a `.js`-extensioned dist build.** Reintroduces the build-ordering/stale-dist
+  trap D4 exists to eliminate, for every Node/bundler consumer, to satisfy one Deno consumer.
+- **Run the nightly job on a plain Node host instead of an Edge Function.** Architecturally fine,
+  but there is no Node host in this stack — Supabase gives us Edge Functions for server-triggered
+  work.
+- **Reimplement the needed logic natively in Deno.** Rejected outright: two implementations of the
+  risk engine, drifting apart silently, is the single worst outcome available for a product whose
+  entire premise is that the numbers are trustworthy.
+
+**Rule:** `supabase/functions/_shared/core/` is a **generated, mechanical mirror** of
+`packages/core/src` (`scripts/build-core-for-deno.mjs` — appends `.ts` to same-package relative
+import specifiers and changes nothing else; never hand-edited, see the mirror's own README.md).
+`npm run verify` runs `scripts/check-core-mirror.mjs`, which regenerates the mirror in memory and
+diffs it byte-for-byte against the committed version, **failing loudly** (not auto-regenerating) on
+any difference. Auto-regen-and-continue was explicitly rejected: it would hide drift and could
+silently pull an unreviewed `packages/core` change into the deployed edge path without anyone
+looking at the diff first. A stale mirror means the nightly job scores risk and projects grades
+with different domain logic than the apps display — divergence that only surfaces as "why does my
+report disagree with my Today screen?" months later, categorically worse than the `.js`-import bug
+(D12) or the silently-skipping test suite (in spirit, D14) this same guard pattern already caught.
+
+Same reasoning will apply to any future Edge Function needing `packages/api`'s day-layer
+query/compute functions (not just `packages/core`) — scope that out explicitly if/when it's built,
+rather than assuming the mirror already covers it.

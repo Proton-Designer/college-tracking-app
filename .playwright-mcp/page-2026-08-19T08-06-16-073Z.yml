@@ -1,0 +1,22 @@
+- generic [active] [ref=f54e1]:
+  - main [ref=f54e2]:
+    - generic [ref=f54e3]:
+      - link "CollegeOS" [ref=f54e4] [cursor=pointer]:
+        - /url: /
+      - heading "Sign in" [level=1] [ref=f54e5]
+      - generic [ref=f54e7]:
+        - generic [ref=f54e8]:
+          - generic [ref=f54e9]: Email
+          - textbox "Email" [ref=f54e10]
+        - generic [ref=f54e11]:
+          - generic [ref=f54e12]: Password
+          - textbox "Password" [ref=f54e13]
+        - button "Sign in" [ref=f54e14]
+      - generic [ref=f54e15]:
+        - link "Forgot your password?" [ref=f54e16] [cursor=pointer]:
+          - /url: /forgot-password
+        - paragraph [ref=f54e17]:
+          - text: No account?
+          - link "Create one" [ref=f54e18] [cursor=pointer]:
+            - /url: /signup
+  - button "Open Next.js Dev Tools" [ref=f54e24] [cursor=pointer]

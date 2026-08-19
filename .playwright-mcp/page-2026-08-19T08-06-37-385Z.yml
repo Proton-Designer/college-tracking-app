@@ -1,0 +1,11 @@
+- generic [active] [ref=f55e1]:
+  - main [ref=f55e2]:
+    - heading "Night review" [level=1] [ref=f55e3]
+    - generic [ref=f55e4]:
+      - paragraph [ref=f55e5]: Already saved tonight
+      - generic [ref=f55e6]:
+        - generic [ref=f55e7]: What went well
+        - paragraph [ref=f55e8]: Got through the reading before lab even though I started late.
+      - paragraph [ref=f55e9]: MITs 3/3 · 199 min deep work
+  - button "Open Next.js Dev Tools" [ref=f55e15] [cursor=pointer]
+  - alert [ref=f55e19]

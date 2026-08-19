@@ -15,6 +15,26 @@ const MODEL_IDS: Record<LlmModel, string> = {
   "claude-opus-5": "claude-opus-5",
 };
 
+interface AnthropicSystemTextBlock {
+  type: "text";
+  text: string;
+  cache_control?: { type: "ephemeral" };
+}
+
+/** A plain string passes through unchanged (Anthropic accepts `system` as either a
+ *  string or a content-block array). An array of SystemPromptBlocks becomes a real
+ *  content-block array, with a `cache_control: {type: "ephemeral"}` breakpoint on each
+ *  block marked cacheable -- LLM_LAYER_SPEC.md §5: the system prompt + durable profile
+ *  are stable across calls and worth caching; today's data and the horizon are not. */
+function buildSystemParam(systemPrompt: LlmToolCallRequest["systemPrompt"]): string | AnthropicSystemTextBlock[] {
+  if (typeof systemPrompt === "string") return systemPrompt;
+  return systemPrompt.map((block) => ({
+    type: "text",
+    text: block.text,
+    ...(block.cacheable ? { cache_control: { type: "ephemeral" as const } } : {}),
+  }));
+}
+
 interface AnthropicResponse {
   content: Array<{ type: string; id?: string; name?: string; input?: unknown }>;
   usage: {
@@ -40,7 +60,7 @@ export function createAnthropicProvider(apiKey: string): LlmProvider {
         body: JSON.stringify({
           model: MODEL_IDS[request.model],
           max_tokens: request.maxTokens,
-          system: request.systemPrompt,
+          system: buildSystemParam(request.systemPrompt),
           messages: [{ role: "user", content: request.userContent }],
           tools: [
             {

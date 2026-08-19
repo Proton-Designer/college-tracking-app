@@ -9,7 +9,7 @@ import {
 } from '../day/focusSessions';
 import { loadCalibrationObservations } from '../day/calibration';
 import { getDayView } from '../day/dayView';
-import { DEMO_EMAIL, DEMO_PASSWORD, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
+import { createConfirmedUser, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from '../client/types';
 
@@ -17,34 +17,37 @@ import type { TypedSupabaseClient } from '../client/types';
 // local stack, including the two invariants that matter most: actual_duration_min is
 // always server-computed from wall-clock time, never trusted from a caller, and an
 // abandoned session must never pollute calibration the way a completed one does.
-
-describe('focus sessions against the seeded demo user', () => {
+//
+// Runs against a dedicated throwaway user, not the seeded demo account -- these tests
+// write real task_sessions/tasks rows, and demo@collegeos.app's value IS its realistic,
+// stable semester (Nova and I both use it for screenshots and visual verification).
+// Every write to it degrades that. Confirmed live: an earlier version of this file wrote
+// distinctive-duration test rows to the demo account that survived between runs (bounded
+// by its own cleanup, but never fully clean) and cost Nova real debugging time when he
+// hit them building the mobile Day Trace. Reads against demo, writes against a
+// throwaway -- same line rlsSession.itest.ts already draws.
+describe('focus sessions against a dedicated throwaway user', () => {
   let client: TypedSupabaseClient;
   let userId: string;
   let taskId: number;
 
   beforeAll(async () => {
+    const email = `itest-focus-${Date.now()}@collegeos.test`;
+    const password = 'itest-focus-password-1';
+    const user = await createConfirmedUser(email, password);
+    userId = user.id;
+
     client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY!);
-    const result = await signIn(client, { email: DEMO_EMAIL, password: DEMO_PASSWORD });
-    if (!result.ok) throw new Error(`demo signIn failed: ${result.error.code}`);
-    userId = result.data.session.user.id;
+    const { data: session, error: signInError } = await client.auth.signInWithPassword({ email, password });
+    if (signInError || !session.session) throw signInError ?? new Error('sign-in to throwaway user failed');
 
-    // Delete this file's own prior throwaway tasks before creating a new one -- cascades
-    // to their task_sessions. Without this, repeated runs against the same local db
-    // (encouraged by the idempotency rule) silently accumulate test rows forever, the
-    // exact drift FOLLOWUPS.md's S2 already flags for the E2E suite.
-    await client.from('tasks').delete().eq('user_id', userId).like('title', 'focus-session-test-%');
-
-    // A dedicated throwaway task per test run rather than reusing a seeded one -- these
-    // tests mutate task_sessions state (start/stop an active session) and shouldn't
-    // depend on, or interfere with, whatever the seed's own tasks currently look like.
-    const { data: course } = await client.from('courses').select('id').limit(1).single();
+    // No course dependency -- tasks.course_id is nullable, and a throwaway user has no
+    // seeded courses to link to anyway.
     const { data: task, error } = await client
       .from('tasks')
       .insert({
         user_id: userId,
-        course_id: course!.id,
-        title: `focus-session-test-${Date.now()}`,
+        title: 'focus-session-test-task',
         category: 'testing',
         estimated_minutes: 30,
         planned_date: new Date().toISOString().slice(0, 10),
@@ -92,7 +95,6 @@ describe('focus sessions against the seeded demo user', () => {
       .from('tasks')
       .insert({
         user_id: userId,
-        course_id: (await client.from('courses').select('id').limit(1).single()).data!.id,
         title: `focus-session-test-timeboxed-${Date.now()}`,
         category: 'testing',
         estimated_minutes: 30,

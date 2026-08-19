@@ -23,11 +23,25 @@ export interface LlmUsage {
   cacheWriteTokens: number;
 }
 
+/** One block of the system prompt. `cacheable: true` marks a prompt-caching breakpoint
+ *  (Anthropic's `cache_control: {type: "ephemeral"}`) -- LLM_LAYER_SPEC.md §5: stable
+ *  blocks (the system prompt itself, the durable profile) go first and are marked
+ *  cacheable; volatile blocks (today's data, the horizon) are never marked, since caching
+ *  content that changes every call would never hit and would only add cache-write cost. */
+export interface SystemPromptBlock {
+  text: string;
+  cacheable: boolean;
+}
+
 /** A single forced tool-use call — the only shape of request this gateway makes. */
 export interface LlmToolCallRequest {
   callType: LlmCallType;
   model: LlmModel;
-  systemPrompt: string;
+  /** A plain string for simple calls (syllabus extraction, classification -- no stable
+   *  block worth caching). An ordered array of blocks for calls with a real cache
+   *  boundary (nightly/weekly analysis) -- concatenated in order to form the full system
+   *  prompt; only `cacheable` blocks get a cache_control breakpoint. */
+  systemPrompt: string | SystemPromptBlock[];
   userContent: string;
   toolName: string;
   /** JSON Schema for the forced tool. This is a strong prior on the response shape —

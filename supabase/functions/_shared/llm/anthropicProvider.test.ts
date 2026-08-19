@@ -78,6 +78,62 @@ Deno.test("anthropicProvider: sends forced tool_choice, never leaving the model 
   }
 });
 
+Deno.test("anthropicProvider: a plain-string systemPrompt is sent through unchanged (backward compat for syllabus extraction)", async () => {
+  let capturedBody: Record<string, unknown> | undefined;
+  const restore = stubFetch((_input, init) => {
+    capturedBody = JSON.parse(init!.body as string);
+    return Promise.resolve(new Response(JSON.stringify(GOLDEN_TOOL_USE_RESPONSE), { status: 200 }));
+  });
+  try {
+    const provider = createAnthropicProvider("sk-ant-fake-key-for-contract-test");
+    await provider.call({
+      callType: "syllabus_extraction",
+      model: "claude-haiku-4-5",
+      systemPrompt: "extract deadlines",
+      userContent: "user",
+      toolName: "emit_daily_analysis",
+      toolInputSchema: {},
+      maxTokens: 500,
+    });
+
+    assertEquals(capturedBody?.system, "extract deadlines");
+  } finally {
+    restore();
+  }
+});
+
+Deno.test("anthropicProvider: a SystemPromptBlock[] becomes real content blocks, cache_control only on cacheable ones", async () => {
+  let capturedBody: Record<string, unknown> | undefined;
+  const restore = stubFetch((_input, init) => {
+    capturedBody = JSON.parse(init!.body as string);
+    return Promise.resolve(new Response(JSON.stringify(GOLDEN_TOOL_USE_RESPONSE), { status: 200 }));
+  });
+  try {
+    const provider = createAnthropicProvider("sk-ant-fake-key-for-contract-test");
+    await provider.call({
+      callType: "nightly_analysis",
+      model: "claude-sonnet-5",
+      systemPrompt: [
+        { text: "You are CollegeOS's nightly analyst.", cacheable: true },
+        { text: "Durable profile: ...", cacheable: true },
+        { text: "Today's data: ...", cacheable: false },
+      ],
+      userContent: "user",
+      toolName: "emit_daily_analysis",
+      toolInputSchema: {},
+      maxTokens: 500,
+    });
+
+    assertEquals(capturedBody?.system, [
+      { type: "text", text: "You are CollegeOS's nightly analyst.", cache_control: { type: "ephemeral" } },
+      { type: "text", text: "Durable profile: ...", cache_control: { type: "ephemeral" } },
+      { type: "text", text: "Today's data: ..." },
+    ]);
+  } finally {
+    restore();
+  }
+});
+
 Deno.test("anthropicProvider: never sends the API key anywhere but the x-api-key header", async () => {
   let capturedHeaders: Headers | undefined;
   let capturedBody: string | undefined;
