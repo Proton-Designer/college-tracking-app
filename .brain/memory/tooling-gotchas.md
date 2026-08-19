@@ -69,3 +69,21 @@ Day Trace's `formatHour` treated `min = 1440` (midnight, i.e. `dayEnd` clamped t
 as `12PM` instead of `12AM`, since `Math.floor(1440/60) = 24` and the old formula only handled
 `h === 0` for the "12" case, not `h === 24`. Fixed in both `apps/web` and
 `apps/mobile`'s `DayTrace.tsx` by normalizing `h % 24` before the AM/PM decision.
+
+## Gotcha 3 — `storage.objects` cannot be deleted with a direct SQL `DELETE`
+
+Cleaning up contaminating test files uploaded during integration-test debugging (Atlas, L7/L8
+test-hygiene passes): `docker exec ... psql -c "delete from storage.objects where ..."` fails with
+`ERROR: Direct deletion from storage tables is not allowed. Use the Storage API instead.` — a
+`storage.protect_delete()` trigger blocks it outright, by design (prevents orphaning the underlying
+object in the storage backend, which a raw metadata-row delete would do). Use the Storage REST API
+instead:
+
+```bash
+curl -X DELETE http://127.0.0.1:54321/storage/v1/object/<bucket> \
+  -H "Authorization: Bearer $SERVICE_ROLE_KEY" -H "apikey: $SERVICE_ROLE_KEY" -H "content-type: application/json" \
+  -d '{"prefixes":["<path/to/object1>","<path/to/object2>"]}'
+```
+`public.syllabus_uploads`/`public.proof`-referencing rows should still be cleaned up separately
+afterward (the DB row and the storage object are two different things; deleting one doesn't delete
+the other).
