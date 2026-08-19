@@ -3,7 +3,7 @@
 **Always current.** Updated at every layer boundary by the Lead.
 
 ## Current layer
-**L1 — Data model** (Atlas) · **Design system implementation** (Nova)
+**L4 backend — day assembly** (Atlas) · **L3 UI — landing/welcome/auth** (Nova)
 
 ## Complete
 - **L0 Foundation** — monorepo (npm workspaces), all packages source-resolved (D4)
@@ -13,12 +13,18 @@
   cross-boundary types proven flowing through both bundlers
 - **Test infrastructure** — Playwright (desktop + mobile viewports, isolated per-spec users,
   Mailpit integration), Jest + RNTL, repeatable `scripts/sim-shot.sh`
-- **Design system ratified** — `docs/DESIGN_SYSTEM.md`, direction **"Instrument"**, all contrast
-  ratios computed
+- **Design system ratified + implemented** — direction **"Instrument"**; `packages/design`
+  tokens, primitives on both platforms, `/design` preview. 3 review passes.
+- **L1 data model** — 41 tables, 46 RLS policies, **261 pgTAP assertions**, realistic seeded
+  semester, generated types
+- **L3 backend** — SSR + native clients, enumeration-safe auth, hardened profile trigger,
+  typed data layer, live-stack integration tests
 
 ## In flight
-- **ATLAS** (`mapw9to2`): L1 — schema, RLS, pgTAP, seed, generated types, `docs/DATA_MODEL.md`
-- **NOVA** (`a9bsul1i`): `packages/design` + core primitives on both platforms + preview surfaces
+- **ATLAS** (`mapw9to2`): L4 backend — day-assembly service, deterministic MIT ranking,
+  checkin/review persistence, task sessions
+- **NOVA** (`a9bsul1i`): L3 UI — web landing page, mobile welcome screen, auth flows both
+  platforms, wiring the E2E auth harness
 
 ## Blocked / waiting
 - Supabase **cloud** credentials not yet provided. Building against local stack.

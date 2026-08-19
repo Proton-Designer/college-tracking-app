@@ -1,6 +1,7 @@
 export * from './types';
 export * from './util/date';
 export * from './util/math';
+export * from './util/localToday';
 
 export * from './risk/assignmentRisk';
 export * from './risk/courseRisk';

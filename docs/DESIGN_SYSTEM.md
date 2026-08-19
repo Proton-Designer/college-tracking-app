@@ -184,8 +184,19 @@ This makes the confidence hierarchy visible before a word is read, and it enforc
 core honesty rule at the level of visual grammar.
 
 ### 6.3 Calibrated ground
-The `ground` carries an extremely faint 8px grid (≈1.5% opacity ink), like engineering paper. It
-must be *barely* perceptible — felt, not seen. It disappears entirely under `surface` panels.
+The `ground` carries an extremely faint 8px grid (≈0.7% opacity ink — tuned down from an initial
+1.5% pass, which read as visible graph-paper wallpaper rather than a felt texture), like
+engineering paper. It must be *barely* perceptible — felt, not seen. It disappears entirely under
+`surface` panels.
+
+**Platform divergence (deliberate, accepted):** web renders the grid via a CSS background-image;
+mobile ships `ground` as a flat color with no grid. At ≈0.7% opacity the texture is already
+sub-perceptual on a desktop display, and on a phone at normal viewing distance it would be
+effectively invisible regardless — so the cost of a new dependency (`react-native-svg`) or a
+tiling image asset to reproduce it isn't justified by anything a user could actually see. This is
+a considered platform adaptation, not a gap: **behavior and information must never diverge between
+web and mobile; texture may, when the divergence is provably imperceptible.** Revisit only if L11
+polish review finds mobile reading noticeably flatter than web side-by-side.
 
 ---
 

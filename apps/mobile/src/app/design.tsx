@@ -1,6 +1,7 @@
 import { color, riskBandColor, riskBands, space, type as typeScale } from "@collegeos/design/native";
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Badge,
   Button,
@@ -71,9 +72,10 @@ export default function DesignPreviewScreen() {
   const [scale, setScale] = useState<number | null>(7);
   const [checked, setChecked] = useState(true);
   const [toggled, setToggled] = useState(false);
+  const insets = useSafeAreaInsets();
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + space[5] }]}>
       <Text style={textStyle("label", color.inkFaint)}>DESIGN SYSTEM</Text>
       <Text style={[textStyle("displayL", color.ink), styles.pageTitle]}>Instrument</Text>
       <Text style={textStyle("body", color.inkMuted)}>

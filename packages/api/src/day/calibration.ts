@@ -1,0 +1,59 @@
+import {
+  computeCalibrationWithFallback,
+  localDateFromInstant,
+  type CalibrationWithFallbackResult,
+  type DurationObservation,
+  type LocalDate,
+} from '@collegeos/core';
+import type { TypedSupabaseClient } from '../client/types';
+
+const LOOKBACK_DAYS = 180;
+
+/**
+ * Loads every session with a recorded actual duration for the user ONCE (not once per
+ * category — avoiding the N+1 that a naive per-task calibration lookup would create) and
+ * groups by task category. The full unfiltered list doubles as the "global" fallback
+ * packages/core's calibration falls back to when a category has too little history.
+ */
+export async function loadCalibrationObservations(
+  client: TypedSupabaseClient,
+  userId: string,
+  timezone: string,
+  now: Date,
+): Promise<{ byCategory: Map<string, DurationObservation[]>; global: DurationObservation[] }> {
+  const since = new Date(now.getTime() - LOOKBACK_DAYS * 24 * 60 * 60 * 1000).toISOString();
+
+  const { data, error } = await client
+    .from('task_sessions')
+    .select('planned_duration_min, actual_duration_min, created_at, tasks!inner(category, user_id)')
+    .eq('tasks.user_id', userId)
+    .not('actual_duration_min', 'is', null)
+    .gte('created_at', since);
+  if (error) throw error;
+
+  const byCategory = new Map<string, DurationObservation[]>();
+  const global: DurationObservation[] = [];
+
+  for (const row of data ?? []) {
+    const observation: DurationObservation = {
+      estimatedMin: row.planned_duration_min,
+      actualMin: row.actual_duration_min!,
+      completedAt: localDateFromInstant(new Date(row.created_at), timezone),
+    };
+    global.push(observation);
+    const category = (row.tasks as unknown as { category: string }).category;
+    const list = byCategory.get(category) ?? [];
+    list.push(observation);
+    byCategory.set(category, list);
+  }
+
+  return { byCategory, global };
+}
+
+export function calibrateCategory(
+  observations: { byCategory: Map<string, DurationObservation[]>; global: DurationObservation[] },
+  category: string,
+  today: LocalDate,
+): CalibrationWithFallbackResult {
+  return computeCalibrationWithFallback(observations.byCategory.get(category) ?? [], observations.global, today);
+}
