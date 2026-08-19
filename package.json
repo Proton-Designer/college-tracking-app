@@ -1,0 +1,26 @@
+{
+  "name": "collegeos",
+  "private": true,
+  "version": "0.1.0",
+  "description": "CollegeOS — a personal closed-loop college accountability operating system.",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.11.0"
+  },
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "verify": "npm run typecheck && npm run lint && npm run test",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "db:diff": "supabase db diff",
+    "db:types": "supabase gen types typescript --local > packages/api/src/database.types.ts",
+    "db:test": "supabase test db"
+  }
+}

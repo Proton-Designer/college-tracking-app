@@ -1,0 +1,49 @@
+# deps
+node_modules/
+.pnp.*
+.yarn/*
+
+# builds
+dist/
+build/
+.next/
+out/
+.expo/
+*.tsbuildinfo
+
+# env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+.secrets/
+
+# supabase local
+supabase/.temp/
+supabase/.branches/
+
+# test artifacts
+coverage/
+playwright-report/
+test-results/
+blob-report/
+.playwright/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# logs
+*.log
+npm-debug.log*
+logs/
+
+# native
+ios/Pods/
+android/.gradle/
+*.keystore
+!debug.keystore
