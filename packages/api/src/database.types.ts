@@ -2263,6 +2263,7 @@ export type Database = {
         Args: { p_provider: string; p_user_id: string }
         Returns: string
       }
+      list_user_scoped_tables: { Args: never; Returns: string[] }
       local_date: { Args: { ts: string; tz: string }; Returns: string }
       store_brightspace_feed_url: {
         Args: { p_ics_url: string; p_user_id: string }
