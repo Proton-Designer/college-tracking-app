@@ -3,7 +3,7 @@
 **Always current.** Updated at every layer boundary by the Lead.
 
 ## Current layer
-**L4 backend — day assembly** (Atlas) · **L3 UI — landing/welcome/auth** (Nova)
+**L5 web — courses & semester intelligence** (Nova) · **L3 mobile — auth** (Atlas, verifying)
 
 ## Complete
 - **L0 Foundation** — monorepo (npm workspaces), all packages source-resolved (D4)
@@ -19,12 +19,19 @@
   semester, generated types
 - **L3 backend** — SSR + native clients, enumeration-safe auth, hardened profile trigger,
   typed data layer, live-stack integration tests
+- **L3 web** — landing page, auth flows, route protection; **17/17 E2E** against the real stack
+- **L4 backend** — day-assembly service; engine meets real data (BME 301 = 87.0833% agrees
+  across engine, DB, and API)
+- **L4 web** — Today screen on real data: Day Trace signature element, all three modes,
+  morning check-in, full state matrix
+- **L5 backend** — LLM gateway (offline-tested, no API key needed), syllabus ingestion with
+  proven confirmation gate + prompt-injection test, deadline radar, grade scenarios
 
 ## In flight
-- **ATLAS** (`mapw9to2`): L4 backend — day-assembly service, deterministic MIT ranking,
-  checkin/review persistence, task sessions
-- **NOVA** (`a9bsul1i`): L3 UI — web landing page, mobile welcome screen, auth flows both
-  platforms, wiring the E2E auth harness
+- **NOVA** (`a9bsul1i`): L5 web — /courses index, Semester Map with risk trace, grade
+  scenario planner, deadline horizon, syllabus confirmation screen
+- **ATLAS** (`mapw9to2`): L3 mobile — welcome + auth flows, verifying on simulator;
+  then seed coverage for 2026-07-28 so the MVD kept/deferred path produces real output
 
 ## Blocked / waiting
 - Supabase **cloud** credentials not yet provided. Building against local stack.

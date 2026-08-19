@@ -23,7 +23,7 @@ Route segments are **identical across platforms** wherever a screen exists on bo
 | Route | Web | Mobile | Public |
 |---|---|---|---|
 | `/` | landing page | welcome screen | ✅ |
-| `/login` `/signup` `/forgot` `/reset` `/auth/callback` | ✅ | ✅ | ✅ |
+| `/login` `/signup` `/forgot-password` `/reset-password` `/auth/callback` `/auth/confirm` | ✅ | ✅ | ✅ |
 | `/today` | ✅ | ✅ (tab) | |
 | `/courses` · `/courses/[id]` | ✅ | ✅ (tab) | |
 | `/calendar` | ✅ | segment of Courses | |
