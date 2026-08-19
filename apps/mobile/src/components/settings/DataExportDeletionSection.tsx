@@ -43,18 +43,33 @@ function ExportCard() {
     // sharing on Android needs a FileProvider content:// URI, which is expo-sharing's
     // job, not installed here -- see docs/FOLLOWUPS.md for the platform gap this
     // leaves: Android users get the JSON as share text, not a saved file).
+    //
+    // The cache copy is transient, deleted in `finally` regardless of outcome. This file
+    // is the user's entire personal record -- journals, grades, kill-list history, every
+    // interpretation the system has formed about them -- so it must not sit on disk under
+    // a predictable name after the share sheet closes, and it must not outlive an account
+    // deletion the user believes erased everything. Share.share() only resolves after the
+    // sheet is dismissed, so if the user chose "Save to Files" their own copy already
+    // exists elsewhere by the time this deletes the temp one.
+    let tempFile: File | null = null;
     try {
       if (Platform.OS === "ios") {
-        const file = new File(Paths.cache, `collegeos-export-${result.data.exportedAt.slice(0, 10)}.json`);
-        file.create({ overwrite: true });
-        file.write(JSON.stringify(result.data, null, 2));
-        await Share.share({ title: "CollegeOS data export", url: file.uri });
+        tempFile = new File(Paths.cache, `collegeos-export-${result.data.exportedAt.slice(0, 10)}.json`);
+        tempFile.create({ overwrite: true });
+        tempFile.write(JSON.stringify(result.data, null, 2));
+        await Share.share({ title: "CollegeOS data export", url: tempFile.uri });
       } else {
         await Share.share({ title: "CollegeOS data export", message: JSON.stringify(result.data, null, 2) });
       }
     } catch {
       toast.show("Couldn't open the share sheet — try again.", "error");
       return;
+    } finally {
+      try {
+        tempFile?.delete();
+      } catch {
+        // Best-effort cleanup -- nothing more to do if it's already gone or unwritable.
+      }
     }
     toast.show("Export ready to save.");
   }

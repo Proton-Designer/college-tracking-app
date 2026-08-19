@@ -30,7 +30,12 @@ describe('agent report and summary pyramid reads', () => {
     if (!result.ok) return;
     expect(result.data).not.toBeNull();
     expect(result.data!.report_type).toBe('nightly');
-    expect(result.data!.payload).toHaveProperty('headline');
+    // `headline` lives under `deterministic` (packages/core's NightlyAgentReportPayload
+    // shape, unified this session) -- this assertion used to check a top-level
+    // `headline`, a leftover from before the type-unification pass moved the
+    // deterministic-report prose fields under their own key. The payload didn't
+    // regress; the assertion was describing the old shape.
+    expect(result.data!.payload).toHaveProperty('deterministic.headline');
 
     const missing = await getAgentReport(client, 'nightly', '2099-01-01');
     expect(missing.ok).toBe(true);
