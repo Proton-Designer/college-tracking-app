@@ -72,6 +72,8 @@ export function useCourseDetailData(courseId: number) {
         const courseFacts = [
           {
             id: course.id,
+            code: course.code,
+            name: course.name,
             difficulty_rating: course.difficulty_rating,
             confidence_rating: course.confidence_rating,
             target_grade_pct: course.target_grade_pct,

@@ -8,6 +8,7 @@ export * from './util/localToday.ts';
 
 export * from './risk/assignmentRisk.ts';
 export * from './risk/courseRisk.ts';
+export * from './risk/riskAssessment.ts';
 
 export * from './grades/types.ts';
 export * from './grades/courseGrade.ts';
@@ -50,3 +51,6 @@ export * from './integrations/healthDailyRollup.ts';
 export * from './integrations/oauthTokenExpiry.ts';
 export * from './integrations/rescuetimeNormalize.ts';
 export * from './integrations/screenDailyRollup.ts';
+
+export * from './reports/nightlyReportTypes.ts';
+export * from './reports/generateNightlyHeadline.ts';

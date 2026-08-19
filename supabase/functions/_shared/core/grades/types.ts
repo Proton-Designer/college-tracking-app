@@ -58,3 +58,8 @@ export interface CourseGradeResult {
   /** Sum of all category weightPct — flagged, never silently normalized. */
   weightSum: number;
 }
+
+export interface CourseGradeProjection {
+  courseId: number;
+  result: CourseGradeResult;
+}

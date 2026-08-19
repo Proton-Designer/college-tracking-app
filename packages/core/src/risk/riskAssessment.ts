@@ -1,0 +1,42 @@
+// Type-only shapes describing the OUTPUT of assembling deliverable/course risk for a
+// user (query composition + computeAssignmentRisk/computeCourseRisk). Not computed here
+// -- packages/api/src/day/risk.ts (live Today/web/mobile path) and
+// supabase/functions/_shared/nightly/domainQueries.ts (Deno-ported nightly path, D16)
+// each do their own I/O + assembly, but both now import these interfaces from one place
+// instead of hand-declaring their own copy, so the shape can never quietly diverge
+// between the two paths.
+
+import type { AssignmentRiskInput, AssignmentRiskResult } from './assignmentRisk';
+import type { CourseRiskResult } from './courseRisk';
+
+export interface DeliverableRisk {
+  deliverableId: number;
+  courseId: number;
+  /** A report is an archival record of a moment -- if a course is later renamed or
+   *  deleted, this must still say exactly what it said on the day. Baked in at assembly
+   *  time, never joined at render time. */
+  courseCode: string;
+  courseName: string;
+  title: string;
+  result: AssignmentRiskResult;
+  /** Retained so callers (MIT ranking) can compute a true "what if one more unit
+   *  completed" marginal risk reduction instead of approximating from the score alone. */
+  input: AssignmentRiskInput;
+}
+
+export interface CourseRiskSummary {
+  courseId: number;
+  courseCode: string;
+  courseName: string;
+  result: CourseRiskResult;
+  /** Maps each of result.trace's item keys (a deliverable id, stringified) to that
+   *  deliverable's title. computeCourseRisk (generic over any scored items) only knows
+   *  ids and scores -- deliverable-specific knowledge like a title doesn't belong inside
+   *  the generic risk engine, so this lookup is assembled by the caller alongside it. */
+  itemLabels: Record<string, string>;
+}
+
+export interface RiskAssessment {
+  deliverableRisks: DeliverableRisk[];
+  courseRisks: CourseRiskSummary[];
+}

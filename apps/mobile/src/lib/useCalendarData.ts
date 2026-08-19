@@ -67,6 +67,8 @@ export function useCalendarData() {
         const courses = coursesResult.data;
         const courseFacts = courses.map((c) => ({
           id: c.id,
+          code: c.code,
+          name: c.name,
           difficulty_rating: c.difficulty_rating,
           confidence_rating: c.confidence_rating,
           target_grade_pct: c.target_grade_pct,

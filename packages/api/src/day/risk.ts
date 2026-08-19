@@ -3,12 +3,15 @@ import {
   computeCourseRisk,
   daysBetween,
   type AssignmentRiskInput,
-  type AssignmentRiskResult,
-  type CourseRiskResult,
+  type CourseRiskSummary,
+  type DeliverableRisk,
   type LocalDate,
+  type RiskAssessment,
 } from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
 import type { CourseGradeProjection } from './grades';
+
+export type { CourseRiskSummary, DeliverableRisk, RiskAssessment } from '@collegeos/core';
 
 /**
  * Fallback waking-hours-per-day used only when the user has no `sleep_baseline_hours`
@@ -41,28 +44,10 @@ function wakingHoursPerDayFor(sleepBaselineHours: number | null): number {
 // population to average, at which point it stops being a prior and the question changes entirely.
 export const GLOBAL_MEAN_START_DELAY_DAYS_PRIOR = 1.5;
 
-export interface DeliverableRisk {
-  deliverableId: number;
-  courseId: number;
-  title: string;
-  result: AssignmentRiskResult;
-  /** Retained so callers (MIT ranking) can compute a true "what if one more unit
-   *  completed" marginal risk reduction instead of approximating from the score alone. */
-  input: AssignmentRiskInput;
-}
-
-export interface CourseRiskSummary {
-  courseId: number;
-  result: CourseRiskResult;
-}
-
-export interface RiskAssessment {
-  deliverableRisks: DeliverableRisk[];
-  courseRisks: CourseRiskSummary[];
-}
-
 interface CourseFacts {
   id: number;
+  code: string;
+  name: string;
   difficulty_rating: number | null;
   confidence_rating: number | null;
   target_grade_pct: number | null;
@@ -140,6 +125,9 @@ export async function computeRiskAssessment(
 
   const deliverableRisks: DeliverableRisk[] = (deliverables ?? []).map((d) => {
     const course = courseById.get(d.course_id);
+    // FK-guaranteed, not a legitimate "unknown" -- if this ever misses, the data is
+    // corrupt and should fail loud rather than render a fabricated course label.
+    if (!course) throw new Error(`Deliverable ${d.id} references missing course ${d.course_id}`);
     const units = unitsByDeliverable.get(d.id) ?? { planned: 0, completed: 0 };
     const windowDays = Math.max(daysBetween(today, d.local_due_date), 0);
     const availableHours = windowDays * wakingHoursPerDay;
@@ -166,7 +154,15 @@ export async function computeRiskAssessment(
       ...(grade?.projectedGrade != null ? { projectedPct: grade.projectedGrade } : {}),
     };
 
-    return { deliverableId: d.id, courseId: d.course_id, title: d.title, result: computeAssignmentRisk(input), input };
+    return {
+      deliverableId: d.id,
+      courseId: d.course_id,
+      courseCode: course.code,
+      courseName: course.name,
+      title: d.title,
+      result: computeAssignmentRisk(input),
+      input,
+    };
   });
 
   const byCourseGroup = new Map<number, DeliverableRisk[]>();
@@ -178,7 +174,10 @@ export async function computeRiskAssessment(
 
   const courseRisks: CourseRiskSummary[] = [...byCourseGroup.entries()].map(([courseId, risks]) => ({
     courseId,
+    courseCode: risks[0]!.courseCode,
+    courseName: risks[0]!.courseName,
     result: computeCourseRisk({ items: risks.map((r) => ({ id: String(r.deliverableId), score: r.result.score })) }),
+    itemLabels: Object.fromEntries(risks.map((r) => [String(r.deliverableId), r.title])),
   }));
 
   return { deliverableRisks, courseRisks };

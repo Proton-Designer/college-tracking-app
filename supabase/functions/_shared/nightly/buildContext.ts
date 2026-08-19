@@ -57,7 +57,7 @@ If you cannot assess something, say so in data_gaps rather than inventing a patt
 //
 // Scope note: "goals" (no goals table exists in the schema yet) is a real part of §5's
 // durable profile with no source to read from yet. Flagged here rather than silently
-// omitted -- same honesty rule dailyAnalysisSchema.ts's `lenses` note follows.
+// omitted, same honesty rule the `lenses` field (§2) used to follow before it was built.
 // "Durable lessons" (semester_lessons, L8) is wired in below.
 // ============================================================================
 
@@ -286,6 +286,34 @@ const DAILY_ANALYSIS_TOOL_SCHEMA = {
         required: ["course_id", "note", "urgency"],
       },
     },
+    // LLM_LAYER_SPEC.md §2 -- one inference emits every lens as a field. Per-property
+    // descriptions carry §2's behavioral rules into the request, since the verbatim §4
+    // system prompt (NIGHTLY_SYSTEM_PROMPT above) intentionally stays byte-identical to
+    // the spec and doesn't mention lenses.
+    lenses: {
+      type: "object",
+      properties: {
+        executive_coach: { type: "string", description: "High-level operational read: what to prioritize tomorrow and why, given the plan-vs-execution gap." },
+        academic_strategist: { type: "string", description: "Focused specifically on course/deliverable risk and grade trajectory." },
+        behavior_analyst: { type: "string", description: "Focused on behavioral patterns: kill-list habits, friction causes, focus session quality." },
+        skeptic: {
+          type: "string",
+          description:
+            "Must be non-empty. Reference concrete evidence that contradicts or complicates the other lenses' framing. If there is truly nothing to contest, say so explicitly rather than leaving this thin.",
+        },
+        systems_engineer: { type: "string", description: "Structural/environmental fixes (schedule, location, defaults) rather than willpower -- rule 6." },
+        motivator: {
+          type: "string",
+          description: "Short -- a sentence or two. Must cite one specific event from today's data. Generic encouragement is a schema violation, not a style preference.",
+        },
+        recovery_coach: {
+          type: "string",
+          description:
+            "Populate ONLY when today.recoveryMode.triggered is true in the data you were given. Otherwise return an empty string. You do not decide whether a crisis exists -- the deterministic engine already has.",
+        },
+      },
+      required: ["executive_coach", "academic_strategist", "behavior_analyst", "skeptic", "systems_engineer", "motivator", "recovery_coach"],
+    },
     tomorrow_changes: {
       type: "array",
       maxItems: 3,
@@ -310,6 +338,7 @@ const DAILY_ANALYSIS_TOOL_SCHEMA = {
     "planning_errors",
     "behavior_patterns",
     "academic_risks",
+    "lenses",
     "tomorrow_changes",
     "kill_list_intervention",
     "data_gaps",

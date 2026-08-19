@@ -8,7 +8,7 @@
 // deno-lint-ignore no-explicit-any
 type AnySupabaseClient = any;
 
-import { addDays, type LocalDate } from "../core/index.ts";
+import { addDays, generateNightlyHeadline, type DeterministicNightlyReport, type KillHabitBounceBack, type LocalDate } from "../core/index.ts";
 import {
   computeHabitBounceBack,
   computeRiskAssessment,
@@ -17,67 +17,9 @@ import {
   computeUserFrictionTrend,
   loadCourseGradeProjections,
   computePlanningExecutionForDate,
-  type CourseGradeProjection,
-  type RiskAssessment,
 } from "./domainQueries.ts";
 
-export interface KillHabitBounceBack {
-  killHabitId: number;
-  name: string;
-  bounceBack: Awaited<ReturnType<typeof computeHabitBounceBack>>;
-  eventsToday: number;
-  relapsesToday: number;
-}
-
-export interface DeterministicNightlyReport {
-  localDate: LocalDate;
-  dataGaps: string[];
-
-  checkin: {
-    energy: number;
-    mood: number;
-    derailmentReason: string | null;
-    capacityMinutes: number | null;
-    floorMinutes: number | null;
-    targetMinutes: number | null;
-    recoveryModeTriggeredAtCheckin: boolean;
-  } | null;
-
-  review: {
-    mitsPlanned: number;
-    mitsCompleted: number;
-    deepWorkPlannedMin: number | null;
-    deepWorkActualMin: number | null;
-    screenTimeMin: number | null;
-    distractingTimeMin: number | null;
-    workoutCompleted: boolean | null;
-    killListSuccessCount: number | null;
-    killListTotal: number | null;
-    proudText: string | null;
-    wentWrongText: string | null;
-    importantNoteText: string | null;
-  } | null;
-
-  recoveryMode: Awaited<ReturnType<typeof computeTodayRecoveryMode>>;
-  planningExecution: Awaited<ReturnType<typeof computePlanningExecutionForDate>>;
-
-  gradeProjections: CourseGradeProjection[];
-  riskAssessment: RiskAssessment;
-
-  frictionToday: Awaited<ReturnType<typeof computeUserFrictionDistribution>>;
-  /** This week (the 7 days ending on localDate) vs the 7 days before that. */
-  frictionTrend: Awaited<ReturnType<typeof computeUserFrictionTrend>>;
-
-  killLoop: KillHabitBounceBack[];
-
-  focusSessions: {
-    count: number;
-    completedCount: number;
-    abandonedCount: number;
-    totalActualMin: number;
-    totalInterruptions: number;
-  };
-}
+export type { DeterministicNightlyReport, KillHabitBounceBack } from "../core/index.ts";
 
 export async function assembleDeterministicNightlyReport(
   client: AnySupabaseClient,
@@ -95,7 +37,7 @@ export async function assembleDeterministicNightlyReport(
 
   const { data: courses, error: coursesError } = await client
     .from("courses")
-    .select("id, difficulty_rating, confidence_rating, target_grade_pct")
+    .select("id, code, name, difficulty_rating, confidence_rating, target_grade_pct")
     .eq("user_id", userId);
   if (coursesError) throw coursesError;
 
@@ -176,9 +118,35 @@ export async function assembleDeterministicNightlyReport(
   };
   if (sessions.length === 0) dataGaps.push("No focus sessions logged for this day.");
 
+  const review = reviewRow
+    ? {
+        mitsPlanned: reviewRow.mits_planned,
+        mitsCompleted: reviewRow.mits_completed,
+        deepWorkPlannedMin: reviewRow.deep_work_planned_min,
+        deepWorkActualMin: reviewRow.deep_work_actual_min,
+        screenTimeMin: reviewRow.screen_time_min,
+        distractingTimeMin: reviewRow.distracting_time_min,
+        workoutCompleted: reviewRow.workout_completed,
+        killListSuccessCount: reviewRow.kill_list_success_count,
+        killListTotal: reviewRow.kill_list_total,
+        proudText: reviewRow.proud_text,
+        wentWrongText: reviewRow.went_wrong_text,
+        importantNoteText: reviewRow.important_note_text,
+      }
+    : null;
+
+  const { headline, objectiveSummary } = generateNightlyHeadline({
+    review,
+    recoveryMode,
+    planningExecution,
+    courseRisks: riskAssessment.courseRisks,
+  });
+
   return {
     localDate,
     dataGaps,
+    headline,
+    objectiveSummary,
     checkin: checkinRow
       ? {
           energy: checkinRow.energy,
@@ -190,22 +158,7 @@ export async function assembleDeterministicNightlyReport(
           recoveryModeTriggeredAtCheckin: checkinRow.recovery_mode_triggered,
         }
       : null,
-    review: reviewRow
-      ? {
-          mitsPlanned: reviewRow.mits_planned,
-          mitsCompleted: reviewRow.mits_completed,
-          deepWorkPlannedMin: reviewRow.deep_work_planned_min,
-          deepWorkActualMin: reviewRow.deep_work_actual_min,
-          screenTimeMin: reviewRow.screen_time_min,
-          distractingTimeMin: reviewRow.distracting_time_min,
-          workoutCompleted: reviewRow.workout_completed,
-          killListSuccessCount: reviewRow.kill_list_success_count,
-          killListTotal: reviewRow.kill_list_total,
-          proudText: reviewRow.proud_text,
-          wentWrongText: reviewRow.went_wrong_text,
-          importantNoteText: reviewRow.important_note_text,
-        }
-      : null,
+    review,
     recoveryMode,
     planningExecution,
     gradeProjections,

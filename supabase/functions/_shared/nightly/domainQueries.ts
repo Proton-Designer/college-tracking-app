@@ -28,12 +28,12 @@ import {
   daysBetween,
   addDays,
   type AssignmentRiskInput,
-  type AssignmentRiskResult,
   type BounceBackResult,
   type CauseTrendEntry,
-  type CourseGradeResult,
-  type CourseRiskResult,
+  type CourseGradeProjection,
+  type CourseRiskSummary,
   type DayOutcome,
+  type DeliverableRisk,
   type FrictionDistribution,
   type FrictionLog,
   type GradeCategory,
@@ -41,6 +41,7 @@ import {
   type LocalDate,
   type PlanningExecutionResult,
   type RecoveryModeResult,
+  type RiskAssessment,
 } from "../core/index.ts";
 
 const GLOBAL_MEAN_START_DELAY_DAYS_PRIOR = 1.5; // mirrors risk.ts's own documented prior
@@ -68,11 +69,6 @@ function median(values: number[]): number {
 // ============================================================================
 // Ported from packages/api/src/day/grades.ts
 // ============================================================================
-export interface CourseGradeProjection {
-  courseId: number;
-  result: CourseGradeResult;
-}
-
 export async function loadCourseGradeProjections(
   client: AnySupabaseClient,
   userId: string,
@@ -127,26 +123,10 @@ export async function loadCourseGradeProjections(
 // ============================================================================
 // Ported from packages/api/src/day/risk.ts
 // ============================================================================
-export interface DeliverableRisk {
-  deliverableId: number;
-  courseId: number;
-  title: string;
-  result: AssignmentRiskResult;
-  input: AssignmentRiskInput;
-}
-
-export interface CourseRiskSummary {
-  courseId: number;
-  result: CourseRiskResult;
-}
-
-export interface RiskAssessment {
-  deliverableRisks: DeliverableRisk[];
-  courseRisks: CourseRiskSummary[];
-}
-
 interface CourseFacts {
   id: number;
+  code: string;
+  name: string;
   difficulty_rating: number | null;
   confidence_rating: number | null;
   target_grade_pct: number | null;
@@ -238,6 +218,9 @@ export async function computeRiskAssessment(
   // deno-lint-ignore no-explicit-any
   const deliverableRisks: DeliverableRisk[] = ((deliverables ?? []) as any[]).map((d) => {
     const course = courseById.get(d.course_id);
+    // FK-guaranteed, not a legitimate "unknown" -- if this ever misses, the data is
+    // corrupt and should fail loud rather than render a fabricated course label.
+    if (!course) throw new Error(`Deliverable ${d.id} references missing course ${d.course_id}`);
     const units = unitsByDeliverable.get(d.id) ?? { planned: 0, completed: 0 };
     const windowDays = Math.max(daysBetween(today, d.local_due_date), 0);
     const availableHours = windowDays * wakingHoursPerDay;
@@ -262,7 +245,15 @@ export async function computeRiskAssessment(
       ...(grade?.projectedGrade != null ? { projectedPct: grade.projectedGrade } : {}),
     };
 
-    return { deliverableId: d.id, courseId: d.course_id, title: d.title, result: computeAssignmentRisk(input), input };
+    return {
+      deliverableId: d.id,
+      courseId: d.course_id,
+      courseCode: course.code,
+      courseName: course.name,
+      title: d.title,
+      result: computeAssignmentRisk(input),
+      input,
+    };
   });
 
   const byCourseGroup = new Map<number, DeliverableRisk[]>();
@@ -274,7 +265,10 @@ export async function computeRiskAssessment(
 
   const courseRisks: CourseRiskSummary[] = [...byCourseGroup.entries()].map(([courseId, risks]) => ({
     courseId,
+    courseCode: risks[0].courseCode,
+    courseName: risks[0].courseName,
     result: computeCourseRisk({ items: risks.map((r) => ({ id: String(r.deliverableId), score: r.result.score })) }),
+    itemLabels: Object.fromEntries(risks.map((r) => [String(r.deliverableId), r.title])),
   }));
 
   return { deliverableRisks, courseRisks };

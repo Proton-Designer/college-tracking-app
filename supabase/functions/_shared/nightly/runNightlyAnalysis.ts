@@ -171,11 +171,19 @@ export async function runNightlyAnalysisForUser(
     const result = await callLlm(gatewayDeps, request);
 
     if (result.kind === "ok") {
+      // LLM_LAYER_SPEC.md §2: "the deterministic engine decides; the model does not get
+      // to declare a crisis." report.recoveryMode.triggered is the one source of truth
+      // for whether tonight is a Recovery Mode night -- whatever the model wrote for
+      // recovery_coach is discarded, not merely ignored, when core disagrees.
+      const analysis: DailyAnalysis = report.recoveryMode.triggered
+        ? result.data
+        : { ...result.data, lenses: { ...result.data.lenses, recovery_coach: "" } };
+
       const reportId = await storeNightlyAgentReport(
         deps.client,
         userId,
         localDate,
-        { deterministic: report, analysis: result.data, note: null },
+        { deterministic: report, analysis, note: null },
         deps.model,
       );
       return { userId, localDate, reportId, model: deps.model, usedModel: true, insightsDetected };

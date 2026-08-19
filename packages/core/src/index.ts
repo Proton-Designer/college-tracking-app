@@ -5,6 +5,7 @@ export * from './util/localToday';
 
 export * from './risk/assignmentRisk';
 export * from './risk/courseRisk';
+export * from './risk/riskAssessment';
 
 export * from './grades/types';
 export * from './grades/courseGrade';
@@ -47,3 +48,6 @@ export * from './integrations/healthDailyRollup';
 export * from './integrations/oauthTokenExpiry';
 export * from './integrations/rescuetimeNormalize';
 export * from './integrations/screenDailyRollup';
+
+export * from './reports/nightlyReportTypes';
+export * from './reports/generateNightlyHeadline';

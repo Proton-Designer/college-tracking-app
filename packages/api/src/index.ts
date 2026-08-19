@@ -93,6 +93,19 @@ export { getBackplan, listMilestones } from "./data/backplans";
 
 export { getAgentReport, listAgentReports } from "./data/agentReports";
 export type { AgentReport, AgentReportType } from "./data/agentReports";
+export { LENS_NAMES, parseNightlyReportPayload } from "./data/nightlyReportPayload";
+export type {
+  NightlyAgentReportPayload,
+  DeterministicNightlyReport,
+  DeterministicNightlyReportCheckin,
+  DeterministicNightlyReportReview,
+  DailyAnalysis,
+  EvidenceClaim,
+  AcademicRiskNote,
+  Intervention,
+  KillHabitBounceBack,
+  LensName,
+} from "./data/nightlyReportPayload";
 export { getDailySummary, listRecentDailySummaries, getWeeklySummary, getMonthlySummary } from "./data/summaries";
 export type { DailySummaryRow, WeeklySummaryRow, MonthlySummaryRow } from "./data/summaries";
 export { listActiveInsights } from "./data/insights";
