@@ -197,26 +197,23 @@ export function DayTrace({
             />
           ))}
 
-          {plannedMerged.map((iv, i) => {
-            const missed = plannedBlocks.some((b) => b.missed && b.startMin >= iv.startMin && b.endMin <= iv.endMin);
-            return (
-              <View
-                key={`p-${i}`}
-                style={[
-                  styles.plannedBlock,
-                  {
-                    left: `${pct(iv.startMin)}%`,
-                    width: `${Math.max(1, pct(iv.endMin) - pct(iv.startMin))}%`,
-                    top: PLANNED_TOP,
-                    height: ROW_H,
-                    borderColor: missed ? color.riskHigh : color.inkFaint,
-                  },
-                ]}
-              />
-            );
-          })}
+          {plannedBlocks.map((iv, i) => (
+            <View
+              key={`p-${i}`}
+              style={[
+                styles.plannedBlock,
+                {
+                  left: `${pct(iv.startMin)}%`,
+                  width: `${Math.max(1, pct(iv.endMin) - pct(iv.startMin))}%`,
+                  top: PLANNED_TOP,
+                  height: ROW_H,
+                  borderColor: iv.missed ? color.riskHigh : color.inkFaint,
+                },
+              ]}
+            />
+          ))}
 
-          {actualMerged.map((iv, i) => (
+          {actualBlocks.map((iv, i) => (
             <View
               key={`a-${i}`}
               style={[

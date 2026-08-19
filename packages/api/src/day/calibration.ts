@@ -27,7 +27,10 @@ export async function loadCalibrationObservations(
     .from('task_sessions')
     .select('planned_duration_min, actual_duration_min, created_at, tasks!inner(category, user_id)')
     .eq('tasks.user_id', userId)
-    .not('actual_duration_min', 'is', null)
+    // 'completed' only -- an abandoned session's actual_duration_min is real (how long
+    // they worked before stopping), but it's not an observation of how long the TASK
+    // takes, and must never train the multiplier as if it were. See migration 0012.
+    .eq('status', 'completed')
     .gte('created_at', since);
   if (error) throw error;
 

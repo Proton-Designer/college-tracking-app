@@ -6,16 +6,13 @@ import { generateAndPersistBackplan, computeCapacityHorizon } from '../academic/
 import { computeCourseGradeScenario, computeCourseRequiredScore } from '../academic/gradeScenario';
 import { getBackplan, listMilestones } from '../data/backplans';
 import { getUserLocalToday } from '../day/today';
+import { DEMO_EMAIL, DEMO_PASSWORD, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from '../client/types';
 
 // Proves deadline-radar persistence and the grade scenario solver against the seeded
 // demo user's real deliverables and BME 301 grade data.
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const DEMO_EMAIL = 'demo@collegeos.app';
-const DEMO_PASSWORD = 'CollegeOS-Demo-2026';
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
 describe('deadline radar + grade scenarios against the seeded demo user', () => {

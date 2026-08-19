@@ -22,6 +22,22 @@ if (missing.length > 0) {
   );
 }
 
+// Guard for the repair step below: it calls the admin API with the service-role key,
+// which bypasses RLS entirely, to overwrite a real user's password. Locally that's
+// exactly the seeded demo account. But if SUPABASE_URL ever pointed at a cloud project
+// -- a CI misconfiguration, a stray `supabase link`, someone debugging against staging
+// with the wrong env loaded -- this would silently reset a real password in a real
+// database. Refuse outright unless the target is unambiguously local.
+const supabaseUrl = new URL(process.env.SUPABASE_URL!);
+const isLocalTarget = supabaseUrl.hostname === 'localhost' || supabaseUrl.hostname === '127.0.0.1';
+if (!isLocalTarget) {
+  throw new Error(
+    `Integration tests mutate user credentials (see the demo-account repair step) and must only run ` +
+      `against a local stack. Refusing to run against SUPABASE_URL=${process.env.SUPABASE_URL} -- ` +
+      'point .env.local at http://127.0.0.1:54321 (or your local port) before retrying.',
+  );
+}
+
 // S1: every itest file signs in as the seeded demo@collegeos.app account. That
 // credential is mutable shared state -- something (never definitively root-caused; see
 // the seed-coverage report) once changed its password mid-session, and every test in

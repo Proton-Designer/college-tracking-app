@@ -3,17 +3,13 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { signIn } from '../auth/auth';
 import { listGradeCategories, listGradeItems, listGradeBoundaries } from '../data/gradeStructure';
 import { listDeliverables } from '../data/deliverables';
+import { DEMO_EMAIL, DEMO_PASSWORD, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from '../client/types';
 
 // Proves the raw-row read layer (P1: grade structure + deliverables) against the seeded
 // demo user's real BME 301 data -- these are rendering reads, not computation, so the
 // assertions are about shape and real values, not about packages/core's engine.
-
-const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const DEMO_EMAIL = 'demo@collegeos.app';
-const DEMO_PASSWORD = 'CollegeOS-Demo-2026';
 
 describe('grade structure and deliverable reads against the seeded demo user', () => {
   let client: TypedSupabaseClient;

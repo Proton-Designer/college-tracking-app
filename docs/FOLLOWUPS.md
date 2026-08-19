@@ -24,6 +24,9 @@
 |---|---|---|
 | 🔴 A1 | **Night review UI never assigned** | `MASTER_PLAN` L4 is "Today, morning check-in, **night review**, tasks." The L4 assignment specified Today + check-in and omitted the night review. `/review` exists on neither platform. This is the **Reflect** step of the closed loop — without it a user can plan a day but never close it, and friction logs, prediction scoring, calibration actuals, and **L7's nightly analysis all have no input**. Backend (`submitNightReview`) already exists. Queued to Nova after mobile Today. |
 
+| 🔴 A2 | **Timeboxing / implementation intentions were never scoped** | The brief specifies a plan as an *implementation intention* — when, where, how (`BME exam prep · 4:30–5:45 PM · WALC library · Ch5 practice`) — and ties it to the research on specific plans outperforming vague ones. `tasks` carried only `planned_date` (a day, no time), so **start delay — a headline metric in the brief ("planned start 4:00 / actual start 5:07") — could not be measured at all.** Caught when Atlas honestly reported start delay as 0 and refused to invent a scheduling concept. Fixed in L6: `tasks.planned_start_at` + `planned_location`, start delay `null` (never 0) when unset. |
+| ⚪️ A3 | **Weekly planning (the brief's Sunday session) not yet scoped** | Capacity + deadlines + course risk + unfinished work → suggested focus blocks for the week, adjusted once by the user and carried forward. Depends on the A2 timeboxing primitive. Natural L8/L9 follow-on. |
+
 **Process note:** caught by auditing built routes against `SCREEN_SPEC`, not by either engineer's
 report — both engineers correctly built exactly what they were assigned. Layer scope must be
 audited against the plan at each boundary, not assumed from assignment messages.

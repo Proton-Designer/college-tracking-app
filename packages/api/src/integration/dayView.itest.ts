@@ -4,17 +4,13 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { signIn } from '../auth/auth';
 import { getDayView } from '../day/dayView';
 import { getUserLocalToday } from '../day/today';
+import { DEMO_EMAIL, DEMO_PASSWORD, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from '../client/types';
 
 // Proves the day-assembly service against the seeded demo user (supabase/seed.sql) --
 // engine, DB, and API must all agree on the same hand-verified figures.
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-
-const DEMO_EMAIL = 'demo@collegeos.app';
-const DEMO_PASSWORD = 'CollegeOS-Demo-2026';
 const TIMEZONE = 'America/Indiana/Indianapolis';
 
 describe('getDayView against the seeded demo user', () => {

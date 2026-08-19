@@ -1,14 +1,13 @@
 import { createClient } from '@supabase/supabase-js';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { signUp } from '../auth/auth';
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 
 // Proves the REAL signup -> email pipeline: a real signUp() call against the running
 // local GoTrue auth server, with enable_confirmations = true (supabase/config.toml),
 // actually produces a confirmation email that lands in Mailpit -- not mocked, not assumed.
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const MAILPIT_URL = process.env.MAILPIT_URL ?? 'http://127.0.0.1:54324';
 
 const testEmail = `itest-signup-${Date.now()}@collegeos.test`;

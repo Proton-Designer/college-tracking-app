@@ -373,11 +373,11 @@ begin
                   d, 'completed', d::timestamptz + time '20:00')
           returning id into v_task_id;
 
-        insert into public.task_sessions (user_id, task_id, planned_start, actual_start, planned_duration_min, actual_duration_min, location, interruptions, subjective_focus, phone_usage_min)
+        insert into public.task_sessions (user_id, task_id, planned_start, actual_start, planned_duration_min, actual_duration_min, location, interruptions, subjective_focus, phone_usage_min, status)
           select v_user_id, v_task_id, d::timestamptz + time '16:00', d::timestamptz + time '16:00' + (random()*40||' minutes')::interval,
                  t.estimated_minutes, t.actual_minutes,
                  (array['Hicks library','WALC','dorm room','MSEE study room'])[1+floor(random()*4)::int],
-                 floor(random()*3)::int, 2 + floor(random()*3)::int, floor(random()*15)::int
+                 floor(random()*3)::int, 2 + floor(random()*3)::int, floor(random()*15)::int, 'completed'
           from public.tasks t where t.id = v_task_id;
       end loop;
     else
@@ -386,8 +386,11 @@ begin
       insert into public.tasks (user_id, course_id, deliverable_id, title, category, estimated_minutes, planned_date, status)
         values (v_user_id, v_chem_id, v_bad_day_deliv_id, 'CHEM Lab Report 2 write-up', 'lab_report', 60, d, 'in_progress')
         returning id into v_task_id;
-      insert into public.task_sessions (user_id, task_id, planned_start, actual_start, planned_duration_min, actual_duration_min, location, interruptions, subjective_focus, phone_usage_min)
-        values (v_user_id, v_task_id, d::timestamptz + time '16:00', d::timestamptz + time '16:05', 60, 12, 'dorm room', 4, 1, 25);
+      -- Abandoned, not completed -- 12 of 60 planned minutes before giving up, matching
+      -- the day's story (the task itself is still 'in_progress', never finished). Must
+      -- never train calibration the way a real completed-duration observation would.
+      insert into public.task_sessions (user_id, task_id, planned_start, actual_start, planned_duration_min, actual_duration_min, location, interruptions, subjective_focus, phone_usage_min, status)
+        values (v_user_id, v_task_id, d::timestamptz + time '16:00', d::timestamptz + time '16:05', 60, 12, 'dorm room', 4, 1, 25, 'abandoned');
 
       -- One ordinary discretionary task, never started -- exactly what "Rolled forward
       -- (N)" exists to disclose rather than silently drop. Deliberately just one, not

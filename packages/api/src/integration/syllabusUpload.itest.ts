@@ -2,17 +2,13 @@ import { createClient } from '@supabase/supabase-js';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { signIn } from '../auth/auth';
 import { uploadSyllabus } from '../data/syllabusUploads';
+import { DEMO_EMAIL, DEMO_PASSWORD, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from '../client/types';
 
 // Proves the P5 storage upload helper against the real local Supabase storage service
 // (migration 0011's private `syllabi` bucket) -- not a mock, a real multipart upload
 // and a real syllabus_uploads row.
-
-const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
-const DEMO_EMAIL = 'demo@collegeos.app';
-const DEMO_PASSWORD = 'CollegeOS-Demo-2026';
 
 describe('uploadSyllabus against the real local storage service', () => {
   let client: TypedSupabaseClient;

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { getSession, signIn } from '../auth/auth';
 import { getOwnProfile } from '../data/profiles';
 import { createCourse, listCourses } from '../data/courses';
+import { SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 
 // Proves the real thing the L3 assignment asked for: real signup (via the admin API,
@@ -10,8 +11,6 @@ import type { Database } from '../database.types';
 // the actual local GoTrue server -> an RLS-scoped read that returns only that user's rows,
 // verified against a second real user rather than assumed from the schema.
 
-const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 async function createConfirmedUser(email: string, password: string) {

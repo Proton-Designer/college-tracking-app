@@ -55,6 +55,18 @@ export { computeRiskAssessment } from "./day/risk";
 export type { DeliverableRisk, CourseRiskSummary, RiskAssessment } from "./day/risk";
 export { loadCourseGradeProjections } from "./day/grades";
 export type { CourseGradeProjection } from "./day/grades";
+export {
+  startFocusSession,
+  completeFocusSession,
+  abandonFocusSession,
+  getActiveFocusSession,
+} from "./day/focusSessions";
+export type {
+  TaskSessionRow,
+  FocusSessionStatus,
+  StartFocusSessionInput,
+  EndFocusSessionInput,
+} from "./day/focusSessions";
 
 export { generateAndPersistBackplan, computeCapacityHorizon } from "./academic/backplan";
 export type { GenerateBackplanResult, CapacityDay } from "./academic/backplan";

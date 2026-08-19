@@ -1866,6 +1866,7 @@ export type Database = {
           phone_usage_min: number | null
           planned_duration_min: number
           planned_start: string
+          status: string
           subjective_focus: number | null
           task_id: number
           user_id: string
@@ -1881,6 +1882,7 @@ export type Database = {
           phone_usage_min?: number | null
           planned_duration_min: number
           planned_start: string
+          status?: string
           subjective_focus?: number | null
           task_id: number
           user_id: string
@@ -1896,6 +1898,7 @@ export type Database = {
           phone_usage_min?: number | null
           planned_duration_min?: number
           planned_start?: string
+          status?: string
           subjective_focus?: number | null
           task_id?: number
           user_id?: string
