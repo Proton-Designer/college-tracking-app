@@ -64,6 +64,46 @@ export async function listKillHabits(
   return dataOk(data);
 }
 
+export interface UpdateKillHabitInput {
+  name?: string;
+  triggerDescription?: string | null;
+  urgeDescription?: string | null;
+  immediateReward?: string | null;
+  longTermCost?: string | null;
+  replacementBehavior?: string | null;
+  implementationIntention?: string | null;
+}
+
+/** Edits the descriptive chain only -- name, trigger/urge/reward/cost/replacement,
+ *  implementation intention. Never touches escalation_level or max_escalation_level;
+ *  the ceiling has its own dedicated setMaxEscalationLevel, deliberately kept separate
+ *  so an edit to "what the urge feels like" can never accidentally also raise how far
+ *  this habit is allowed to escalate. */
+export async function updateKillHabit(
+  client: TypedSupabaseClient,
+  userId: string,
+  killHabitId: number,
+  input: UpdateKillHabitInput,
+): Promise<DataResult<KillHabitRow>> {
+  const { data, error } = await client
+    .from('kill_habits')
+    .update({
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.triggerDescription !== undefined ? { trigger_description: input.triggerDescription } : {}),
+      ...(input.urgeDescription !== undefined ? { urge_description: input.urgeDescription } : {}),
+      ...(input.immediateReward !== undefined ? { immediate_reward: input.immediateReward } : {}),
+      ...(input.longTermCost !== undefined ? { long_term_cost: input.longTermCost } : {}),
+      ...(input.replacementBehavior !== undefined ? { replacement_behavior: input.replacementBehavior } : {}),
+      ...(input.implementationIntention !== undefined ? { implementation_intention: input.implementationIntention } : {}),
+    })
+    .eq('id', killHabitId)
+    .eq('user_id', userId)
+    .select('*')
+    .single();
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(data);
+}
+
 /** The explicit opt-in action for "levels 2-4 are opt-in per behavior" -- a user
  *  deliberately choosing, for THIS specific habit, to allow it to auto-escalate that
  *  far. Never set as a side effect of anything else (no auto-raise on relapse count,

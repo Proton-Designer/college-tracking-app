@@ -2441,6 +2441,10 @@ export type Database = {
         Args: { p_user_id: string }
         Returns: number
       }
+      disconnect_oauth_connection: {
+        Args: { p_provider: string; p_user_id: string }
+        Returns: boolean
+      }
       get_brightspace_feed_url: { Args: { p_user_id: string }; Returns: string }
       get_oauth_token: {
         Args: { p_provider: string; p_user_id: string }

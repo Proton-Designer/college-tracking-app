@@ -160,3 +160,12 @@ export {
 
 export { getBrightspaceFeedStatus, listPendingIcsEvents } from "./data/brightspaceFeeds";
 export type { BrightspaceFeedRow, IcsEventExtractionRow } from "./data/brightspaceFeeds";
+
+export { listIntegrationStatuses, disconnectIntegration } from "./data/integrations";
+export type { IntegrationStatus, OAuthProvider } from "./data/integrations";
+export { getMonthlySpend } from "./data/llmUsage";
+export type { LlmMonthlySpend } from "./data/llmUsage";
+export { exportOwnAccount, deleteOwnAccount } from "./data/accountManagement";
+export type { AccountExport, AccountExportFile, DeleteOwnAccountResult } from "./data/accountManagement";
+export { updateKillHabit } from "./data/killHabits";
+export type { UpdateKillHabitInput } from "./data/killHabits";
