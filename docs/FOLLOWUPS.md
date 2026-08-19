@@ -48,6 +48,13 @@ Five features have working, tested backends that **no screen reaches**. Same fam
 | ~~🟡 U4~~ | ~~`max_escalation_level` unsettable~~ | **Resolved.** Settings' kill-habit editor now lets a user set the ceiling per habit, all 5 levels selectable. Verified live via psql that the write reaches the DB. Found while building it: L2-L4 currently produce the same in-app-message-only behavior as L0/L1 (see F4/F5) — the picker labels this explicitly rather than implying real enforcement exists. | Settings — kill-habit definitions |
 | 🟢 U5 | **Office hours never surfaced** | SCREEN_SPEC §4 wants them surfaced contextually when a topic is repeatedly flagged confusing — the brief's "better intervention than explaining the concept a tenth time". | Course detail |
 
+| 🔴 U6 | **Weekly planning has no UI at all** | The brief's Sunday session — capacity + deadlines + risk + unfinished work → suggested focus blocks, adjusted once and carried forward. Backend is *complete*: pure engine with free-interval math, schema (`weekly_plans`/`weekly_plan_blocks`/`weekly_plan_unplaced`), orchestration, cold-start fix, unplaced-work disclosure. **Nothing renders any of it.** Also a Lead spec gap — `SCREEN_SPEC` §0 never defined a route for it. **Ruling: it lives inside `/calendar`** as a distinct "This week" view rather than a seventh nav item; Calendar is already the horizon surface and five-plus-Settings is the right nav ceiling. |
+| 🟡 U7 | **Decision journal has no UI** | L8 built log/score/list with the observe-then-score pattern. The brief wants decisions recorded with reasoning + prediction, scored later, so systematic decision errors surface over time. Belongs on `/insights` beside experiments — same "observe, then find out if you were right" shape. |
+| 🟢 U8 | **Semester lessons have no UI** | Unlike U6/U7 these *do* have a real consumer — `loadDurableProfile` feeds them into every nightly call. So they're not dead code. But the brief's semester retrospective is user-facing, and right now the user can't see what the system has durably concluded about them. |
+
+**Note:** `grade_boundaries` looked like a gap in the same audit and is a **false positive** — it renders
+on course detail. Grep for a column name finds absence of that *string*, not absence of the feature.
+
 **Process note:** found by auditing backend columns/functions against UI references, not from any
 report — both engineers built exactly what was assigned. This is the *third* scope gap caught by
 audit rather than by review (after the night review and A2 timeboxing). Layer completion must be
