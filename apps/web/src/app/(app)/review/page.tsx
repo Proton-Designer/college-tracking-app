@@ -22,7 +22,12 @@ export default async function ReviewPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-report flex-1 flex-col gap-6 px-8 py-10">
-      <h1 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">Night review</h1>
+      <div className="flex items-baseline justify-between gap-3">
+        <h1 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">Night review</h1>
+        <Link href={`/review/${today}`} className="font-mono text-body-s text-accent underline underline-offset-2">
+          Nightly report →
+        </Link>
+      </div>
 
       {existingReview ? (
         <Panel className="flex flex-col gap-4">

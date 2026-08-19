@@ -1,6 +1,7 @@
 import type { DailyPredictionRow, DailyReview } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
-import { StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Button, Panel, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { ReviewForm } from "../../components/review/ReviewForm";
 import { textStyle } from "../../design/typography";
@@ -8,12 +9,20 @@ import { useAuthSession } from "../../lib/useAuthSession";
 import { useReviewData } from "../../lib/useReviewData";
 
 export default function ReviewScreen() {
+  const router = useRouter();
   const { session } = useAuthSession();
   const result = useReviewData();
 
   return (
     <TabScreenScrollView>
-      <Text style={textStyle("displayM", color.ink)}>Night review</Text>
+      <View style={styles.headerRow}>
+        <Text style={textStyle("displayM", color.ink)}>Night review</Text>
+        {result.status === "ready" ? (
+          <Pressable onPress={() => router.push(`/review/${result.data.today}`)} hitSlop={8}>
+            <Text style={textStyle("caption", color.accent)}>Nightly report →</Text>
+          </Pressable>
+        ) : null}
+      </View>
 
       {result.status === "loading" ? <ReviewLoading /> : null}
 
@@ -85,6 +94,12 @@ function ReviewLoading() {
 }
 
 const styles = StyleSheet.create({
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: space[3],
+  },
   errorBox: {
     gap: space[3],
     alignItems: "flex-start",

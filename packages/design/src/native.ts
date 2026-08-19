@@ -3,10 +3,10 @@
  * stays testable and importable outside a native runtime. Consumers pass these into RN's
  * `StyleSheet.create` / Reanimated APIs directly.
  */
-import { color, motion, radius, riskBandColor, riskBands, space, type } from "./tokens";
+import { color, fontFamily, motion, radius, riskBandColor, riskBands, space, type } from "./tokens";
 import type { RiskBand } from "./tokens";
 
-export { color, radius, riskBandColor, riskBands, space, type };
+export { color, fontFamily, radius, riskBandColor, riskBands, space, type };
 export type { RiskBand };
 
 /**
