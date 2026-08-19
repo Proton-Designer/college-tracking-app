@@ -1,13 +1,30 @@
 import type { Course, DayView } from "@collegeos/api";
+import type { FocusBlock } from "@/components/today/FocusLauncher";
 import type { MitItem } from "@/components/today/MitList";
 import { DayTrace } from "@/components/today/DayTrace";
 import { DeadlineRadar } from "@/components/today/DeadlineRadar";
+import { FocusLauncher } from "@/components/today/FocusLauncher";
 import { TodayHeader } from "@/components/today/Header";
+import { KillListSection } from "@/components/today/KillListSection";
 import { MitList } from "@/components/today/MitList";
 import { RecoveryBanner } from "@/components/today/RecoveryBanner";
 import { UnplannedGate } from "@/components/today/UnplannedGate";
 import { WorkloadBand } from "@/components/today/WorkloadBand";
 import { loadTodayData } from "./data";
+
+function buildFocusBlock(dayView: DayView, courses: Record<number, Course>): FocusBlock | null {
+  const top = dayView.suggestedMits[0];
+  if (!top) return null;
+  const task = dayView.todayTasks.find((t) => t.id === top.taskId);
+  if (!task) return null;
+  return {
+    taskId: task.id,
+    title: task.title,
+    courseCode: task.course_id != null ? (courses[task.course_id]?.code ?? null) : null,
+    calibratedMinutes: top.calibratedMinutes,
+    location: task.planned_location,
+  };
+}
 
 function buildMitItems(dayView: DayView, courses: Record<number, Course>): MitItem[] {
   const tasksById = new Map(dayView.todayTasks.map((t) => [t.id, t]));
@@ -50,10 +67,11 @@ export default async function TodayPage({
     );
   }
 
-  const { dayView, courses, mode, now } = result.data;
+  const { dayView, courses, mode, killHabits, activeFocusSession, now } = result.data;
   const hasAnyData =
     dayView.todayTasks.length > 0 || dayView.todayCalendarEvents.length > 0 || dayView.upcomingDeliverables.length > 0;
   const mitItems = buildMitItems(dayView, courses);
+  const focusBlock = buildFocusBlock(dayView, courses);
 
   const normalBody = (
     <div className="flex flex-col gap-8">
@@ -79,6 +97,8 @@ export default async function TodayPage({
           courses={courses}
         />
       </section>
+      <KillListSection habits={killHabits} />
+      <FocusLauncher block={focusBlock} activeSession={activeFocusSession} />
     </div>
   );
 

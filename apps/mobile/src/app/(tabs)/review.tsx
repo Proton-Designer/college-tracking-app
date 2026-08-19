@@ -1,23 +1,18 @@
 import type { DailyPredictionRow, DailyReview } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Panel, Skeleton } from "../../components/ui";
+import { StyleSheet, Text, View } from "react-native";
+import { Button, Panel, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { ReviewForm } from "../../components/review/ReviewForm";
 import { textStyle } from "../../design/typography";
 import { useAuthSession } from "../../lib/useAuthSession";
 import { useReviewData } from "../../lib/useReviewData";
 
 export default function ReviewScreen() {
-  const insets = useSafeAreaInsets();
   const { session } = useAuthSession();
   const result = useReviewData();
 
   return (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}
-    >
+    <TabScreenScrollView>
       <Text style={textStyle("displayM", color.ink)}>Night review</Text>
 
       {result.status === "loading" ? <ReviewLoading /> : null}
@@ -47,7 +42,7 @@ export default function ReviewScreen() {
           />
         )
       ) : null}
-    </ScrollView>
+    </TabScreenScrollView>
   );
 }
 
@@ -90,14 +85,6 @@ function ReviewLoading() {
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-    backgroundColor: color.ground,
-  },
-  content: {
-    paddingHorizontal: space[5],
-    gap: space[6],
-  },
   errorBox: {
     gap: space[3],
     alignItems: "flex-start",

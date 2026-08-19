@@ -24,6 +24,8 @@ export { SegmentedControl } from "./SegmentedControl";
 export type { SegmentedControlProps } from "./SegmentedControl";
 export { Skeleton } from "./Skeleton";
 export type { SkeletonProps } from "./Skeleton";
+export { TabScreenScrollView } from "./TabScreenScrollView";
+export type { TabScreenScrollViewProps } from "./TabScreenScrollView";
 export { Textarea } from "./Textarea";
 export type { TextareaProps } from "./Textarea";
 export { Toast } from "./Toast";

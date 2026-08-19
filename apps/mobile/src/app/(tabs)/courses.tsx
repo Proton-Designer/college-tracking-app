@@ -1,11 +1,10 @@
 import { color, space } from "@collegeos/design/native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CapacityStrip } from "../../components/calendar/CapacityStrip";
 import { BackplanChain } from "../../components/courses/BackplanChain";
-import { Button, RiskPill, Skeleton } from "../../components/ui";
+import { Button, RiskPill, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { textStyle } from "../../design/typography";
 import { type CalendarObligation, useCalendarData } from "../../lib/useCalendarData";
 import { type CoursesIndexRow, useCoursesIndexData } from "../../lib/useCoursesIndexData";
@@ -27,16 +26,12 @@ type View_ = "courses" | "calendar";
  * which is built for discrete 1-10 scales, not a two-view switch).
  */
 export default function CoursesScreen() {
-  const insets = useSafeAreaInsets();
   const [view, setView] = useState<View_>("courses");
   const courses = useCoursesIndexData();
   const calendar = useCalendarData();
 
   return (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}
-    >
+    <TabScreenScrollView>
       <Text style={textStyle("displayM", color.ink)}>{view === "courses" ? "Courses" : "Calendar"}</Text>
 
       <View style={styles.segmentRow}>
@@ -45,7 +40,7 @@ export default function CoursesScreen() {
       </View>
 
       {view === "courses" ? <CoursesView state={courses} /> : <CalendarView state={calendar} />}
-    </ScrollView>
+    </TabScreenScrollView>
   );
 }
 
@@ -215,14 +210,6 @@ function ObligationRow({
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-    backgroundColor: color.ground,
-  },
-  content: {
-    paddingHorizontal: space[5],
-    gap: space[6],
-  },
   segmentRow: {
     flexDirection: "row",
     gap: space[6],

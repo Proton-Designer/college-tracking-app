@@ -1,5 +1,14 @@
 import "server-only";
-import { getDayView, listCourses, type Course, type DayView } from "@collegeos/api";
+import {
+  getActiveFocusSession,
+  getDayView,
+  listCourses,
+  listKillHabits,
+  type Course,
+  type DayView,
+  type KillHabitRow,
+  type TaskSessionRow,
+} from "@collegeos/api";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
 export type TodayMode = "unplanned" | "recovery" | "normal";
@@ -9,6 +18,13 @@ export interface TodayData {
   /** Plain object, not a Map — this crosses the server/client component boundary. */
   courses: Record<number, Course>;
   mode: TodayMode;
+  /** Today's active kill-list commitments — SCREEN_SPEC §1.6. Independent of dayView
+   *  since it feeds no risk/workload computation, just its own display section. */
+  killHabits: KillHabitRow[];
+  /** Non-null if the user already has a focus session running — the launcher becomes
+   *  "Resume focus" rather than trying to start a second one (the backend would reject
+   *  it anyway; this just gives the UI a truthful state to render instead of an error). */
+  activeFocusSession: TaskSessionRow | null;
   /** The instant getDayView was computed against — passed to the Day Trace's live cursor so
    *  it never drifts from what the query actually saw. */
   now: Date;
@@ -40,9 +56,11 @@ export async function loadTodayData(options?: { asOf?: Date }): Promise<TodayLoa
   }
 
   const now = options?.asOf ?? new Date();
-  const [dayViewResult, coursesResult] = await Promise.all([
+  const [dayViewResult, coursesResult, killHabitsResult, activeFocusSessionResult] = await Promise.all([
     getDayView(client, user.id, now),
     listCourses(client),
+    listKillHabits(client, user.id),
+    getActiveFocusSession(client, user.id),
   ]);
 
   if (!dayViewResult.ok) {
@@ -51,6 +69,12 @@ export async function loadTodayData(options?: { asOf?: Date }): Promise<TodayLoa
   if (!coursesResult.ok) {
     return { ok: false, error: coursesResult.error.message };
   }
+  if (!killHabitsResult.ok) {
+    return { ok: false, error: killHabitsResult.error.message };
+  }
+  if (!activeFocusSessionResult.ok) {
+    return { ok: false, error: activeFocusSessionResult.error.message };
+  }
 
   return {
     ok: true,
@@ -58,6 +82,8 @@ export async function loadTodayData(options?: { asOf?: Date }): Promise<TodayLoa
       dayView: dayViewResult.data,
       courses: Object.fromEntries(coursesResult.data.map((c) => [c.id, c])),
       mode: decideMode(dayViewResult.data),
+      killHabits: killHabitsResult.data,
+      activeFocusSession: activeFocusSessionResult.data,
       now,
     },
   };

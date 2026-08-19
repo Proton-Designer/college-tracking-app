@@ -1,4 +1,13 @@
-import { getDayView, listCourses, type Course, type DayView } from "@collegeos/api";
+import {
+  getActiveFocusSession,
+  getDayView,
+  listCourses,
+  listKillHabits,
+  type Course,
+  type DayView,
+  type KillHabitRow,
+  type TaskSessionRow,
+} from "@collegeos/api";
 import { useCallback, useEffect, useState } from "react";
 import { getMobileSupabaseClient } from "./supabase/client";
 import { useAuthSession } from "./useAuthSession";
@@ -9,6 +18,11 @@ export interface TodayData {
   dayView: DayView;
   courses: Record<number, Course>;
   mode: TodayMode;
+  /** Today's active kill-list commitments — SCREEN_SPEC §1.6. */
+  killHabits: KillHabitRow[];
+  /** Non-null when a focus session is already running — the launcher becomes
+   *  "Resume focus" instead of trying (and failing) to start a second one. */
+  activeFocusSession: TaskSessionRow | null;
 }
 
 export type FetchState =
@@ -45,7 +59,12 @@ export function useTodayData(asOfIso?: string) {
     const client = getMobileSupabaseClient();
     const asOf = asOfIso ? new Date(asOfIso) : undefined;
 
-    Promise.all([getDayView(client, userId, asOf), listCourses(client)]).then(([dayViewResult, coursesResult]) => {
+    Promise.all([
+      getDayView(client, userId, asOf),
+      listCourses(client),
+      listKillHabits(client, userId),
+      getActiveFocusSession(client, userId),
+    ]).then(([dayViewResult, coursesResult, killHabitsResult, activeFocusSessionResult]) => {
       if (cancelled) return;
       if (!dayViewResult.ok) {
         setFetchState({ status: "error", error: dayViewResult.error.message });
@@ -55,12 +74,22 @@ export function useTodayData(asOfIso?: string) {
         setFetchState({ status: "error", error: coursesResult.error.message });
         return;
       }
+      if (!killHabitsResult.ok) {
+        setFetchState({ status: "error", error: killHabitsResult.error.message });
+        return;
+      }
+      if (!activeFocusSessionResult.ok) {
+        setFetchState({ status: "error", error: activeFocusSessionResult.error.message });
+        return;
+      }
       setFetchState({
         status: "ready",
         data: {
           dayView: dayViewResult.data,
           courses: Object.fromEntries(coursesResult.data.map((c) => [c.id, c])),
           mode: decideMode(dayViewResult.data),
+          killHabits: killHabitsResult.data,
+          activeFocusSession: activeFocusSessionResult.data,
         },
       });
     });

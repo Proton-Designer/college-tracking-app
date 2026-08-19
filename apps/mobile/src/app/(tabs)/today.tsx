@@ -1,15 +1,16 @@
-import type { Course, DayView } from "@collegeos/api";
+import type { Course, DayView, KillHabitRow, TaskSessionRow } from "@collegeos/api";
 import { signOut } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Skeleton } from "../../components/ui";
+import { RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Button, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { CheckinFlow } from "../../components/today/CheckinFlow";
 import { DayTrace } from "../../components/today/DayTrace";
 import { DeadlineRadar } from "../../components/today/DeadlineRadar";
+import { type FocusBlock, FocusLauncher } from "../../components/today/FocusLauncher";
 import { TodayHeader } from "../../components/today/Header";
+import { KillListSection } from "../../components/today/KillListSection";
 import { type MitItem, MitList } from "../../components/today/MitList";
 import { RecoveryBanner } from "../../components/today/RecoveryBanner";
 import { WorkloadBand } from "../../components/today/WorkloadBand";
@@ -34,9 +35,22 @@ function buildMitItems(dayView: DayView, courses: Record<number, Course>): MitIt
   });
 }
 
+function buildFocusBlock(dayView: DayView, courses: Record<number, Course>): FocusBlock | null {
+  const top = dayView.suggestedMits[0];
+  if (!top) return null;
+  const task = dayView.todayTasks.find((t) => t.id === top.taskId);
+  if (!task) return null;
+  return {
+    taskId: task.id,
+    title: task.title,
+    courseCode: task.course_id != null ? (courses[task.course_id]?.code ?? null) : null,
+    calibratedMinutes: top.calibratedMinutes,
+    location: task.planned_location,
+  };
+}
+
 export default function TodayScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { session } = useAuthSession();
   // Dev-only debug affordance, __DEV__-gated same as web's ?asOf= — never linked from any UI.
   const params = useLocalSearchParams<{ asOf?: string }>();
@@ -54,12 +68,8 @@ export default function TodayScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}
-      refreshControl={
-        result.status === "ready" ? <RefreshControl refreshing={false} onRefresh={result.refetch} /> : undefined
-      }
+    <TabScreenScrollView
+      refreshControl={result.status === "ready" ? <RefreshControl refreshing={false} onRefresh={result.refetch} /> : undefined}
     >
       <View style={styles.topBar}>
         <Text style={textStyle("title", color.ink)}>CollegeOS</Text>
@@ -93,7 +103,7 @@ export default function TodayScreen() {
       {result.status === "ready" ? (
         <TodayReady data={result.data} dismissedCheckin={dismissedCheckin} onCheckinDone={() => { setDismissedCheckin(true); result.refetch(); }} onCheckinSkip={() => setDismissedCheckin(true)} />
       ) : null}
-    </ScrollView>
+    </TabScreenScrollView>
   );
 }
 
@@ -103,14 +113,21 @@ function TodayReady({
   onCheckinDone,
   onCheckinSkip,
 }: {
-  data: { dayView: DayView; courses: Record<number, Course>; mode: "unplanned" | "recovery" | "normal" };
+  data: {
+    dayView: DayView;
+    courses: Record<number, Course>;
+    mode: "unplanned" | "recovery" | "normal";
+    killHabits: KillHabitRow[];
+    activeFocusSession: TaskSessionRow | null;
+  };
   dismissedCheckin: boolean;
   onCheckinDone: () => void;
   onCheckinSkip: () => void;
 }) {
-  const { dayView, courses, mode } = data;
+  const { dayView, courses, mode, killHabits, activeFocusSession } = data;
   const hasAnyData = dayView.todayTasks.length > 0 || dayView.todayCalendarEvents.length > 0 || dayView.upcomingDeliverables.length > 0;
   const mitItems = buildMitItems(dayView, courses);
+  const focusBlock = buildFocusBlock(dayView, courses);
 
   const normalBody = (
     <View style={styles.sectionGap}>
@@ -133,6 +150,8 @@ function TodayReady({
           courses={courses}
         />
       </Section>
+      <KillListSection userId={dayView.profile.id} habits={killHabits} />
+      <FocusLauncher userId={dayView.profile.id} block={focusBlock} activeSession={activeFocusSession} />
     </View>
   );
 
@@ -203,14 +222,6 @@ function TodayLoading() {
 }
 
 const styles = StyleSheet.create({
-  flex: {
-    flex: 1,
-    backgroundColor: color.ground,
-  },
-  content: {
-    paddingHorizontal: space[5],
-    gap: space[6],
-  },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",

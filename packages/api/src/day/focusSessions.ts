@@ -2,6 +2,8 @@ import type { TypedSupabaseClient } from '../client/types';
 import type { Database } from '../database.types';
 import { dataErr, dataOk, type DataResult } from '../data/types';
 import { mapDataError } from '../data/errors';
+import type { Course } from '../data/courses';
+import type { Task } from '../data/tasks';
 
 export type TaskSessionRow = Database['public']['Tables']['task_sessions']['Row'];
 export type FocusSessionStatus = 'active' | 'completed' | 'abandoned';
@@ -177,4 +179,52 @@ export async function getActiveFocusSession(
     .maybeSingle();
   if (error) return dataErr(mapDataError(error));
   return dataOk(data);
+}
+
+export interface FocusSessionContext {
+  session: TaskSessionRow;
+  task: Task;
+  course: Course | null;
+}
+
+/**
+ * Everything /focus/[sessionId] needs to render -- target task, its course, and the
+ * session itself (so elapsed time is always re-derived from the stored `actual_start`,
+ * never a client-owned counter). One deliberate lookup rather than three separate calls
+ * so both platforms build the exact same screen from the exact same shape.
+ */
+export async function getFocusSessionContext(
+  client: TypedSupabaseClient,
+  userId: string,
+  sessionId: number,
+): Promise<DataResult<FocusSessionContext>> {
+  const { data: session, error: sessionError } = await client
+    .from('task_sessions')
+    .select('*')
+    .eq('id', sessionId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (sessionError) return dataErr(mapDataError(sessionError));
+  if (!session) return dataErr({ code: 'not_found', message: 'That focus session could not be found.' });
+
+  const { data: task, error: taskError } = await client
+    .from('tasks')
+    .select('*')
+    .eq('id', session.task_id)
+    .eq('user_id', userId)
+    .single();
+  if (taskError) return dataErr(mapDataError(taskError));
+
+  let course: Course | null = null;
+  if (task.course_id != null) {
+    const { data: courseRow, error: courseError } = await client
+      .from('courses')
+      .select('*')
+      .eq('id', task.course_id)
+      .maybeSingle();
+    if (courseError) return dataErr(mapDataError(courseError));
+    course = courseRow;
+  }
+
+  return dataOk({ session, task, course });
 }
