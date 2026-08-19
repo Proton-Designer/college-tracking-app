@@ -76,11 +76,12 @@ describe('generateNightlyHeadline', () => {
       courseRisks: [courseRisk({ result: { band: 'moderate', score: 48, trace: [], confidence: 'moderate', sampleSize: 2 } })],
     });
 
-    expect(result.headline).toBe(
-      "0 of 3 MITs, 20 minutes of deep work, Recovery Mode triggered on 4 signals — the plan was realistic -- the day wasn't.",
-    );
+    expect(result.headline).toBe("The plan was realistic — the day wasn't.");
+    // The headline is the claim; the summary is the evidence -- must not repeat itself.
+    expect(result.objectiveSummary).not.toContain("the day wasn't");
     expect(result.objectiveSummary).toContain('0 of 3 top tasks were completed');
     expect(result.objectiveSummary).toContain('160 minutes of screen time');
+    expect(result.objectiveSummary).toContain('Recovery Mode was triggered, on 4 signals.');
     expect(result.objectiveSummary).toContain('Systems Programming (CS 301) is carrying the most risk right now, at a moderate band.');
   });
 
@@ -94,6 +95,7 @@ describe('generateNightlyHeadline', () => {
 
     expect(result.objectiveSummary).not.toContain('carrying the most risk');
     expect(result.headline).not.toContain('Recovery Mode');
+    expect(result.headline).toBe("The plan was realistic — the day wasn't.");
   });
 
   it('falls back to an honest empty-day headline when there is no review or diagnosis', () => {
@@ -122,8 +124,9 @@ describe('generateNightlyHeadline', () => {
       courseRisks: [],
     });
 
-    expect(result.headline).toContain('Recovery Mode triggered on 1 signal.');
-    expect(result.headline).not.toContain('1 signals');
+    expect(result.headline).toBe('Recovery Mode was triggered today.');
+    expect(result.objectiveSummary).toContain('Recovery Mode was triggered, on 1 signal.');
+    expect(result.objectiveSummary).not.toContain('1 signals');
   });
 
   it('picks the highest-scoring course when several carry risk', () => {
@@ -138,5 +141,51 @@ describe('generateNightlyHeadline', () => {
     });
 
     expect(result.objectiveSummary).toContain('Modern Physics (PHYS 241) is carrying the most risk right now, at a high band.');
+  });
+
+  it('never renders a double-hyphen where an em dash belongs, in headline or summary', () => {
+    // Lead review, 2026-08-19: the product is typographically deliberate (Plex Serif,
+    // tabular numerals, hairline rules) -- "--" instead of "—" undercuts that.
+    for (const diagnosis of ['overplanning', 'executionProblem', 'underplanning', 'calibrated'] as const) {
+      const result = generateNightlyHeadline({
+        review: review(),
+        recoveryMode: TRIGGERED_FOUR_SIGNALS,
+        planningExecution: planningExecution(diagnosis),
+        courseRisks: [courseRisk({ result: { band: 'high', score: 70, trace: [], confidence: 'high', sampleSize: 2 } })],
+      });
+      expect(result.headline).not.toContain('--');
+      expect(result.objectiveSummary).not.toContain('--');
+    }
+  });
+
+  it('counts only ACTIVE signals for the Recovery Mode sentence, never the full signal-definition array length', () => {
+    // Lead review, 2026-08-19: recoveryMode.signals always lists all 8 defined signals
+    // (active and inactive) -- jsonb_array_length would always read 8. The sentence must
+    // count the active subset explicitly, matching what the Recovery Mode panel itself
+    // displays, or the report contradicts its own data on the same screen.
+    const result = generateNightlyHeadline({
+      review: null,
+      recoveryMode: {
+        total: 5,
+        triggered: true,
+        signals: [
+          { key: 'lowSleep', points: 2, class: 'physiological', active: true },
+          { key: 'lowWhoopRecovery', points: 1, class: 'physiological', active: true },
+          { key: 'overdueTasks', points: 2, class: 'execution', active: false },
+          { key: 'hardDeadlinesSoon', points: 2, class: 'academic', active: false },
+          { key: 'missedCheckin', points: 1, class: 'execution', active: false },
+          { key: 'zeroMitCompletion', points: 2, class: 'execution', active: true },
+          { key: 'heavyCalendar', points: 1, class: 'schedule', active: false },
+          { key: 'compressedBackplan', points: 2, class: 'academic', active: false },
+        ],
+        physiologicalTotal: 3,
+        nonPhysiologicalTotal: 2,
+      },
+      planningExecution: null,
+      courseRisks: [],
+    });
+
+    expect(result.objectiveSummary).toContain('Recovery Mode was triggered, on 3 signals.');
+    expect(result.objectiveSummary).not.toContain('8 signals');
   });
 });

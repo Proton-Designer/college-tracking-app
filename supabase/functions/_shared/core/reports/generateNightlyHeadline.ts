@@ -8,6 +8,9 @@
 // describes the quadrant for its own panel; this describes the whole night for the
 // opening line, and the two intentionally use different wording so the page doesn't
 // repeat itself when both render on the same screen.
+//
+// headline is the CLAIM; objectiveSummary is the EVIDENCE (Lead review) -- the two must
+// never restate the same sentence, since they render stacked on the same screen.
 
 import type { PlanningExecutionDiagnosis, PlanningExecutionResult } from '../planning/planningExecutionGap.ts';
 import type { RecoveryModeResult } from '../recovery/trigger.ts';
@@ -28,7 +31,7 @@ export interface GenerateNightlyHeadlineInput {
 
 const DIAGNOSIS_CLAUSE: Record<PlanningExecutionDiagnosis, string> = {
   overplanning: 'more was planned than the day could realistically hold',
-  executionProblem: 'the plan was realistic -- the day wasn\'t',
+  executionProblem: 'the plan was realistic — the day wasn\'t',
   underplanning: 'execution outpaced what was actually planned',
   calibrated: 'planning and execution were well matched',
 };
@@ -43,29 +46,20 @@ function worstCourseRisk(courseRisks: CourseRiskSummary[]): CourseRiskSummary | 
 }
 
 export function generateNightlyHeadline(input: GenerateNightlyHeadlineInput): GeneratedNightlyHeadline {
-  const metricClauses: string[] = [];
-  if (input.review) {
-    metricClauses.push(`${input.review.mitsCompleted} of ${input.review.mitsPlanned} MITs`);
-    if (input.review.deepWorkActualMin != null) {
-      metricClauses.push(`${input.review.deepWorkActualMin} minutes of deep work`);
-    }
-  }
-  if (input.recoveryMode.triggered) {
-    const activeCount = input.recoveryMode.signals.filter((s) => s.active).length;
-    metricClauses.push(`Recovery Mode triggered on ${activeCount} signal${activeCount === 1 ? '' : 's'}`);
-  }
-
   const diagnosisClause = input.planningExecution ? DIAGNOSIS_CLAUSE[input.planningExecution.diagnosis] : null;
 
+  // The headline is the single claim of the night -- the diagnosis when there is one to
+  // make, since it's the most load-bearing sentence the deterministic engine can offer.
+  // The numbers behind it belong in objectiveSummary, not repeated here.
   let headline: string;
-  if (metricClauses.length === 0 && !diagnosisClause) {
-    headline = 'No review recorded for this day.';
-  } else if (metricClauses.length === 0) {
-    headline = `${capitalize(diagnosisClause!)}.`;
-  } else if (!diagnosisClause) {
-    headline = `${capitalize(metricClauses.join(', '))}.`;
+  if (diagnosisClause) {
+    headline = `${capitalize(diagnosisClause)}.`;
+  } else if (input.recoveryMode.triggered) {
+    headline = 'Recovery Mode was triggered today.';
+  } else if (input.review) {
+    headline = `${input.review.mitsCompleted} of ${input.review.mitsPlanned} MITs completed.`;
   } else {
-    headline = `${capitalize(metricClauses.join(', '))} — ${diagnosisClause}.`;
+    headline = 'No review recorded for this day.';
   }
 
   const summarySentences: string[] = [];
@@ -75,8 +69,9 @@ export function generateNightlyHeadline(input: GenerateNightlyHeadlineInput): Ge
       `${input.review.mitsCompleted} of ${input.review.mitsPlanned} top tasks were completed and ${input.review.deepWorkActualMin ?? 0} minutes of deep work were logged${screenClause}.`,
     );
   }
-  if (diagnosisClause) {
-    summarySentences.push(`${capitalize(diagnosisClause)}.`);
+  if (input.recoveryMode.triggered) {
+    const activeCount = input.recoveryMode.signals.filter((s) => s.active).length;
+    summarySentences.push(`Recovery Mode was triggered, on ${activeCount} signal${activeCount === 1 ? '' : 's'}.`);
   }
   const worst = worstCourseRisk(input.courseRisks);
   if (worst && worst.result.band !== 'low') {
