@@ -24,3 +24,40 @@ export function localDateFromInstant(now: Date, timeZone: string): LocalDate {
   // en-CA formats as YYYY-MM-DD, which is exactly LocalDate's shape.
   return formatter.format(now);
 }
+
+/**
+ * The reverse of `localDateFromInstant`: a local calendar date + wall-clock time in a
+ * given timezone -> the real UTC instant it refers to. Needed by weekly planning to turn
+ * "8am–11pm local" into real `timestamptz` window bounds for free-interval detection —
+ * nothing in this codebase went this direction before.
+ *
+ * "Format, compare, correct" double-conversion, same technique `icsParser.ts` already
+ * uses for TZID resolution: `Intl.DateTimeFormat` can't convert local-time-plus-zone TO
+ * an instant directly (it only formats an existing instant), so this guesses an instant
+ * (treating the wall-clock time as if it were UTC), asks the formatter what wall-clock
+ * time that guess actually represents in the target zone, and corrects by the difference.
+ * That difference IS the zone's real UTC offset at this specific date — derived from an
+ * actual conversion, not a static offset table, so it's correct across a DST transition
+ * without special-casing one.
+ */
+export function localTimeToInstant(date: LocalDate, hour: number, minute: number, timeZone: string): string {
+  const [year, month, day] = date.split('-').map(Number) as [number, number, number];
+  const guessMs = Date.UTC(year, month - 1, day, hour, minute, 0, 0);
+
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hourCycle: 'h23',
+  });
+  const parts = formatter.formatToParts(new Date(guessMs));
+  const part = (type: string): number => Number(parts.find((p) => p.type === type)?.value ?? 0);
+  const shownAsUtcMs = Date.UTC(part('year'), part('month') - 1, part('day'), part('hour'), part('minute'), part('second'));
+
+  const offsetMs = shownAsUtcMs - guessMs;
+  return new Date(guessMs - offsetMs).toISOString();
+}
