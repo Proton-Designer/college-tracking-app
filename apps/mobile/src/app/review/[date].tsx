@@ -2,13 +2,13 @@ import { LENS_NAMES } from "@collegeos/api";
 import type { AgentReport, DeterministicNightlyReport, Intervention, LensName, NightlyAgentReportPayload } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { FrictionDistributionSection } from "../../components/insights/FrictionDistributionSection";
 import { PlanningExecutionQuadrant } from "../../components/insights/PlanningExecutionQuadrant";
 import { claimsWithEvidence, EvidenceClaimList } from "../../components/review/EvidenceClaimList";
 import { ReportHistoryList } from "../../components/review/ReportHistoryList";
-import { Button, Metric, RiskPill, Skeleton } from "../../components/ui";
+import { Button, Metric, NavLink, RiskPill, Skeleton } from "../../components/ui";
 import { serifBodyStyle, textStyle } from "../../design/typography";
 import { useReviewReportData } from "../../lib/useReviewReportData";
 
@@ -52,9 +52,7 @@ function ReviewReportInvalidDate() {
   const router = useRouter();
   return (
     <ScrollView style={styles.flex} contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}>
-      <Pressable onPress={() => router.back()} hitSlop={8}>
-        <Text style={textStyle("caption", color.inkFaint)}>← Review</Text>
-      </Pressable>
+      <NavLink label="Review" direction="back" onPress={() => router.back()} />
       <Text style={textStyle("body", color.inkMuted)}>Not a valid date.</Text>
     </ScrollView>
   );
@@ -67,9 +65,7 @@ function ReviewReportForDate({ date }: { date: string }) {
 
   return (
     <ScrollView style={styles.flex} contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}>
-      <Pressable onPress={() => router.back()} hitSlop={8}>
-        <Text style={textStyle("caption", color.inkFaint)}>← Review</Text>
-      </Pressable>
+      <NavLink label="Review" direction="back" onPress={() => router.back()} />
 
       {result.status === "loading" ? (
         <View style={{ gap: space[4] }}>

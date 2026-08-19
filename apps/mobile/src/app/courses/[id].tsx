@@ -1,11 +1,11 @@
 import { color, space } from "@collegeos/design/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AssignmentsTable } from "../../components/courses/AssignmentsTable";
 import { CourseRiskPanel } from "../../components/courses/CourseRiskPanel";
 import { ScenarioPlanner } from "../../components/courses/ScenarioPlanner";
-import { Button, Metric, Panel, RiskPill, Skeleton } from "../../components/ui";
+import { Button, Metric, NavLink, Panel, RiskPill, Skeleton } from "../../components/ui";
 import { textStyle } from "../../design/typography";
 import { useAuthSession } from "../../lib/useAuthSession";
 import { type CourseDetailData, useCourseDetailData } from "../../lib/useCourseDetailData";
@@ -31,9 +31,7 @@ export default function CourseDetailScreen() {
       style={styles.flex}
       contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}
     >
-      <Pressable onPress={() => router.back()} hitSlop={8}>
-        <Text style={textStyle("caption", color.inkFaint)}>← Courses</Text>
-      </Pressable>
+      <NavLink label="Courses" direction="back" onPress={() => router.back()} />
 
       {!Number.isInteger(courseId) ? <Text style={textStyle("body", color.inkMuted)}>Not a valid course.</Text> : null}
 

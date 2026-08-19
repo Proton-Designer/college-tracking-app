@@ -1,8 +1,8 @@
 import type { DailyPredictionRow, DailyReview } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
 import { useRouter } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Button, Panel, Skeleton, TabScreenScrollView } from "../../components/ui";
+import { StyleSheet, Text, View } from "react-native";
+import { Button, NavLink, Panel, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { ReviewForm } from "../../components/review/ReviewForm";
 import { textStyle } from "../../design/typography";
 import { useAuthSession } from "../../lib/useAuthSession";
@@ -18,9 +18,7 @@ export default function ReviewScreen() {
       <View style={styles.headerRow}>
         <Text style={textStyle("displayM", color.ink)}>Night review</Text>
         {result.status === "ready" ? (
-          <Pressable onPress={() => router.push(`/review/${result.data.today}`)} hitSlop={8}>
-            <Text style={textStyle("caption", color.accent)}>Nightly report →</Text>
-          </Pressable>
+          <NavLink label="Nightly report" direction="forward" onPress={() => router.push(`/review/${result.data.today}`)} />
         ) : null}
       </View>
 

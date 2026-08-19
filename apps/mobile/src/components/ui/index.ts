@@ -16,6 +16,8 @@ export { Input } from "./Input";
 export type { InputProps } from "./Input";
 export { Label } from "./Label";
 export type { LabelProps } from "./Label";
+export { NavLink } from "./NavLink";
+export type { NavLinkProps } from "./NavLink";
 export { Metric } from "./Metric";
 export type { MetricDelta, MetricProps } from "./Metric";
 export { Panel } from "./Panel";
