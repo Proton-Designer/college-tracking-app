@@ -242,3 +242,22 @@ answer is "its test," it is not done.
 
 Partial mitigation exists: `scripts/check-barrel-exports.mjs` catches cases 1 and 2 mechanically.
 Cases 3 and 4 are not mechanically detectable — they need the habit.
+
+## D21 — A green `npm run verify` says nothing about what is committed
+In a shared working directory with two engineers, `verify` passing means only that **the combined
+uncommitted state of both people happens to typecheck at this instant.** It says nothing about what
+is in history, what survives a checkout, or what the other engineer may still reshape.
+
+Found the hard way: one engineer saw a schema change in the working tree, confirmed `verify` was
+green, and began building a UI section against it. The change was another engineer's *paused,
+uncommitted* work. The Lead then compounded it by checking `git status` on one directory, missing
+that the rest of the same batch lived under `packages/core/`, and telling him the remainder was
+safe. It wasn't.
+
+**Rules:**
+- **Check `git status` before depending on anything you did not write.** `M` or `??` means "someone
+  is mid-thought," not "this is ready."
+- **If you pause work another engineer might touch, say so explicitly.** Uncommitted work in a
+  shared directory is invisible to everyone except its author — right up until someone builds on it.
+- **Never let your commit depend on files someone else has not committed.**
+- Green `verify` is evidence about *correctness*, never about *stability*.
