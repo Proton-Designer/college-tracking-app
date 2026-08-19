@@ -256,12 +256,54 @@ assertions total across the suite.
   `vault.secrets.secret` column is ciphertext (not the plaintext), confirms
   `oauth_connections` has no plaintext token column at all, and confirms a second user
   cannot decrypt the first user's token even through the function path.
-- **`brightspace_feeds`** — the iCal feed URL, stored **plaintext**. This is a
-  deliberate, flagged decision: it's a capability URL, not an OAuth bearer token, so it
-  doesn't go through Vault by the letter of the Lead's ruling. Worth revisiting once L10
-  is actually built if Purdue's feed URLs turn out to embed a durable, non-rotatable
-  credential rather than an unguessable-but-revocable link — flagging here so it isn't
-  forgotten.
+- **`brightspace_feeds`** — the iCal feed URL lives in **Supabase Vault** (moved there
+  at L10; see the follow-up flagged below for why the earlier plaintext decision was
+  reversed), the same `vault_secret_id`-only shape as `oauth_connections`, via
+  `private.store_brightspace_feed_url`/`private.get_brightspace_feed_url`.
+- **`private.*` functions need a `public` wrapper to ever be called** — discovered live
+  at L10 building the *first* real caller of this pattern (Brightspace sync). `private`
+  is deliberately excluded from PostgREST's exposed-schema list, which means
+  `private.*` functions are unreachable via `.rpc()` from **anywhere** — not the
+  browser, not mobile, not an Edge Function using anon or service_role through the REST
+  API. `private.store_oauth_token`/`get_oauth_token` had been proven correct at the
+  database level since L1 (pgTAP) but had zero real application call path until this
+  gap was found, because WHOOP OAuth was never actually built against them — pgTAP
+  exercises them via direct SQL, which bypasses PostgREST entirely and never would have
+  caught this.
+
+  **The pattern**: `private` schema holds the implementation (the only code that ever
+  touches plaintext); a `public.*` wrapper of the identical name is how one becomes
+  *callable* — and adding a wrapper is a **deliberate, per-function security decision**,
+  not a schema-wide toggle. Rejected: adding `private` to the exposed-schemas list
+  wholesale, which would make every current and future function in it RPC-reachable by
+  default without anyone deciding it should be — the schema's name would become a lie.
+  Rejected: a direct Postgres connection from the Edge Function bypassing PostgREST
+  entirely, which would create a second data-access path with different auth semantics
+  (some operations under RLS via PostgREST, others as raw service-role SQL — exactly the
+  shape where RLS bypasses quietly accumulate) plus its own connection-pooling and
+  secret-management cost, for no real benefit here.
+
+  Every wrapper: is `SECURITY DEFINER` with `set search_path = ''` and fully-qualifies
+  every referenced object (an unpinned `search_path` on a `SECURITY DEFINER` function is
+  a privilege-escalation vector); **re-asserts the same authorization check the private
+  function underneath already makes** — never merely delegates and trusts the check
+  happened once, same principle as the syllabus confirmation gate holding its own
+  boundary; and is `REVOKE ALL FROM PUBLIC, anon` by default, `GRANT EXECUTE` only to
+  the roles with a genuine reason to call it. See migration `00000000000018` for
+  `public.store_oauth_token`/`get_oauth_token`/`store_brightspace_feed_url`/
+  `get_brightspace_feed_url`.
+
+  **Proven at the wrapper, not just the implementation**: proving `private.*` is safe is
+  not the same as proving the `public.*` wrapper is — the wrapper is the actually
+  reachable surface, so it needs its own refusal proof. `02_vault_oauth_tokens.test.sql`
+  and `06_vault_brightspace_feed.test.sql` both prove cross-user refusal through the
+  wrapper specifically, in addition to the pre-existing proof against the private
+  function underneath.
+- Worth revisiting the ICS-feed-as-Vault-secret decision if Purdue's feed URLs ever turn
+  out to *not* be a durable bearer credential after all (unlikely, but flagged here for
+  completeness) — the original plaintext ruling was reversed at L10 on the same
+  reasoning the Lead had already stated: a feed URL grants calendar access by
+  possession, is long-lived, and isn't user-rotatable.
 
 ---
 

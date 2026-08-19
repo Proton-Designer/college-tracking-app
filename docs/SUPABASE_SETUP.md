@@ -353,7 +353,81 @@ supabase functions list
   triggered with its full 7-signal breakdown, zero data gaps). The verification row was
   deleted afterward to leave the demo account exactly as seed.sql curated it.
 
-Populated further in L7 (scheduled jobs) / L10.
+### Brightspace — iCal calendar sync (built at L10, fully working end to end)
+
+No OAuth, no platform credential, no third-party developer account — a Brightspace iCal
+feed is a plain HTTPS URL a student copies from their own account settings. This is why
+it's the **only** L10 integration provable entirely offline tonight, and it's the
+template the WHOOP/RescueTime sections below should match once real credentials exist.
+
+**The feed URL is a bearer credential, stored in Vault — not the OAuth path, same
+destination.** Anyone holding the URL reads the student's full academic calendar
+without authenticating; it's long-lived and not user-rotatable. Same `vault_secret_id`
+-only shape as `oauth_connections` (`private.store_brightspace_feed_url`/
+`get_brightspace_feed_url`, migration `00000000000017`), reachable only through the
+`public.*` wrapper functions (migration `00000000000018` — see `DATA_MODEL.md`'s
+Integrations section for the full pattern and why `private.*` alone is never
+`.rpc()`-reachable at all).
+
+**Extracted calendar data is no more trusted than an LLM extraction.** Every synced
+event lands in `ics_event_extractions` (status `pending`) — nothing in the schema can
+auto-populate `calendar_events` from it. `brightspace-confirm` is the only path from
+staged to real, exactly mirroring `syllabus-confirm`'s confirmation gate. Re-syncing an
+already-decided (confirmed or rejected) staged event leaves it untouched rather than
+reverting the user's decision.
+
+**A real gotcha for anyone testing an Edge Function against a local server**: from
+inside the Edge Runtime container, `127.0.0.1`/`localhost` is the *container's own*
+loopback, not the host machine — a fixture HTTP server started on the host (e.g. `deno
+serve` on port 8899 for a local ICS file, or any ad hoc test server) is unreachable at
+`http://127.0.0.1:8899` from a function's `fetch()` call. Use **`host.docker.internal`**
+instead (Docker Desktop's standard host-access hostname on macOS) — confirmed live:
+`fetch("http://host.docker.internal:8899")` from inside `brightspace-sync` reached a
+real local fixture server and returned real ICS text. Same underlying lesson as the
+`pg_cron`/Kong finding in §8 below (`127.0.0.1` inside one container never means the
+same thing as `127.0.0.1` on the host, or inside a *different* container).
+
+**Function inventory:**
+- `brightspace-sync` — deployed, `verify_jwt = true`. Body `{}` re-syncs the connected
+  feed; `{icsUrl}` connects (or reconnects) one first. Fetches the real feed URL via the
+  `public.get_brightspace_feed_url` wrapper, `fetch()`s it, parses with
+  `icsParser.ts` (packages/core, real RFC 5545 parser — line folding, all-day vs timed,
+  TZID resolved via the same Intl double-conversion `localDateFromInstant` uses,
+  WEEKLY/DAILY RRULE expansion bounded by a hard occurrence cap), and stages every
+  event into `ics_event_extractions`.
+- `brightspace-confirm` — deployed, `verify_jwt = true`. The only path from a staged
+  row to a real `calendar_events` write. Idempotent (a second confirm on the same row
+  is refused, not a silent no-op); a DTEND-less timed event defaults to a 1-hour span
+  and a DTEND-less all-day event to one day, since `calendar_events` enforces
+  `end_at > start_at` strictly and a zero-duration "point in time" event (valid per RFC
+  5545) can never satisfy that on its own.
+- Verified live end to end, not just the library calls: deployed both functions, a real
+  HTTP fetch from inside the Edge Runtime container against a local fixture ICS server
+  (`host.docker.internal`, per the gotcha above), a real staged event, a real
+  `brightspace-confirm` call promoting it into a real `calendar_events` row under a real
+  signed-in session, double-confirm refusal, re-sync-preserves-the-decision idempotency,
+  401 on no auth. Demo confirmed untouched throughout (`check:demo-clean`).
+
+**Exactly what to verify once a real Purdue Brightspace feed URL exists**, in order:
+1. Connect a real feed: `POST brightspace-sync` with `{icsUrl: "<the real URL>"}` as a
+   real authenticated user. Confirm `ics_event_extractions` fills with real course
+   events, not a parse failure — check `malformedLineCount` in the response first;
+   nonzero doesn't mean broken, but it's worth eyeballing which lines didn't parse.
+2. Confirm the course-matching heuristic (substring match on course code in the event
+   summary, `syncFeed.ts`'s `matchCourseFromSummary`) actually matches real Brightspace
+   event titles for at least one real course — if Brightspace's real summary format
+   doesn't include the course code the way the fixtures assumed, this needs adjusting
+   before it's useful, not just working.
+3. Confirm a recurring lecture (a real `RRULE` in the real feed, if the account has one)
+   expands into the correct number of occurrences on the correct days — the parser was
+   proven against hand-built RRULE fixtures, never a real Brightspace-generated one.
+4. Confirm rejecting a staged event never touches `calendar_events`, and confirming one
+   creates exactly one row with `source = 'ics'`.
+5. Confirm re-running `brightspace-sync` doesn't revert any already-confirmed/rejected
+   decision, and updates `brightspace_feeds.last_synced_at`.
+
+Populated further in L7 (scheduled jobs) / L10 (WHOOP, RescueTime, generic telemetry
+ingest — Brightspace is the first of four, done).
 
 ---
 

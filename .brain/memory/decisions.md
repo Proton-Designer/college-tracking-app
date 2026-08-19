@@ -183,3 +183,40 @@ demo silently overwrote and then (via cleanup) deleted the seed fixture, recover
 `db:reset`. Documented as an operational caution in SUPABASE_SETUP.md §8, not fixed in code: the
 upsert-replaces-not-duplicates behavior itself is correct for real users, this is purely a fixture-
 data collision.
+
+## D18 — Every integration-test assertion query must be scoped by `user_id`
+Companion to D14. An unscoped assertion query against a shared database is not an assertion about
+*your test's* behavior — it is an assertion about the **whole table's history**.
+
+Found live: an itest asserting on `external_id` with no `user_id` filter silently matched rows from
+every previous run's throwaway user (2, then 3, then 4). It passed every time while proving nothing.
+This is the sneakiest member of the false-green family, because the growing row count reads as
+healthy accumulating data rather than a broken assertion.
+
+**Rule:** scope every assertion query by `user_id` (or another per-test discriminator). If a count
+can grow across runs without the code changing, the assertion is measuring the wrong thing.
+
+Surfaced by D14's run-it-3× rule, which has now caught two distinct bugs it wasn't designed for.
+
+## D19 — `private.*` functions require an explicit `public` wrapper to be callable
+`private` is excluded from PostgREST's exposed schemas, so `private.*` is unreachable via `.rpc()`
+from **anywhere** — browser, mobile, or Edge Function, with anon or service_role. The Vault
+functions were pgTAP-proven since L1 but had **zero real call path**, because pgTAP exercises them
+over direct SQL and bypasses PostgREST entirely.
+
+The property we want is *"private functions are not exposed **by default**"*, not *"can never be
+called."* A wrapper makes exposure an explicit, reviewable, per-function decision.
+
+**Rejected:** exposing the `private` schema wholesale (makes the name a lie; flips the default so
+every future function is reachable without anyone deciding it should be). **Rejected:** a direct
+Postgres connection from the Edge Function (creates a second data-access path with different auth
+semantics — some under RLS via PostgREST, others raw service-role SQL — which is exactly where RLS
+bypasses accumulate, plus pooling and secret cost).
+
+Every wrapper: `SECURITY DEFINER` with `set search_path = ''` and fully-qualified references (an
+unpinned search_path here is a privilege-escalation vector); **re-asserts** the authorization check
+rather than trusting the implementation beneath it; `REVOKE ALL FROM PUBLIC, anon` then explicit
+`GRANT EXECUTE`; and carries its **own** pgTAP refusal proof — the wrapper is the reachable surface,
+so proving the implementation safe does not prove the wrapper safe.
+
+Full reasoning in `docs/DATA_MODEL.md`. Migration `00000000000018`.
