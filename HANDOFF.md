@@ -31,10 +31,26 @@ Full product intent: `docs/context/SOURCE_BRIEF.txt`. Architecture: `docs/MASTER
 
 ## 2. Current state (measured, not estimated)
 
+**Final verification sweep at session close — every number below was run, not recalled:**
+
 ```
-83 commits · 29 migrations · 46 tables · 0 without RLS · 11 edge functions
+npm run verify                          exit 0   (4 guards + typecheck + lint + test)
+pgTAP                                   356 / 356
+packages/api integration                 75 / 75   (run twice, per D14)
+Playwright E2E                            17 / 17   (desktop + mobile viewports)
+Deno edge (offline, no API key)          84 / 84
+production web build                    SUCCEEDS  (all 17 routes)
+working tree                            clean
+```
+
+```
+87 commits · 29 migrations · 46 tables · 0 without RLS · 11 edge functions
 web: 16 routes · mobile: 15 routes · full platform parity
 ```
+
+One red surfaced during the sweep and was correctly diagnosed as a **stale test, not a product
+bug**: an assertion described the report payload's pre-unification shape. Fixing the *payload* to
+satisfy it would have reverted a deliberate design decision. Assertion corrected; payload untouched.
 
 | Suite | Count | What it covers |
 |---|---|---|
@@ -106,6 +122,18 @@ The only numbers taken were **dev-mode with Turbopack** and are meaningless. No 
 been profiled. **Nothing is known** about first-load JS, LCP, TTI, bundle composition, or query
 efficiency under load. `getDayView` and the report assembly both grew organically and have never had
 an N+1 audit.
+
+### 5.1a The last UI fix is code-complete but not screenshot-verified
+The user's *"buttons are arrows"* report was traced to its literal cause: three root-level mobile
+screens used a bare `<Pressable><Text>← X</Text></Pressable>` as their only back/forward navigation —
+no border, no background, no press feedback, just a floating arrow glyph. Replaced with a `NavLink`
+component (hairline border, padding, minimum tap target, press feedback, mono label). Typechecks and
+lints clean, and the fix was verified by reading the exact code it replaces — but **not confirmed on
+a running simulator**, for the reason in §5.2.
+
+**Not reviewed this pass** (untouched, not known-bad): Insights and Settings on both platforms, and
+Review on web. Today and Courses were checked live on web and were already clean — proper `Button`,
+`RiskPill`, and hairline treatment, no bare elements.
 
 ### 5.2 Mobile visual rendering — under-verified
 iOS simulator text injection (`idb ui text`) is **unreliable in this environment** — silent character
