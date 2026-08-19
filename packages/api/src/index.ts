@@ -37,6 +37,8 @@ export { listGradeCategories, listGradeItems, listGradeBoundaries } from "./data
 export type { GradeCategoryRow, GradeItemRow, GradeBoundaryRow } from "./data/gradeStructure";
 export { listDeliverables } from "./data/deliverables";
 export type { Deliverable } from "./data/deliverables";
+export { uploadSyllabus } from "./data/syllabusUploads";
+export type { SyllabusUpload } from "./data/syllabusUploads";
 
 export { getUserLocalToday } from "./day/today";
 export { getDayView } from "./day/dayView";

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { CapacityStrip } from "@/components/calendar/CapacityStrip";
 import { BackplanChain } from "@/components/courses/BackplanChain";
 import { RiskPill } from "@/components/ui";
 import { daysRemainingLabel } from "@/lib/dates";
@@ -23,14 +24,16 @@ export default async function CalendarPage() {
     );
   }
 
-  const { obligations, courses, today } = result.data;
+  const { obligations, courses, today, capacity } = result.data;
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-6 px-8 py-10">
       <h1 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">Calendar</h1>
-      <p className="text-caption text-ink-faint">
-        Committed calendar time against available capacity is pending a backend read not yet exposed.
-      </p>
+
+      <section className="flex flex-col gap-2">
+        <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Available time, next two weeks</h2>
+        <CapacityStrip days={capacity} />
+      </section>
 
       {obligations.length === 0 ? (
         <p className="text-body-s text-ink-faint">Nothing open on the horizon.</p>
@@ -54,15 +57,16 @@ function ObligationRow({
   courseCode: string;
   today: string;
 }) {
-  const { deliverable, risk } = obligation;
+  const { deliverable, risk, backplan } = obligation;
 
   return (
-    <li className="flex items-center justify-between gap-4 border-b border-hairline py-3 last:border-b-0">
+    <li className="flex items-start justify-between gap-4 border-b border-hairline py-3 last:border-b-0">
       <div className="flex flex-col">
         <span className="text-body text-ink">{deliverable.title}</span>
         <span className="font-mono text-caption text-ink-faint">
           {courseCode} · {typeLabel(deliverable.type)} · {daysRemainingLabel(today, deliverable.local_due_date)}
         </span>
+        <BackplanChain chain={backplan} />
       </div>
       {risk ? (
         <div className="flex items-center gap-2">
