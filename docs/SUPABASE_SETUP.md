@@ -426,8 +426,179 @@ same thing as `127.0.0.1` on the host, or inside a *different* container).
 5. Confirm re-running `brightspace-sync` doesn't revert any already-confirmed/rejected
    decision, and updates `brightspace_feeds.last_synced_at`.
 
-Populated further in L7 (scheduled jobs) / L10 (WHOOP, RescueTime, generic telemetry
-ingest — Brightspace is the first of four, done).
+L10's other three items (WHOOP, RescueTime, generic telemetry ingest) are all built and
+offline-proven too — see the sections immediately below.
+
+---
+
+### WHOOP — OAuth2, webhook, and telemetry sync (built at L10, offline-proven end to end)
+
+**No real WHOOP developer credentials exist in any environment this product has been
+built against.** Every WHOOP endpoint path, request shape, and response field below is
+transcribed from WHOOP's publicly documented API v1 developer reference and OAuth2
+guide — **recorded, not verified live.** Everything is proven two ways instead: offline
+unit tests stub `fetch` with a golden recorded response shape
+(`realProvider.test.ts`, `realResourceFetcher.test.ts`, `webhookSignature.test.ts` — 20
+assertions, zero network calls to WHOOP), and the full application logic (account
+resolution, token refresh, ingest, rollup) is proven against the real local database
+using a fixture provider (`webhookHandler.itest.ts`, `tokenStore.itest.ts`,
+`ingest.itest.ts` — 14 assertions). **If the real response shape has drifted by the
+time a WHOOP key exists, update the fixtures/mappers from the real response, never
+patch a test to force it to pass** — same rule as the Anthropic and Brightspace
+sections above.
+
+**Least-privilege scopes to request** at WHOOP's developer portal when creating the
+app: `read:sleep read:recovery read:workout read:profile offline` — `offline` is
+required to receive a `refresh_token` at all (WHOOP's OAuth2 implementation, like most,
+omits it otherwise). No `read:body_measurement` or `read:cycles` unless a future layer
+actually consumes them — an unused granted scope is exposure with no product benefit.
+
+**OAuth2 redirect URI** (registered at WHOOP's developer portal, must match exactly
+what `whoop-oauth-callback` receives as `redirectUri`):
+```
+# Cloud:
+https://<your-app-domain>/whoop/callback
+
+# Local dev (matches the pattern collegeos:// already establishes for auth callbacks,
+# see §5):
+collegeos://whoop/callback
+```
+
+**Secrets to set:**
+
+```bash
+# Cloud:
+supabase secrets set WHOOP_CLIENT_ID=...
+supabase secrets set WHOOP_CLIENT_SECRET=...
+supabase secrets list
+
+# Local: add to .env.local (never commit real values). Restart the stack to pick them
+# up (D13 — config/env changes need `supabase stop && supabase start`, `db reset` alone
+# does not reload container-level env).
+```
+
+**Webhook endpoint to register** at WHOOP's developer portal, once the Edge Function is
+deployed:
+```
+https://<project-ref>.supabase.co/functions/v1/whoop-webhook
+```
+`config.toml` sets `verify_jwt = false` for this function deliberately — WHOOP has no
+Supabase session to present, and the HMAC signature check inside the handler
+(`webhookSignature.ts`) *is* the authentication. Do not "fix" this to `true` — it would
+just reject every real webhook with 401.
+
+**Credential storage — no schema change beyond `external_account_id`.** The
+access/refresh token pair is JSON-encoded and stored as a single string through the
+*existing* `store_oauth_token`/`get_oauth_token` wrappers (migration `00000000000018`)
+— see `tokenStore.ts`'s header comment. The one real addition is migration
+`00000000000019`'s `oauth_connections.external_account_id`, because WHOOP's webhook
+identifies the affected account by *WHOOP's own* user id, not ours; it's captured once
+at connect time via `WhoopOAuthProvider.getAuthenticatedUserId`.
+
+**A real bug this integration found and fixed, worth knowing about**: `private.
+store_oauth_token` (and the structurally identical `private.store_brightspace_feed_url`)
+both called `vault.create_secret` unconditionally on *every* call, including a re-store
+for an already-connected user+provider — a token refresh, or reconnecting a changed
+credential. `vault.secrets.name` is unique, so a second store for the same user+provider
+threw a unique-constraint violation, and even without that collision would have silently
+orphaned the previous secret forever. Fixed in migration `00000000000020`: reuse the
+existing Vault secret in place via `vault.update_secret` when a connection row already
+exists. This was pre-existing since L1 and only surfaced because WHOOP's refresh path
+was the first real caller to ever re-store — see D20 in `decisions.md`.
+
+**Function inventory:**
+- `whoop-oauth-callback` — deployed, `verify_jwt = true`. Body `{code, redirectUri}`.
+  Exchanges the authorization code, fetches the WHOOP user id via `/user/profile/basic`,
+  stores the token pair + `external_account_id`.
+- `whoop-webhook` — deployed, `verify_jwt = false`. Verifies the HMAC signature
+  (`X-WHOOP-Signature` / `X-WHOOP-Signature-Timestamp`, 5-minute clock-skew window),
+  resolves the account via `external_account_id`, refreshes the token if it's within 5
+  minutes of expiring (`isTokenExpiringSoon`, persisting the refreshed token), fetches
+  the referenced resource (`sleep.updated` / `recovery.updated` / `workout.updated` —
+  a non-"updated" action like a deletion, or an unrecognized resource type, is
+  acknowledged without a fetch), normalizes it (`whoopNormalize.ts`), and ingests it
+  through `telemetry_events` → `health_daily` (idempotent on the WHOOP resource id via
+  migration `00000000000021`'s dedup index, so a retry from a slow ack never
+  double-writes). Processes synchronously rather than acking first and backgrounding
+  the work — see `whoop-webhook/index.ts`'s header comment for why.
+- All logic is behind `handleWhoopWebhook`/`syncRescueTime`-style testable orchestrators
+  (`webhookHandler.ts`) so the whole chain has a real, tested caller — not just its
+  individual pieces. See D20: a component with a passing test but no caller in the real
+  request path is not done.
+
+**Exactly what to verify once real WHOOP credentials exist**, in order:
+1. Complete a real OAuth2 authorization against WHOOP's actual consent screen; confirm
+   `whoop-oauth-callback` stores a real token pair and the real WHOOP user id lands in
+   `oauth_connections.external_account_id`.
+2. Trigger a real WHOOP event (log a workout, let a sleep cycle complete) and confirm
+   the registered webhook actually reaches `whoop-webhook` with the documented header
+   names/signing scheme — this is the single most likely place reality has drifted from
+   the recorded documentation, since no real webhook has ever hit this environment.
+3. Confirm the resource-fetch endpoints in `realResourceFetcher.ts`
+   (`/activity/sleep/{id}`, `/cycle/{id}/recovery`, `/activity/workout/{id}`) match
+   WHOOP's real v1 developer API paths — same reasoning as #2.
+4. Confirm a real `telemetry_events` row lands with the real source data and
+   `health_daily` reflects it correctly for that day.
+5. Let a token actually expire (or force it via a short-lived test token if WHOOP's
+   sandbox allows) and confirm `refreshAccessToken` is called and the refreshed token
+   is persisted — `isTokenExpiringSoon`'s 5-minute window has only been proven against a
+   synthetic clock, never a real WHOOP-issued expiry.
+6. Send the same webhook twice (WHOOP's own retry, or a manual re-delivery from its
+   developer portal if offered) and confirm no duplicate `telemetry_events` row lands.
+
+---
+
+### RescueTime — API key auth, daily summary sync (built at L10, offline-proven end to end)
+
+**No real RescueTime API key exists in any environment this product has been built
+against.** Same recorded-not-verified framing as WHOOP above —
+`realProvider.test.ts` stubs `fetch` with a golden Daily Summary Feed response shape;
+`ingest.itest.ts`/`syncHandler.itest.ts`/`keyStore.itest.ts` (9 assertions) prove the
+real application logic against the real local database with a fixture provider.
+
+Simpler than WHOOP in two ways that matter for this checklist: **API-key auth, not
+OAuth2** (no redirect URI, no consent screen, no refresh, no expiry — a user pastes
+their key from RescueTime's account settings, same "plain credential, not a platform
+integration" shape as Brightspace's feed URL), and **pull-only** (no webhook to
+register — RescueTime has no push mechanism; sync happens on demand via
+`rescuetime-sync`, or on a schedule once wired into §8's cron).
+
+**No new secrets, no new schema.** The API key is stored through the *existing*
+`store_oauth_token`/`get_oauth_token` wrappers with `provider='rescuetime'` — already
+allowed by migration `00000000000010`'s check constraint, so this integration needed
+*zero* migrations for its credential storage. `keyStore.ts` stores it as a bare string
+(no JSON envelope, unlike WHOOP's access+refresh pair).
+
+**Function inventory:**
+- `rescuetime-sync` — deployed, `verify_jwt = true`. Body `{}` re-syncs using the
+  already-stored key; `{apiKey}` connects (or rotates) the key first, then syncs — same
+  connect-or-resync shape as `brightspace-sync`. Fetches the Daily Summary Feed
+  (returns ~2 weeks of daily rollups per call), normalizes every returned day
+  (`rescuetimeNormalize.ts`), and ingests all of it through `telemetry_events` →
+  `screen_daily` (`ingestRescueTimeTelemetry`).
+- Deliberately **not** idempotent the same way WHOOP's webhook ingest is: a WHOOP
+  resource is immutable once created, so a retry safely no-ops; a RescueTime daily
+  summary for a recent day is a *live, still-changing* rollup, so a re-sync legitimately
+  overwrites `screen_daily` with a bigger total than an hour ago. See `ingest.ts`'s
+  header comment for the full reasoning — don't "fix" this to match WHOOP's dedup
+  behavior, that would freeze a user's screen time at whatever it read on first sync.
+- The sync orchestration (`syncRescueTime`) is a testable function with a real caller
+  in `rescuetime-sync/index.ts`, built in the same batch as the ingest logic — applying
+  the D20 lesson WHOOP's webhook gap surfaced, not repeating it.
+
+**Exactly what to verify once a real RescueTime API key exists**, in order:
+1. `POST rescuetime-sync` with `{apiKey: "<the real key>"}` as a real authenticated
+   user. Confirm the Daily Summary Feed's real response shape matches
+   `RescueTimeDailySummaryRow` — particularly `all_productive_percentage`/
+   `all_distracting_percentage`, the two composite fields this integration relies on
+   and the most likely place a real response differs from the documented one.
+2. Confirm `screen_daily` populates with real, plausible minute values for at least one
+   real day (sanity-check against RescueTime's own dashboard for the same day).
+3. Re-run `rescuetime-sync` later the same day and confirm `screen_daily.total_screen_min`
+   increases to reflect additional real activity, rather than staying frozen at the
+   first sync's value.
+4. Confirm a brand-new RescueTime account (no activity yet) syncs cleanly with an empty
+   feed rather than erroring.
 
 ---
 
