@@ -11,6 +11,20 @@ select no_plan();
 
 -- ============================================================================
 -- Phase 1: seed fixture (as postgres -- bypasses RLS, this is setup)
+--
+-- Deliberately hand-written per table, unlike phase 2's assertion loop below (which
+-- IS dynamically enumerated from pg_class/information_schema). Adding a new
+-- user_id-scoped table requires adding an insert here, or its "user sees their own
+-- row(s)" assertion fails against zero seeded rows -- confirmed live when migration
+-- 0016 added `interventions` without a corresponding insert (2 failing assertions,
+-- immediately obvious which table and why).
+--
+-- This is intentional, not a gap to close: making the seeder dynamic would mean
+-- inferring required columns and FK ordering per table, and a seeder that GUESSES at a
+-- valid row would produce fixtures that don't represent real data -- worse than a loud,
+-- self-announcing failure that tells you exactly which table needs a seed row. You will
+-- hit this again in L10 when integrations add tables; that's the property working as
+-- intended, not a bug in the test.
 -- ============================================================================
 create or replace function pg_temp.seed_fixture(p_user_id uuid, p_email text)
 returns void
