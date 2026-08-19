@@ -31,6 +31,8 @@ export * from './workload/levels.ts';
 export * from './workload/recoveryAdjustment.ts';
 
 export * from './planning/planningExecutionGap.ts';
+export * from './planning/freeIntervals.ts';
+export * from './planning/weeklyPlan.ts';
 
 export * from './friction/frictionAnalytics.ts';
 

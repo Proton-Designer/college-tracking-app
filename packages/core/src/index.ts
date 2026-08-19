@@ -28,6 +28,8 @@ export * from './workload/levels';
 export * from './workload/recoveryAdjustment';
 
 export * from './planning/planningExecutionGap';
+export * from './planning/freeIntervals';
+export * from './planning/weeklyPlan';
 
 export * from './friction/frictionAnalytics';
 
