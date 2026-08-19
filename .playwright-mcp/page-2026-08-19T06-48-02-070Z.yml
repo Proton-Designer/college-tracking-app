@@ -1,8 +1,0 @@
-- generic [active] [ref=f42e1]:
-  - main [ref=f42e29]:
-    - paragraph [ref=f42e30]: Couldn't load this course
-    - paragraph [ref=f42e31]: Something went wrong. Please try again.
-    - link "Back to Courses" [ref=f42e32] [cursor=pointer]:
-      - /url: /courses
-  - button "Open Next.js Dev Tools" [ref=f42e24] [cursor=pointer]
-  - alert [ref=f42e28]

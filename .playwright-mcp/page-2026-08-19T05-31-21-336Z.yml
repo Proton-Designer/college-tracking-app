@@ -1,8 +1,0 @@
-- generic [active] [ref=f11e1]:
-  - main [ref=f11e2]:
-    - generic [ref=f11e3]:
-      - link "CollegeOS" [ref=f11e4] [cursor=pointer]:
-        - /url: /
-      - heading "Confirming your email" [level=1] [ref=f11e5]
-  - button "Open Next.js Dev Tools" [ref=f11e11] [cursor=pointer]
-  - alert [ref=f11e15]

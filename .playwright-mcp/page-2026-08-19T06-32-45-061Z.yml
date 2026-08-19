@@ -1,4 +1,0 @@
-- generic [active] [ref=f36e1]:
-  - main [ref=f36e2]
-  - button "Open Next.js Dev Tools" [ref=f36e27] [cursor=pointer]
-  - alert [ref=f36e31]

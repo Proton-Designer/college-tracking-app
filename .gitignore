@@ -53,3 +53,6 @@ android/.gradle/
 *.tmp-*
 .tmp-*
 **/.tmp-*
+
+# Playwright MCP session artifacts — regenerated every session, never source
+.playwright-mcp/
