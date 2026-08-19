@@ -12,8 +12,8 @@
 - Monorepo root workspace configured
 
 ## In flight
-- `atlas` (Eng A): `docs/DATA_MODEL.md` + `docs/RED_TEAM_PHASE0.md`
-- `nova` (Eng B): `docs/DESIGN_SYSTEM.md` + `packages/design/` + `docs/design/PREVIEW.html`
+- `ATLAS` peer `mapw9to2` (Eng A): `packages/core` domain engine, TDD
+- `NOVA` peer `a9bsul1i` (Eng B): scaffold `apps/web` + `apps/mobile`, monorepo wiring
 
 ## Blocked / waiting
 - Supabase cloud credentials — not yet provided. Building against local Supabase.

@@ -1,0 +1,59 @@
+/** A `YYYY-MM-DD` date string in the user's local timezone. Never derived from UTC. */
+export type LocalDate = string;
+
+const LOCAL_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+const MS_PER_DAY = 86_400_000;
+
+/**
+ * Parses to a UTC-epoch-ms representation used purely as a calendar arithmetic
+ * device (not a real instant) so month/year rollovers are correct without any
+ * timezone involved.
+ */
+function toEpochDay(date: LocalDate): number {
+  const match = LOCAL_DATE_RE.exec(date);
+  if (!match) {
+    throw new Error(`Invalid LocalDate: ${date}`);
+  }
+  const [, y, m, d] = match as unknown as [string, string, string, string];
+  return Date.UTC(Number(y), Number(m) - 1, Number(d)) / MS_PER_DAY;
+}
+
+function fromEpochDay(epochDay: number): LocalDate {
+  const ms = epochDay * MS_PER_DAY;
+  const d = new Date(ms);
+  const y = d.getUTCFullYear().toString().padStart(4, '0');
+  const m = (d.getUTCMonth() + 1).toString().padStart(2, '0');
+  const day = d.getUTCDate().toString().padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/** Number of days from `from` to `to`. Negative when `to` is in the past. */
+export function daysBetween(from: LocalDate, to: LocalDate): number {
+  return toEpochDay(to) - toEpochDay(from);
+}
+
+export function addDays(date: LocalDate, days: number): LocalDate {
+  return fromEpochDay(toEpochDay(date) + days);
+}
+
+/** -1 if `a` < `b`, 0 if equal, 1 if `a` > `b`. */
+export function compareLocalDate(a: LocalDate, b: LocalDate): number {
+  const diff = toEpochDay(a) - toEpochDay(b);
+  return diff === 0 ? 0 : diff < 0 ? -1 : 1;
+}
+
+export function isValidLocalDate(value: string): value is LocalDate {
+  const match = LOCAL_DATE_RE.exec(value);
+  if (!match) return false;
+  const [, y, m, d] = match as unknown as [string, string, string, string];
+  const year = Number(y);
+  const month = Number(m);
+  const day = Number(d);
+  const date = new Date(Date.UTC(year, month - 1, day));
+  return (
+    date.getUTCFullYear() === year &&
+    date.getUTCMonth() === month - 1 &&
+    date.getUTCDate() === day
+  );
+}
