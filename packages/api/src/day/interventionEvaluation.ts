@@ -2,18 +2,22 @@ import {
   clampEscalationToOptIn,
   evaluateDeviationPrompt,
   evaluateEscalation,
+  evaluateStaleTaskPrompt,
   evaluateUpcomingBlockNotification,
   frictionCauseForDeviationResponse,
   DEVIATION_PROMPT_ACTIONS,
+  STALE_TASK_PROMPT_ACTIONS,
   type CommitmentLevel,
   type DeviationPromptAction,
   type LocalDate,
+  type StaleTaskPromptAction,
 } from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
 import { dataErr, dataOk, type DataResult } from '../data/types';
 import { mapDataError } from '../data/errors';
 import { createIntervention, recordInterventionResponse, type InterventionRow } from '../data/interventions';
 import { logFriction } from '../data/frictionLogs';
+import { updateTaskStatus } from '../data/tasks';
 
 /**
  * Exception-based notifications: scans today's timeboxed, not-yet-completed tasks for
@@ -228,4 +232,86 @@ export async function evaluateEscalations(client: TypedSupabaseClient, userId: s
     created.push(result.data);
   }
   return dataOk(created);
+}
+
+/**
+ * The stale-task surface (FOLLOWUPS.md S5): scans every one of the user's open
+ * (not completed/cancelled) tasks -- not date-windowed, since staleness is exactly the
+ * signal Recovery Mode's 7-day window deliberately excludes -- and fires a prompt for
+ * any past evaluateStaleTaskPrompt's threshold.
+ *
+ * Deduped per STALENESS EPISODE, not per task lifetime and not per day: an existing
+ * stale_task_prompt intervention only blocks a new one if it fired on or after the
+ * task's CURRENT planned_date. Re-planning a task (the "Still real" response) moves
+ * planned_date forward, which makes any prior intervention's local_date fall BEFORE the
+ * new planned_date -- so once the task goes stale again from its new date, it is
+ * eligible to prompt again. Without this, a user who taps "Still real" and then never
+ * touches the task again would only ever be asked once, and the task would silently
+ * rot forever after that -- exactly the failure mode this feature exists to prevent.
+ */
+export async function evaluateStaleTaskPrompts(client: TypedSupabaseClient, userId: string, today: LocalDate): Promise<DataResult<InterventionRow[]>> {
+  const { data: tasks, error: taskError } = await client.from('tasks').select('id, title, planned_date').eq('user_id', userId).not('status', 'in', '(completed,cancelled)');
+  if (taskError) return dataErr(mapDataError(taskError));
+
+  const created: InterventionRow[] = [];
+  for (const task of tasks ?? []) {
+    const decision = evaluateStaleTaskPrompt({ today, plannedDate: task.planned_date, taskTitle: task.title });
+    if (!decision.shouldFire) continue;
+
+    const { data: existing, error: existingError } = await client
+      .from('interventions')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('related_task_id', task.id)
+      .eq('kind', 'stale_task_prompt')
+      .gte('local_date', task.planned_date)
+      .maybeSingle();
+    if (existingError) return dataErr(mapDataError(existingError));
+    if (existing) continue;
+
+    const result = await createIntervention(client, userId, {
+      kind: 'stale_task_prompt',
+      triggerReason: decision.reason!,
+      message: decision.reason!,
+      actions: [...STALE_TASK_PROMPT_ACTIONS],
+      relatedTaskId: task.id,
+    });
+    if (!result.ok) return result;
+    created.push(result.data);
+  }
+  return dataOk(created);
+}
+
+/**
+ * The one-tap response actually changes the task's state, not just acknowledges the
+ * prompt -- "Let it go" cancels it (neutral framing deliberately, same reasoning as the
+ * kill-list's own copy: abandoning a task that no longer matters is hygiene, not
+ * failure, and if it reads as failure users will keep re-planning things they will
+ * never do just to avoid the feeling). "Still real" re-plans the task to today, which
+ * both keeps it active AND starts a new staleness episode (see
+ * evaluateStaleTaskPrompts's dedup reasoning above).
+ */
+export async function respondToStaleTaskPrompt(
+  client: TypedSupabaseClient,
+  interventionId: number,
+  action: StaleTaskPromptAction,
+  today: LocalDate,
+): Promise<DataResult<InterventionRow>> {
+  const { data: intervention, error: fetchError } = await client.from('interventions').select('related_task_id').eq('id', interventionId).single();
+  if (fetchError) return dataErr(mapDataError(fetchError));
+
+  const responded = await recordInterventionResponse(client, interventionId, { status: 'acted_on', actionTaken: action });
+  if (!responded.ok) return responded;
+
+  if (intervention.related_task_id != null) {
+    if (action === 'Let it go') {
+      const cancelled = await updateTaskStatus(client, intervention.related_task_id, 'cancelled');
+      if (!cancelled.ok) return cancelled;
+    } else if (action === 'Still real') {
+      const { error: replanError } = await client.from('tasks').update({ planned_date: today }).eq('id', intervention.related_task_id);
+      if (replanError) return dataErr(mapDataError(replanError));
+    }
+  }
+
+  return responded;
 }

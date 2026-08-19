@@ -39,6 +39,7 @@ export * from './insights/experimentOutcome';
 export * from './interventions/exceptionNotification';
 export * from './interventions/deviationPrompt';
 export * from './interventions/escalationLadder';
+export * from './interventions/staleTaskPrompt';
 export * from './integrations/icsParser';
 export * from './integrations/ssrfGuard';
 export * from './integrations/whoopNormalize';

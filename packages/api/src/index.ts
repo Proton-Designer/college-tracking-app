@@ -141,6 +141,8 @@ export {
   evaluateDeviationPrompts,
   respondToDeviationPrompt,
   evaluateEscalations,
+  evaluateStaleTaskPrompts,
+  respondToStaleTaskPrompt,
 } from "./day/interventionEvaluation";
 
 export { getBrightspaceFeedStatus, listPendingIcsEvents } from "./data/brightspaceFeeds";
