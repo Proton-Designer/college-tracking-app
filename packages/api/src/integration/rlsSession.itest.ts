@@ -14,8 +14,6 @@ const SUPABASE_URL = process.env.SUPABASE_URL ?? 'http://127.0.0.1:54321';
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-const ready = Boolean(SUPABASE_ANON_KEY && SUPABASE_SERVICE_ROLE_KEY);
-
 async function createConfirmedUser(email: string, password: string) {
   const admin = createClient<Database>(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY!);
   const { data, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
@@ -23,7 +21,7 @@ async function createConfirmedUser(email: string, password: string) {
   return data.user;
 }
 
-describe.skipIf(!ready)('real signup -> real session -> RLS-scoped read', () => {
+describe('real signup -> real session -> RLS-scoped read', () => {
   const passwordA = 'itest-password-aaa-111';
   const passwordB = 'itest-password-bbb-222';
   const emailA = `itest-rls-a-${Date.now()}@collegeos.test`;

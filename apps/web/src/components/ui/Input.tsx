@@ -7,7 +7,7 @@ import { Label } from "./Label";
 
 export interface InputProps extends Omit<InputHTMLAttributes<HTMLInputElement>, "size"> {
   label?: string;
-  error?: string;
+  error?: string | undefined;
   required?: boolean;
 }
 

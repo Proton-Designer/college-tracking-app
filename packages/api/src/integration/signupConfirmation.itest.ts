@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 import { signUp } from '../auth/auth';
 import type { Database } from '../database.types';
 
@@ -23,8 +23,12 @@ async function findMailpitMessageTo(email: string, attempts = 10): Promise<{ Sub
   return null;
 }
 
-describe.skipIf(!SUPABASE_ANON_KEY)('real signup -> confirmation email in Mailpit', () => {
-  const client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY!);
+describe('real signup -> confirmation email in Mailpit', () => {
+  let client: ReturnType<typeof createClient<Database>>;
+
+  beforeAll(() => {
+    client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY!);
+  });
 
   it('sends a real confirmation email that a real client can retrieve from Mailpit', async () => {
     const result = await signUp(client, { email: testEmail, password: 'itest-password-123' });

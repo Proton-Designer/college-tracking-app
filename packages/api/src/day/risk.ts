@@ -11,25 +11,37 @@ import type { TypedSupabaseClient } from '../client/types';
 import type { CourseGradeProjection } from './grades';
 
 /**
- * Rough waking-hours-per-day used to turn a due-date window into an "available hours"
- * figure for the congestion factor. Documented approximation, not a measured quantity —
- * flagged in the L4 report as a candidate for a real per-user setting later.
+ * Fallback waking-hours-per-day used only when the user has no `sleep_baseline_hours`
+ * yet (Lead ruling, L5): once a real baseline exists, the waking window is
+ * `24 - sleep_baseline_hours` — a personal figure, not a constant — see
+ * `wakingHoursPerDayFor` below.
  */
-const WAKING_HOURS_PER_DAY = 16;
+const DEFAULT_WAKING_HOURS_PER_DAY = 16;
+
+function wakingHoursPerDayFor(sleepBaselineHours: number | null): number {
+  if (sleepBaselineHours == null) return DEFAULT_WAKING_HOURS_PER_DAY;
+  return Math.max(24 - sleepBaselineHours, 1);
+}
 
 /**
  * Population-average start delay the procrastination factor falls back to below 5
- * personal observations (packages/core §1). A single-demo-user product has no real
- * population to compute this from yet — placeholder pending multi-user data, flagged in
- * the L4 report.
+ * personal observations (packages/core §1). **This is a prior, not a measurement** — a
+ * single-demo-user product has no real population to average yet. Exported and named
+ * explicitly (Lead ruling, L5) so it's never mistaken for real aggregated data by a
+ * future reader. `computeAssignmentRisk` already downgrades `confidence` by one level
+ * whenever this fallback is the one actually used (see assignmentRisk.ts's
+ * `usingGlobalFallback` check) — verify that still holds if this constant ever moves.
  */
-const GLOBAL_MEAN_START_DELAY_DAYS = 1.5;
+export const GLOBAL_MEAN_START_DELAY_DAYS_PRIOR = 1.5;
 
 export interface DeliverableRisk {
   deliverableId: number;
   courseId: number;
   title: string;
   result: AssignmentRiskResult;
+  /** Retained so callers (MIT ranking) can compute a true "what if one more unit
+   *  completed" marginal risk reduction instead of approximating from the score alone. */
+  input: AssignmentRiskInput;
 }
 
 export interface CourseRiskSummary {
@@ -64,7 +76,9 @@ export async function computeRiskAssessment(
   today: LocalDate,
   courses: CourseFacts[],
   gradeProjections: CourseGradeProjection[],
+  sleepBaselineHours: number | null,
 ): Promise<RiskAssessment> {
+  const wakingHoursPerDay = wakingHoursPerDayFor(sleepBaselineHours);
   const [
     { data: deliverables, error: delivError },
     { data: tasks, error: taskError },
@@ -121,29 +135,31 @@ export async function computeRiskAssessment(
     const course = courseById.get(d.course_id);
     const units = unitsByDeliverable.get(d.id) ?? { planned: 0, completed: 0 };
     const windowDays = Math.max(daysBetween(today, d.local_due_date), 0);
-    const availableHours = windowDays * WAKING_HOURS_PER_DAY;
+    const availableHours = windowDays * wakingHoursPerDay;
     const committedHours = sumCalendarHoursInWindow(calendarEvents ?? [], today, d.local_due_date);
     const grade = gradeByCourse.get(d.course_id);
     const weightPct = d.grade_item_id != null ? (weightPctByGradeItemId.get(d.grade_item_id) ?? 0) : 0;
 
+    // exactOptionalPropertyTypes forbids assigning `undefined` to an optional field --
+    // only include these keys when a real value exists, rather than fabricating one.
     const input: AssignmentRiskInput = {
       today,
       dueDate: d.local_due_date,
       weightPct,
-      difficultyRating: course?.difficulty_rating ?? undefined,
-      confidenceRating: course?.confidence_rating ?? undefined,
       completedUnits: units.completed,
       plannedUnits: units.planned,
       committedHours,
       availableHours,
-      userMeanStartDelayDays,
       userStartDelaySampleSize: startDelays.length,
-      globalMeanStartDelayDays: GLOBAL_MEAN_START_DELAY_DAYS,
-      targetPct: course?.target_grade_pct ?? undefined,
-      projectedPct: grade?.projectedGrade ?? undefined,
+      globalMeanStartDelayDays: GLOBAL_MEAN_START_DELAY_DAYS_PRIOR,
+      ...(course?.difficulty_rating != null ? { difficultyRating: course.difficulty_rating } : {}),
+      ...(course?.confidence_rating != null ? { confidenceRating: course.confidence_rating } : {}),
+      ...(userMeanStartDelayDays != null ? { userMeanStartDelayDays } : {}),
+      ...(course?.target_grade_pct != null ? { targetPct: course.target_grade_pct } : {}),
+      ...(grade?.projectedGrade != null ? { projectedPct: grade.projectedGrade } : {}),
     };
 
-    return { deliverableId: d.id, courseId: d.course_id, title: d.title, result: computeAssignmentRisk(input) };
+    return { deliverableId: d.id, courseId: d.course_id, title: d.title, result: computeAssignmentRisk(input), input };
   });
 
   const byCourseGroup = new Map<number, DeliverableRisk[]>();

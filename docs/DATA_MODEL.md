@@ -336,7 +336,10 @@ be reviewed as its own unit, per the Lead's request.
 ## 10. Decisions flagged for the Lead
 
 1. **`brightspace_feeds.ics_url` stored plaintext, not through Vault** — see §5
-   Integrations. Low confidence this is final; revisit at L10.
+   Integrations. **Ruled at L4: move to Vault at L10** when the integration is actually
+   built. A Brightspace feed URL is a bearer credential (anyone holding it reads the
+   student's full academic calendar without authenticating) — the distinction from an
+   OAuth token is one of mechanism, not sensitivity.
 2. **`grade_categories`/`grade_items` denormalize `course_id`** (in addition to
    `category_id`) to avoid a join on the very common "all grade items for this course"
    query and to keep RLS a flat check — consistent with the general denormalization
@@ -345,7 +348,41 @@ be reviewed as its own unit, per the Lead's request.
 3. **`profiles.llm_monthly_budget_usd` is per-user, not a separate config table** — this
    product is architected for multi-user (full RLS throughout) but is being built and
    seeded as a single-demo-user product for now; a per-user column is simpler than a
-   table until there's a second real user with a different budget need.
+   table until there's a second real user with a different budget need. **Approved at L4.**
+
+### L4: packages/core inputs without a dedicated schema column
+
+None of these are structural gaps — all are derived from data that already exists in the
+schema — but each is a modeling judgment call, ruled on by the Lead at L4:
+
+4. **`completedUnits`/`plannedUnits`** (risk engine's "unfinished work" factor, §1) = the
+   count of `tasks` linked to a deliverable / the count of those completed. There is no
+   dedicated "units" column; tasks are a **proxy for the brief's "planned study
+   sessions"**, not a literal 1:1 model of it. Approved as-is.
+5. **`committedHours`/`availableHours`** (congestion, §1) = busy `calendar_events` in the
+   due-date window / `windowDays × wakingHoursPerDay`, where `wakingHoursPerDay =
+   24 - profiles.sleep_baseline_hours` when a baseline is known, else a 16h default. Was a
+   flat constant through L4; **changed at L5 review to derive from the user's own sleep
+   baseline** so the figure is personal rather than arbitrary. Same waking-window
+   derivation feeds §7's workload capacity sizing (`packages/api/src/day/workload.ts`).
+6. **`globalMeanStartDelayDays`** (procrastination fallback, §1) = the exported constant
+   `GLOBAL_MEAN_START_DELAY_DAYS_PRIOR` in `packages/api/src/day/risk.ts`, currently
+   `1.5` days. **This is a prior, not a measurement** — named and exported explicitly
+   (Lead ruling, L5) so a future reader never mistakes it for real aggregated population
+   data. `computeAssignmentRisk` downgrades `confidence` by one level whenever this
+   fallback is actually used (see `assignmentRisk.ts`'s `usingGlobalFallback` check);
+   revisit once there's a real multi-user population to average.
+7. **`historicalDeepWorkP50Minutes`** (workload capacity §7 and planning-vs-execution
+   §8) = median of `daily_reviews.deep_work_actual_min` over a rolling 30-day lookback,
+   computed on the fly (`computeHistoricalCapacityP50Min`). No dedicated rolling-stats
+   table. Approved at L4; revisit only if it shows up as a real query cost.
+8. **`recoveryAdjustment`** (workload capacity §7) — `packages/core`'s
+   `recoveryAdjustmentFromWhoopPct` maps WHOOP recovery% to the spec's `[0.75, 1.10]`
+   range via **piecewise-linear interpolation anchored to WHOOP's own red/34/yellow/67/
+   green bands** (recovery 33→0.75, 67→1.00, 100→1.10), not an arbitrary linear scale.
+   Ruled at L5: anchoring to the bands the user already sees in WHOOP keeps the
+   adjustment legible, and linear-between-anchors (rather than a step function) avoids a
+   gameable cliff at the boundaries — this product must not become an excuse generator.
 
 ---
 

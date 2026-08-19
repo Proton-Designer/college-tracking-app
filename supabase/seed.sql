@@ -47,15 +47,22 @@ begin
   ------------------------------------------------------------------------
   -- Identity
   ------------------------------------------------------------------------
+  -- confirmation_token/recovery_token/email_change_token_new/email_change have no
+  -- column default (NULL) but GoTrue's Go scanner expects a plain string, not NULL --
+  -- a raw INSERT (as opposed to going through the Admin API) must set them explicitly
+  -- to '' or every later password-grant login 500s with "converting NULL to string is
+  -- unsupported". Learned the hard way; see the L4 report.
   insert into auth.users (
     instance_id, id, aud, role, email, encrypted_password,
     email_confirmed_at, created_at, updated_at,
-    raw_app_meta_data, raw_user_meta_data
+    raw_app_meta_data, raw_user_meta_data,
+    confirmation_token, recovery_token, email_change_token_new, email_change
   ) values (
     '00000000-0000-0000-0000-000000000000', v_user_id, 'authenticated', 'authenticated',
     'demo@collegeos.app', crypt('CollegeOS-Demo-2026', gen_salt('bf')),
     now(), now(), now(),
-    '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb
+    '{"provider":"email","providers":["email"]}'::jsonb, '{}'::jsonb,
+    '', '', '', ''
   );
 
   insert into auth.identities (

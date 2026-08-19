@@ -163,6 +163,16 @@ Also check **Advisors → Security** in the dashboard and resolve every finding.
 > returns will fail on device with an opaque error. The `exp://` entry is for Expo Go development
 > only and should be removed before release.
 
+> **This list is a security control, not a dev convenience — as of L4.** `signUp` and
+> `resetPassword` (`packages/api/src/auth/auth.ts`) both accept a caller-supplied `redirectTo`
+> that Supabase honors via `emailRedirectTo`/`redirectTo`. This allow-list is the *only* thing
+> preventing an attacker-supplied redirect from being honored in a real confirmation or
+> password-reset email. **Every entry must be an exact URL — no wildcard hosts, no `*` origins,
+> no bare-domain entries that would match an attacker's subdomain.** A permissive entry here turns
+> every password-reset email this product sends into a credential-phishing vector. Review this
+> list specifically, not just generally, before any cloud deploy. (Local `supabase/config.toml`
+> carries the same warning inline next to `additional_redirect_urls`.)
+
 **Authentication → Emails** — replace the default templates with the branded templates in
 `supabase/templates/` (confirmation, magic link, password recovery, email change).
 

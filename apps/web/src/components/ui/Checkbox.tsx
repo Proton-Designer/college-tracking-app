@@ -9,7 +9,7 @@ export interface CheckboxProps {
   onChange: (checked: boolean) => void;
   label: string;
   disabled?: boolean;
-  error?: string;
+  error?: string | undefined;
 }
 
 export function Checkbox({ checked, onChange, label, disabled = false, error }: CheckboxProps) {

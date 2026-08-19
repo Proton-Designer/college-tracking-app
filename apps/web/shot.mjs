@@ -1,0 +1,10 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch();
+const p = await b.newPage({ viewport:{width:1440,height:900}, deviceScaleFactor:1.5 });
+await p.goto('http://localhost:3000/', { waitUntil:'networkidle', timeout:60000 });
+await p.waitForTimeout(1500);
+const h = await p.evaluate(()=>document.body.scrollHeight);
+const seg=1500, n=Math.min(4,Math.ceil(h/seg));
+for(let i=0;i<n;i++) await p.screenshot({path:`/tmp/land-${i}.png`, fullPage:true, clip:{x:0,y:i*seg,width:1440,height:Math.min(seg,h-i*seg)}});
+console.log('landing height',h,'segments',n);
+await b.close();

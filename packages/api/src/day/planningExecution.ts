@@ -16,28 +16,39 @@ function minutesSinceMidnightUTC(iso: string): number {
 }
 
 /**
- * Planning-vs-execution for `today`'s previous day. `historicalCapacityP50Min` is the
- * median actual deep-work minutes over the last 30 days of night reviews — the closest
+ * Median actual deep-work minutes over the last 30 days of night reviews — the closest
  * real signal to packages/core's "historicalDeepWorkP50Minutes" without a dedicated
- * rolling-stats table.
+ * rolling-stats table. Shared by planning-vs-execution (yesterday) and today's workload
+ * capacity sizing, so both agree on the same historical baseline.
  */
+export async function computeHistoricalCapacityP50Min(
+  client: TypedSupabaseClient,
+  userId: string,
+  today: LocalDate,
+): Promise<number> {
+  const lookbackStart = addDays(today, -HISTORICAL_CAPACITY_LOOKBACK_DAYS);
+  const { data, error } = await client
+    .from('daily_reviews')
+    .select('deep_work_actual_min')
+    .eq('user_id', userId)
+    .gte('local_date', lookbackStart)
+    .not('deep_work_actual_min', 'is', null);
+  if (error) throw error;
+  return median((data ?? []).map((h) => h.deep_work_actual_min!).filter((v) => v != null));
+}
+
+/** Planning-vs-execution for `today`'s previous day. */
 export async function computeYesterdayPlanningExecution(
   client: TypedSupabaseClient,
   userId: string,
   today: LocalDate,
 ): Promise<PlanningExecutionResult | null> {
   const yesterday = addDays(today, -1);
-  const lookbackStart = addDays(today, -HISTORICAL_CAPACITY_LOOKBACK_DAYS);
 
-  const [{ data: review, error: reviewError }, { data: history, error: historyError }, { data: sessions, error: sessionError }] =
+  const [{ data: review, error: reviewError }, historicalCapacityP50Min, { data: sessions, error: sessionError }] =
     await Promise.all([
       client.from('daily_reviews').select('*').eq('user_id', userId).eq('local_date', yesterday).maybeSingle(),
-      client
-        .from('daily_reviews')
-        .select('deep_work_actual_min')
-        .eq('user_id', userId)
-        .gte('local_date', lookbackStart)
-        .not('deep_work_actual_min', 'is', null),
+      computeHistoricalCapacityP50Min(client, userId, today),
       client
         .from('task_sessions')
         .select('planned_start, actual_start, tasks!inner(planned_date, user_id)')
@@ -47,12 +58,10 @@ export async function computeYesterdayPlanningExecution(
         .limit(1),
     ]);
   if (reviewError) throw reviewError;
-  if (historyError) throw historyError;
   if (sessionError) throw sessionError;
 
   if (!review) return null;
 
-  const historicalCapacityP50Min = median((history ?? []).map((h) => h.deep_work_actual_min!).filter((v) => v != null));
   const firstSession = sessions?.[0];
 
   return computePlanningExecutionGap({

@@ -7,5 +7,8 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.itest.ts"],
     testTimeout: 20_000,
+    // Loads .env.local and fails loudly (not skips) if required env is missing --
+    // see vitest.integration.setup.ts.
+    setupFiles: ["./vitest.integration.setup.ts"],
   },
 });

@@ -1,0 +1,8 @@
+- generic [active] [ref=f12e1]:
+  - main [ref=f12e2]:
+    - paragraph [ref=f12e3]: Today
+    - heading "Signed in" [level=1] [ref=f12e4]
+    - paragraph [ref=f12e5]: nova-test-1787117418028@collegeos.test
+    - button "Sign out" [ref=f12e7]
+  - button "Open Next.js Dev Tools" [ref=f12e13] [cursor=pointer]
+  - alert [ref=f12e17]

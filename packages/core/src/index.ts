@@ -25,6 +25,7 @@ export * from './recovery/mvd';
 
 export * from './workload/capacity';
 export * from './workload/levels';
+export * from './workload/recoveryAdjustment';
 
 export * from './planning/planningExecutionGap';
 

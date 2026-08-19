@@ -9,7 +9,10 @@ try {
   // Absent in CI, where env vars come from the environment directly.
 }
 
-const PORT = 3300;
+// Must match supabase/config.toml's [auth] site_url/additional_redirect_urls — auth email links
+// (confirm, reset) are constructed against site_url, so a mismatched port here breaks those flows
+// even though everything else works fine on any port.
+const PORT = 3000;
 const BASE_URL = `http://localhost:${PORT}`;
 
 export default defineConfig({

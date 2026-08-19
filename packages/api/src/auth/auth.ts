@@ -6,6 +6,15 @@ import { authErr, authOk, type AuthResult } from './types';
 export interface SignUpInput {
   email: string;
   password: string;
+  /**
+   * Where the confirmation email's link sends the user. Must appear in Supabase Auth's
+   * `additional_redirect_urls` allow-list (config.toml locally; the dashboard's
+   * "Redirect URLs" in production) or Supabase silently falls back to `site_url` — this
+   * is a security control, not a dev convenience: an attacker-supplied redirectTo that
+   * matched a permissive allow-list would turn confirmation/reset emails into a
+   * credential-phishing vector. See docs/SUPABASE_SETUP.md §5.
+   */
+  redirectTo?: string;
 }
 
 /**
@@ -19,7 +28,11 @@ export async function signUp(
   client: TypedSupabaseClient,
   input: SignUpInput,
 ): Promise<AuthResult<{ needsEmailConfirmation: boolean }>> {
-  const { data, error } = await client.auth.signUp(input);
+  const { redirectTo, ...credentials } = input;
+  const { data, error } = await client.auth.signUp({
+    ...credentials,
+    ...(redirectTo ? { options: { emailRedirectTo: redirectTo } } : {}),
+  });
   if (error) return authErr(mapSupabaseAuthError(error));
 
   const alreadyRegistered = (data.user?.identities?.length ?? 0) === 0;

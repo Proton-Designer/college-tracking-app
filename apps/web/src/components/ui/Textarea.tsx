@@ -7,7 +7,7 @@ import { Label } from "./Label";
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;
-  error?: string;
+  error?: string | undefined;
   required?: boolean;
 }
 

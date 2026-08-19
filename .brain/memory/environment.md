@@ -54,4 +54,12 @@ end-to-end testable without a cloud project.
   in `next.config` — it is set. Don't remove it; it duplicates the root CLAUDE.md.
 
 ## Dev servers (when running)
-- web: http://localhost:3300 · Metro: http://localhost:8081
+- web: **http://localhost:3000** (project default; must match Supabase `site_url` — was
+  briefly 3300, that was never real) · Metro: http://localhost:8081
+
+## Auth redirect allow-list is a SECURITY control
+`supabase/config.toml` → `[auth] additional_redirect_urls` gates `emailRedirectTo`. A permissive
+list turns every password-reset email into a credential-phishing vector. Local is
+`["http://127.0.0.1:3000/**", "http://localhost:3000/**"]`. Production must be exact hosts —
+no wildcard origins. Note: a wrong scheme here (https vs http locally) silently breaks every
+confirm/reset redirect with no useful error.
