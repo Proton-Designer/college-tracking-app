@@ -4,6 +4,8 @@ export { Button } from "./Button";
 export type { ButtonProps, ButtonVariant } from "./Button";
 export { Checkbox } from "./Checkbox";
 export type { CheckboxProps } from "./Checkbox";
+export { ChipGroup } from "./ChipGroup";
+export type { ChipGroupProps, ChipOption } from "./ChipGroup";
 export { EmptyState } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
 export { FieldError } from "./FieldError";

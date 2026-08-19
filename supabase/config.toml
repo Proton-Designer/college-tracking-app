@@ -162,7 +162,16 @@ site_url = "http://127.0.0.1:3000"
 # confirmation/reset email at a phishing page. Keep this list exact and minimal; wildcard
 # hosts or `*` origins are never acceptable, including in production. See
 # docs/SUPABASE_SETUP.md §5.
-additional_redirect_urls = ["http://127.0.0.1:3000/**", "http://localhost:3000/**"]
+additional_redirect_urls = [
+  "http://127.0.0.1:3000/**",
+  "http://localhost:3000/**",
+  # Mobile (Expo Go, iOS Simulator) -- DEV ONLY, remove before release. See docs/SUPABASE_SETUP.md §5.
+  "exp://127.0.0.1:8081/**",
+  # Mobile (standalone/dev-client build custom scheme) -- see docs/SUPABASE_SETUP.md §5 for the
+  # pre-launch caveat (custom schemes are not domain-verified; migrate to Universal/App Links
+  # before release).
+  "collegeos://**",
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to auth.external_url.

@@ -163,6 +163,18 @@ Also check **Advisors → Security** in the dashboard and resolve every finding.
 > returns will fail on device with an opaque error. The `exp://` entry is for Expo Go development
 > only and should be removed before release.
 
+> **Required pre-launch item — custom URL schemes are not a production-safe callback mechanism.**
+> `collegeos://` is a *custom* scheme, not domain-verified: any app that also registers the scheme
+> `collegeos` can have iOS/Android route the confirmation/reset link to it instead of this app,
+> which for an email-confirmation or password-reset link means **intercepting a live session**, not
+> just a broken deep link. This is acceptable for tonight's build (local dev, no other app on the
+> device claims the scheme) but **must not ship to production as-is**. Before release, migrate the
+> mobile redirect to **Universal Links (iOS)** / **App Links (Android)** — `https://` links bound to
+> a verified domain via an `apple-app-site-association` file (iOS) and Digital Asset Links file
+> (Android), which cannot be claimed by an unverified app. That requires a real production domain
+> and hosting the AASA/assetlinks files, both out of scope tonight — tracked here so it isn't
+> quietly treated as done.
+
 > **This list is a security control, not a dev convenience — as of L4.** `signUp` and
 > `resetPassword` (`packages/api/src/auth/auth.ts`) both accept a caller-supplied `redirectTo`
 > that Supabase honors via `emailRedirectTo`/`redirectTo`. This allow-list is the *only* thing
