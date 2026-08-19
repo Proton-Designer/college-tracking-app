@@ -2027,6 +2027,7 @@ export type Database = {
           planned_start: string
           status: string
           subjective_focus: number | null
+          target_achieved: string | null
           task_id: number
           user_id: string
         }
@@ -2043,6 +2044,7 @@ export type Database = {
           planned_start: string
           status?: string
           subjective_focus?: number | null
+          target_achieved?: string | null
           task_id: number
           user_id: string
         }
@@ -2059,6 +2061,7 @@ export type Database = {
           planned_start?: string
           status?: string
           subjective_focus?: number | null
+          target_achieved?: string | null
           task_id?: number
           user_id?: string
         }
