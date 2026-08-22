@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { runExperiment } from "../../lib/insightsActions";
 import type { InsightsByTier } from "../../lib/useInsightsData";
 import { textStyle } from "../../design/typography";
-import { Button, ConfidenceRule, type ConfidenceLineStyle, Input, Textarea } from "../ui";
+import { Button, ConfidenceRule, type ConfidenceLineStyle, Input, Select, Textarea } from "../ui";
 
 const TIER_LINE: Record<keyof InsightsByTier, ConfidenceLineStyle> = {
   high: "solid",
@@ -91,6 +91,9 @@ function RunExperimentForm({
   const [hypothesis, setHypothesis] = useState(defaultHypothesis);
   const [protocol, setProtocol] = useState("");
   const [durationDays, setDurationDays] = useState("7");
+  const [metricName, setMetricName] = useState("");
+  const [baselineValue, setBaselineValue] = useState("");
+  const [direction, setDirection] = useState<"increase" | "decrease">("decrease");
   const [error, setError] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -101,6 +104,15 @@ function RunExperimentForm({
       setError("Enter a duration in days.");
       return;
     }
+    if (!metricName.trim()) {
+      setError("Name the one thing this trial measures.");
+      return;
+    }
+    const baseline = Number(baselineValue);
+    if (baselineValue.trim() === "" || !Number.isFinite(baseline)) {
+      setError("Enter the measure's value now — movement needs something to move from.");
+      return;
+    }
     setError(null);
     startTransition(async () => {
       const result = await runExperiment({
@@ -109,6 +121,9 @@ function RunExperimentForm({
         hypothesis,
         ...(protocol.trim() ? { protocol: protocol.trim() } : {}),
         durationDays: days,
+        metricName: metricName.trim(),
+        baselineValue: baseline,
+        hypothesizedDirection: direction,
       });
       if (!result.ok) {
         setError(result.error ?? "Couldn't start that trial — try again.");
@@ -126,8 +141,27 @@ function RunExperimentForm({
     <View style={styles.form}>
       <Textarea label="Hypothesis" value={hypothesis} onChangeText={setHypothesis} rows={2} />
       <Textarea label="What will you measure, and how" value={protocol} onChangeText={setProtocol} rows={2} placeholder="e.g. log minutes distracted each day" />
-      <View style={{ width: 96 }}>
-        <Input label="Duration (days)" keyboardType="numeric" value={durationDays} onChangeText={setDurationDays} />
+      {/* U9: without a measurable, a baseline and a predicted direction, getExperimentOutcome
+          returns null and the trial is unscoreable however many readings it collects. */}
+      <Input label="Measure" value={metricName} onChangeText={setMetricName} placeholder="minutes_distracted" />
+      <View style={styles.formRow}>
+        <View style={{ flex: 1 }}>
+          <Input label="Its value now" keyboardType="numeric" value={baselineValue} onChangeText={setBaselineValue} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Select
+            label="Should move"
+            value={direction}
+            onValueChange={(v) => setDirection(v === "increase" ? "increase" : "decrease")}
+            options={[
+              { value: "decrease", label: "Down" },
+              { value: "increase", label: "Up" },
+            ]}
+          />
+        </View>
+        <View style={{ width: 96 }}>
+          <Input label="Days" keyboardType="numeric" value={durationDays} onChangeText={setDurationDays} />
+        </View>
       </View>
       {error ? <Text style={textStyle("bodyS", color.riskCritical)}>{error}</Text> : null}
       <View style={styles.formActions}>
@@ -166,6 +200,11 @@ const styles = StyleSheet.create({
     borderColor: color.hairline,
     backgroundColor: color.surface,
     padding: space[4],
+  },
+  formRow: {
+    flexDirection: "row",
+    gap: space[2],
+    alignItems: "flex-end",
   },
   formActions: {
     flexDirection: "row",

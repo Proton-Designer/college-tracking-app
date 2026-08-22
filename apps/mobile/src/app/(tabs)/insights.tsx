@@ -42,7 +42,12 @@ export default function InsightsScreen() {
           <InsightsList userId={session.user.id} insightsByTier={result.data.insightsByTier} />
 
           <Section title="Active experiments">
-            <ActiveExperiments experiments={result.data.activeExperiments} today={result.data.today} />
+            <ActiveExperiments
+              experiments={result.data.activeExperiments}
+              today={result.data.today}
+              userId={session.user.id}
+              onChanged={result.refetch}
+            />
           </Section>
 
           <Section title="Task-duration calibration">
