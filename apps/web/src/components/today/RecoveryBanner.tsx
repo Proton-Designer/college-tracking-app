@@ -2,9 +2,8 @@
 
 import type { CalendarEvent, Task } from "@collegeos/api";
 import type { MvdCandidateItem, MvdPlan, RecoveryModeResult } from "@collegeos/core";
-import { color } from "@collegeos/design";
 import { useState } from "react";
-import { tintWithAlpha } from "@/lib/colorAlpha";
+import { WarningCard } from "@/components/ui/WarningCard";
 
 const EVENT_ID_PREFIX = "event-";
 
@@ -52,13 +51,7 @@ export function RecoveryBanner({
   const activeSignals = recoveryMode.signals.filter((s) => s.active);
 
   return (
-    // §2: same tier and two-edge treatment as every other card -- a hard riskHigh border was
-    // the v1 idiom this component started with (Nova hit and fixed the identical mistake on
-    // mobile first). Alert identity lives in the eyebrow color plus a low-alpha riskHigh tint
-    // layered on top of the neutral glass, not a border override or an opaque fill. Same
-    // numbers as mobile's RecoveryBanner: 0.07 alpha, not re-derived.
-    <div className="glass overflow-hidden rounded-lg">
-      <div className="p-5" style={{ backgroundColor: tintWithAlpha(color.riskHigh, 0.07) }}>
+    <WarningCard>
       {/* §8's lead statement moved to the page header (TodayPage, next to the normal-mode
        *  headline) -- it wasn't leading two-thirds down the page inside this card. This label
        *  stays as the card's own status marker; the detail (why, what's kept, what's rolled
@@ -117,7 +110,6 @@ export function RecoveryBanner({
           </p>
         </div>
       ) : null}
-      </div>
-    </div>
+    </WarningCard>
   );
 }
