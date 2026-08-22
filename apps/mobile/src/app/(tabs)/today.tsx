@@ -1,4 +1,4 @@
-import type { Course, DayView, InterventionRow, KillHabitRow, TaskSessionRow } from "@collegeos/api";
+import type { Course, DayView, InterventionRow, KillHabitRow, Task, TaskSessionRow } from "@collegeos/api";
 import { signOut } from "@collegeos/api";
 import { deriveDayBand } from "@collegeos/core";
 import { color, space } from "@collegeos/design/native";
@@ -40,11 +40,33 @@ function buildMitItems(dayView: DayView, courses: Record<number, Course>): MitIt
   });
 }
 
-/** §8's ratified headline rule: the top *outstanding* MIT's title, "All N done" once nothing
- *  is, or nothing at all when the list itself is empty (the caller decides the fallback for
- *  that case). Always resolved from the exact array MitList renders, post-filtering -- the
- *  headline and the list it summarizes must never read from different data. */
-function computeHeadline(items: MitItem[]): { headline: string | null; progressLine: string | null } {
+interface PlannedMitStatus {
+  taskId: number;
+  title: string;
+  completed: boolean;
+}
+
+/** "Did I finish what I planned" is a different question from MitList's "what should I work
+ *  on right now" (suggestedMits -- a live, algorithmic ranking of outstanding discretionary
+ *  work, which correctly empties out as things get done). Answering the first question from
+ *  the second one is exactly the R1 shape this codebase has been bitten by before: an empty
+ *  suggestedMits means *both* "nothing was ever planned" and "everything planned is done,"
+ *  and those must not render identically. tasks.mit_rank is the real record of what the user
+ *  actually committed to at check-in (set by submitMorningCheckin, already selected in
+ *  dayView.todayTasks -- no new query) and it stays on a task after it's completed, unlike
+ *  suggestedMits. An empty result here means check-in was skipped or planned nothing; a
+ *  non-empty result where every item is completed means the day's plan is actually done. */
+function buildPlannedMitStatus(dayView: DayView): PlannedMitStatus[] {
+  return dayView.todayTasks
+    .filter((t): t is Task & { mit_rank: number } => t.mit_rank != null)
+    .sort((a, b) => a.mit_rank - b.mit_rank)
+    .map((t) => ({ taskId: t.id, title: t.title, completed: t.status === "completed" }));
+}
+
+/** §8's ratified headline rule: the top *outstanding* planned MIT's title, "All N done" once
+ *  nothing is, or nothing at all when nothing was planned (the caller decides the fallback
+ *  for that case). */
+function computeHeadline(items: { title: string; completed: boolean }[]): { headline: string | null; progressLine: string | null } {
   if (items.length === 0) return { headline: null, progressLine: null };
   const doneCount = items.filter((i) => i.completed).length;
   const outstanding = items.find((i) => !i.completed);
@@ -254,7 +276,7 @@ function TodayReady({
   function handleMitToggle(taskId: number, completed: boolean) {
     setCompletionOverrides((prev) => ({ ...prev, [taskId]: completed }));
   }
-  function withOverrides(items: MitItem[]): MitItem[] {
+  function withOverrides<T extends { taskId: number; completed: boolean }>(items: T[]): T[] {
     return items.map((item) =>
       item.taskId in completionOverrides ? { ...item, completed: completionOverrides[item.taskId] as boolean } : item,
     );
@@ -263,13 +285,15 @@ function TodayReady({
   const focusBlock = buildFocusBlock(dayView, courses);
   const recoveryMitItems = withOverrides(buildRecoveryMitItems(dayView, courses));
   const recoveryFocusBlock = buildRecoveryFocusBlock(dayView, courses);
-  // §8's ratified headline -- top outstanding MIT, "All N done", or a mode fallback, resolved
-  // from the exact same array MitList renders below (mitItems vs recoveryMitItems by mode), so
-  // the headline and the list can never contradict each other. Recovery mode without a kept MIT
-  // still falls back to a real state (the mode itself), not the date -- "today is scaled down"
-  // outranks a timestamp on a day that's already been recomputed as one.
-  const activeMitItems = mode === "recovery" ? recoveryMitItems : mitItems;
-  const { headline: mitHeadline, progressLine } = computeHeadline(activeMitItems);
+  // §8's ratified headline. "Did I finish my plan" is answered from tasks.mit_rank
+  // (buildPlannedMitStatus), never from suggestedMits/mitItems -- see that function's
+  // comment for why that's the wrong source. Recovery mode keeps its own recoveryMitItems
+  // (the MVD kept set is a different, already-correct notion of "planned") and its existing
+  // "Recovery day" fallback when nothing was kept -- not the date, since "today is scaled
+  // down" outranks a timestamp on a day that's already been recomputed as one.
+  const plannedMitStatus = withOverrides(buildPlannedMitStatus(dayView));
+  const { headline: mitHeadline, progressLine } =
+    mode === "recovery" ? computeHeadline(recoveryMitItems) : computeHeadline(plannedMitStatus);
   const headline = mitHeadline ?? (mode === "recovery" ? "Recovery day" : null);
 
   if (mode === "onboarding") {
