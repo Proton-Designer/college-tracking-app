@@ -1,7 +1,6 @@
 import { BarChart3, BookOpen, ClipboardCheck, Home } from "lucide-react-native";
 import { BlurView } from "expo-blur";
 import type { BottomTabBarProps } from "expo-router/tabs";
-import { Fragment } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { color, duration, island, radius, shadow, space, type as typeScale } from "@collegeos/design/native";
@@ -62,24 +61,23 @@ export function Island({ state, descriptors, navigation, insets }: BottomTabBarP
               }
 
               return (
-                <Fragment key={route.key}>
-                  <Pressable
-                    accessibilityRole="tab"
-                    accessibilityState={{ selected: focused }}
-                    accessibilityLabel={label}
-                    onPress={onPress}
-                    hitSlop={8}
-                    style={styles.item}
+                <Pressable
+                  key={route.key}
+                  accessibilityRole="tab"
+                  accessibilityState={{ selected: focused }}
+                  accessibilityLabel={label}
+                  onPress={onPress}
+                  hitSlop={8}
+                  style={styles.item}
+                >
+                  <Animated.View
+                    layout={LinearTransition.duration(duration.quick).springify()}
+                    style={[styles.itemInner, focused ? styles.itemInnerActive : null]}
                   >
-                    <Animated.View
-                      layout={LinearTransition.duration(duration.quick).springify()}
-                      style={[styles.itemInner, focused ? styles.itemInnerActive : null]}
-                    >
-                      <Icon size={20} color={focused ? "#FFFFFF" : island.inkDim} strokeWidth={2} />
-                      {focused ? <Text style={styles.label}>{label}</Text> : null}
-                    </Animated.View>
-                  </Pressable>
-                </Fragment>
+                    <Icon size={20} color={focused ? island.ink : island.inkDim} strokeWidth={2} />
+                    {focused ? <Text style={styles.label}>{label}</Text> : null}
+                  </Animated.View>
+                </Pressable>
               );
             })}
           </View>
@@ -133,6 +131,5 @@ const styles = StyleSheet.create({
     fontSize: typeScale.body.fontSize,
     lineHeight: typeScale.body.lineHeight,
     color: island.ink,
-    fontWeight: "500",
   },
 });
