@@ -4,8 +4,9 @@ import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CapacityStrip } from "../../components/calendar/CapacityStrip";
 import { ThisWeekView } from "../../components/calendar/ThisWeekView";
+import { AddCourseModal } from "../../components/courses/AddCourseModal";
 import { BackplanChain } from "../../components/courses/BackplanChain";
-import { Button, RiskPill, Skeleton, TabScreenScrollView } from "../../components/ui";
+import { Button, EmptyState, RiskPill, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { textStyle } from "../../design/typography";
 import { type CalendarObligation, useCalendarData } from "../../lib/useCalendarData";
 import { type CoursesIndexRow, useCoursesIndexData } from "../../lib/useCoursesIndexData";
@@ -44,9 +45,14 @@ export default function CoursesScreen() {
   const calendar = useCalendarData();
   const thisWeek = useThisWeekData();
 
+  const showHeaderAddCourse = view === "courses" && courses.status === "ready" && courses.data.rows.length > 0;
+
   return (
     <TabScreenScrollView>
-      <Text style={textStyle("displayM", color.ink)}>{VIEW_TITLE[view]}</Text>
+      <View style={styles.headerRow}>
+        <Text style={textStyle("displayM", color.ink)}>{VIEW_TITLE[view]}</Text>
+        {showHeaderAddCourse ? <AddCourseModal onCreated={courses.refetch} /> : null}
+      </View>
 
       <View style={styles.segmentRow}>
         <SegmentTab label="Courses" active={view === "courses"} onPress={() => setView("courses")} />
@@ -133,7 +139,13 @@ function CoursesView({ state }: { state: ReturnType<typeof useCoursesIndexData> 
 
   const { rows, today } = state.data;
   if (rows.length === 0) {
-    return <Text style={textStyle("bodyS", color.inkFaint)}>No courses yet. Add one, or upload a syllabus to get started.</Text>;
+    return (
+      <EmptyState
+        title="No courses yet"
+        description="Add your first course to start tracking assignments, grades, and risk."
+        action={<AddCourseModal onCreated={state.refetch} />}
+      />
+    );
   }
 
   return (
@@ -261,6 +273,12 @@ function ObligationRow({
 }
 
 const styles = StyleSheet.create({
+  headerRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: space[3],
+  },
   segmentRow: {
     flexDirection: "row",
     gap: space[6],

@@ -1,5 +1,5 @@
 import { color, space } from "@collegeos/design/native";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { textStyle } from "../../design/typography";
 import { Button } from "./Button";
@@ -9,6 +9,10 @@ export interface EmptyStateProps {
   description: string;
   actionLabel?: string;
   onAction?: () => void;
+  /** Escape hatch for a caller that owns its own trigger + modal (e.g. AddCourseModal) --
+   *  same rationale as web's EmptyState: mirrors apps/web/src/components/ui/EmptyState.tsx's
+   *  `action` slot exactly. Takes precedence over actionLabel/onAction when both are given. */
+  action?: ReactNode;
 }
 
 const DASH_LEN = 4;
@@ -52,7 +56,7 @@ function DashedBorder({ width, height }: { width: number; height: number }) {
 }
 
 /** States what the screen is for and gives one action. Never an illustration, never a mood. */
-export function EmptyState({ title, description, actionLabel, onAction }: EmptyStateProps) {
+export function EmptyState({ title, description, actionLabel, onAction, action }: EmptyStateProps) {
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   function handleLayout(e: LayoutChangeEvent) {
@@ -65,11 +69,11 @@ export function EmptyState({ title, description, actionLabel, onAction }: EmptyS
       <DashedBorder width={size.width} height={size.height} />
       <Text style={textStyle("title", color.ink)}>{title}</Text>
       <Text style={textStyle("body", color.inkMuted)}>{description}</Text>
-      {actionLabel && onAction ? (
+      {action ?? (actionLabel && onAction ? (
         <Button variant="secondary" onPress={onAction}>
           {actionLabel}
         </Button>
-      ) : null}
+      ) : null)}
     </View>
   );
 }
