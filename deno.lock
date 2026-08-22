@@ -32,6 +32,7 @@
             "npm:@expo-google-fonts/ibm-plex-sans@~0.4.1",
             "npm:@expo-google-fonts/ibm-plex-serif@~0.4.1",
             "npm:@react-native-async-storage/async-storage@2.2.0",
+            "npm:@react-native-community/datetimepicker@9.1.0",
             "npm:@supabase/supabase-js@2.112.3",
             "npm:@testing-library/react-native@14.0.1",
             "npm:@types/jest@^29.5.14",
