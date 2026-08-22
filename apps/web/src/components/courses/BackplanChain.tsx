@@ -1,17 +1,19 @@
 import type { BackplanChain as BackplanChainData } from "@/lib/loadBackplanChains";
+import { formatShortDate } from "@/lib/dates";
 
 function phaseLabel(phase: string): string {
   return phase.replace(/_/g, " ");
 }
 
 /** The backplan's milestone chain for one deliverable — expanded inline, not collapsed,
- *  per SCREEN_SPEC: a compressed plan is flagged, an infeasible one is unmissable. */
+ *  per SCREEN_SPEC: a compressed plan is flagged, an infeasible one is unmissable. One row
+ *  per phase (not a `·`-joined run-on) so phase / date / duration read as distinct fields. */
 export function BackplanChain({ chain }: { chain: BackplanChainData | undefined }) {
   if (!chain) return null;
   const { backplan, milestones } = chain;
 
   return (
-    <div className="mt-1 flex flex-col gap-1">
+    <div className="mt-1 flex flex-col gap-1.5">
       {backplan.infeasible ? (
         <p className="text-body-s text-risk-critical">
           Backplan infeasible — short {backplan.shortfall_minutes} min even with everything droppable dropped.
@@ -22,13 +24,18 @@ export function BackplanChain({ chain }: { chain: BackplanChainData | undefined 
         </p>
       ) : null}
       {milestones.length > 0 ? (
-        <ul className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-caption">
+        <ol className="flex flex-col gap-0.5">
           {milestones.map((m) => (
-            <li key={m.id} className={m.completed ? "text-ink-faint line-through" : "text-ink-muted"}>
-              {phaseLabel(m.phase)} · {m.milestone_date} · {m.minutes}m
+            <li
+              key={m.id}
+              className={`flex items-baseline gap-3 font-mono text-caption ${m.completed ? "text-ink-faint line-through" : "text-ink-muted"}`}
+            >
+              <span className="w-28 shrink-0 capitalize">{phaseLabel(m.phase)}</span>
+              <span className="w-14 shrink-0 tabular-nums">{formatShortDate(m.milestone_date)}</span>
+              <span className="tabular-nums">{m.minutes}m</span>
             </li>
           ))}
-        </ul>
+        </ol>
       ) : null}
     </div>
   );

@@ -215,7 +215,7 @@ function CalendarView({ state }: { state: ReturnType<typeof useCalendarData> }) 
   return (
     <View style={{ gap: space[6] }}>
       <View style={{ gap: space[2] }}>
-        <Text style={textStyle("label", color.inkMuted)}>Available time, next two weeks</Text>
+        <Text style={textStyle("label", color.inkMuted)}>Uncommitted time, next two weeks</Text>
         <CapacityStrip days={capacity} />
       </View>
 

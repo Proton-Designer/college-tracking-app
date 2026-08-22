@@ -15,7 +15,7 @@ export function HorizonView({ data }: { data: CalendarData }) {
   return (
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
-        <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Available time, next two weeks</h2>
+        <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Uncommitted time, next two weeks</h2>
         <CapacityStrip days={data.capacity} />
       </section>
 

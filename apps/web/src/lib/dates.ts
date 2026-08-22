@@ -9,3 +9,8 @@ export function daysRemainingLabel(today: LocalDate, localDueDate: LocalDate): s
   if (days === 1) return "due tomorrow";
   return `due in ${days} days`;
 }
+
+/** "Aug 21" — a raw ISO date is never shown directly to a user. */
+export function formatShortDate(localDate: LocalDate): string {
+  return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${localDate}T00:00:00Z`));
+}

@@ -8,8 +8,13 @@ function weekdayLabel(localDate: string): string {
   return new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: "UTC" }).format(new Date(`${localDate}T00:00:00Z`));
 }
 
-/** Available minutes per day over the near horizon — ported from web's CapacityStrip,
- *  same deliberately-just-the-computed-number choice (no committed-vs-total bar). */
+/** Uncommitted minutes per day over the near horizon -- ported from web's CapacityStrip,
+ *  same deliberately-just-the-computed-number choice (no committed-vs-total bar).
+ *
+ *  The numbers cluster tightly (typically ~12h-17h), so a tall solid bar chart exaggerates
+ *  a flat, low-information range into the visually dominant element on the page. The
+ *  number is the actual content; the bar is now a minor underline-style indicator beneath
+ *  it, not the other way around. */
 export function CapacityStrip({ days }: { days: DayCapacity[] }) {
   if (days.length === 0) return null;
   const maxMinutes = Math.max(...days.map((d) => d.availableMinutes), 1);
@@ -18,22 +23,20 @@ export function CapacityStrip({ days }: { days: DayCapacity[] }) {
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
       {days.map((d) => (
         <View key={d.date} style={styles.column}>
-          <View style={styles.track}>
-            <View style={[styles.fill, { height: `${Math.max(4, (d.availableMinutes / maxMinutes) * 100)}%` }]} />
-          </View>
           <Text style={textStyle("caption", color.inkFaint)}>{weekdayLabel(d.date)}</Text>
-          <Text style={textStyle("caption", color.inkMuted)}>{fmtMinutes(d.availableMinutes)}</Text>
+          <Text style={textStyle("caption", color.ink)}>{fmtMinutes(d.availableMinutes)}</Text>
+          <View style={styles.track}>
+            <View style={[styles.fill, { width: `${Math.max(8, (d.availableMinutes / maxMinutes) * 100)}%` }]} />
+          </View>
         </View>
       ))}
     </ScrollView>
   );
 }
 
-const TRACK_HEIGHT = 64;
-
 const styles = StyleSheet.create({
   row: {
-    gap: space[2],
+    gap: space[3],
     paddingBottom: space[1],
   },
   column: {
@@ -42,16 +45,16 @@ const styles = StyleSheet.create({
     gap: space[1],
   },
   track: {
-    height: TRACK_HEIGHT,
+    height: 3,
     width: "100%",
-    justifyContent: "flex-end",
-    borderRadius: radius.sm,
+    borderRadius: radius.pill,
     backgroundColor: color.surfaceSunken,
     overflow: "hidden",
   },
   fill: {
-    width: "100%",
-    borderRadius: radius.sm,
+    height: "100%",
+    borderRadius: radius.pill,
     backgroundColor: color.accent,
+    opacity: 0.5,
   },
 });
