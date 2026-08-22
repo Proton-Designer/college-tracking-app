@@ -130,7 +130,7 @@ test.describe("E0 manual path: a brand-new account can add a real course with no
       await page.getByLabel("Category").fill("exam_prep");
       await page.getByLabel("Planned date").fill("2026-12-08");
       await page.getByRole("button", { name: "Add task", exact: true }).last().click();
-      await expect(page.getByText("Retrieval practice block")).toBeVisible();
+      await expect(page.getByText("Retrieval practice block", { exact: true })).toBeVisible();
 
       // Configure that task's proof-of-work requirement.
       await page.getByLabel("Requires proof of work").click();
