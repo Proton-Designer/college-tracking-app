@@ -124,6 +124,30 @@ passes* were both true the whole time.
 
 ---
 
+## 🔴🔴 B1/B2 — Course detail is broken on both platforms (Lead, 2026-08-22)
+
+| # | Item | Notes |
+|---|---|---|
+| 🔴 B1 | **`/courses/[id]` returns a hard 500 on every course, both platforms** | `computeRiskAssessment` (`packages/api/src/day/risk.ts`) fetches deliverables **unscoped by course** (`.eq('user_id', userId)`), but builds `courseById` only from the `courses: CourseFacts[]` **parameter** — and both course-detail loaders (`apps/web/src/app/(app)/courses/[id]/data.ts:59`, `apps/mobile/src/lib/useCourseDetailData.ts:72`) pass a **single-element** array. Every deliverable belonging to another course misses the map and hits the deliberate `throw` at `risk.ts:130`. Broken for any account with deliverables in more than one course — i.e. every realistic account. **Pre-existing**, verified: neither file was modified in the working tree when found. |
+| 🔴 B2 | **Archiving a course will 500 the Courses list, Calendar and Today** | Latent, introduced with `courses.archived_at`. `listCourses` now excludes archived courses, so `courseFacts` in `courses/data.ts:48` and `calendar/data.ts:56` excludes them — while `computeRiskAssessment` still fetches *all* deliverables including archived courses'. Same missing-course `throw`. The column works and its pgTAP passes; the failure only appears once a user actually archives something. |
+
+**One fix covers both:** scope the deliverables query to the course ids passed in
+(`.in('course_id', courses.map(c => c.id))`). That makes the function's contract honest — *risk for
+these courses* — and is behaviour-preserving for the existing all-courses callers, since `.in()`
+over every course id is equivalent to unscoped.
+
+**Keep the `throw` at `risk.ts:130`.** It is correct and it did its job: it failed loud rather than
+rendering a fabricated course label, which is the only reason this was found at all. Do not soften
+it into a filter or a fallback.
+
+**Why it was never caught:** there is **zero E2E coverage of course detail** — nothing in
+`apps/web/e2e/*.spec.ts` visits `/courses/`. The live check recorded in `HANDOFF.md` was of the
+Courses *list*, which is fine, not course *detail*, which has never worked. A route that hard-500s
+on every real account with no test touching it is the actual root cause; the query scoping is just
+the proximate one.
+
+---
+
 ## Smaller items from the 2026-08-22 live review
 
 | # | Item | Notes |
