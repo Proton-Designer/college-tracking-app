@@ -26,7 +26,7 @@ export interface ExperimentOutcome {
 
 // Need enough days to meaningfully split the trial window in half and still see signal
 // in each half -- same reasoning as detectCalibrationInsight's minimum.
-const MIN_MEASUREMENTS = 4;
+export const MIN_EXPERIMENT_MEASUREMENTS = 4;
 // A real-world threshold: less than a 10% relative move off baseline isn't a result
 // worth calling significant, even from a clean trial.
 const NOISE_FLOOR_PCT = 10;
@@ -48,7 +48,7 @@ export function computeExperimentOutcome(
   hypothesizedDirection: ExperimentDirection,
   measurements: ExperimentMeasurement[],
 ): ExperimentOutcome | null {
-  if (measurements.length < MIN_MEASUREMENTS) return null;
+  if (measurements.length < MIN_EXPERIMENT_MEASUREMENTS) return null;
 
   const sorted = [...measurements].sort((a, b) => a.localDate.localeCompare(b.localDate));
   const trialMeanValue = mean(sorted);

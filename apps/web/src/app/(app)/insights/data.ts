@@ -8,6 +8,7 @@ import {
   getUserLocalToday,
   listActiveInsights,
   listCalibrationTable,
+  getExperimentOutcome,
   listExperimentMeasurements,
   listExperiments,
   listKillHabits,
@@ -17,7 +18,7 @@ import {
   type Insight,
   type KillHabitRow,
 } from "@collegeos/api";
-import { addDays, type BounceBackResult, type CauseTrendEntry, type FrictionDistribution, type PlanningExecutionResult } from "@collegeos/core";
+import { addDays, type BounceBackResult, type ExperimentOutcome, type CauseTrendEntry, type FrictionDistribution, type PlanningExecutionResult } from "@collegeos/core";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
 const WINDOW_DAYS = 30;
@@ -31,6 +32,11 @@ export interface InsightsByTier {
 export interface ActiveExperiment {
   experiment: Experiment;
   measurements: ExperimentMeasurementRow[];
+  /** The live deterministic verdict (U9). Null is a real, expected state, not an error:
+   *  the trial declared no baseline/direction/metric, or hasn't accumulated enough
+   *  readings yet. The UI must say which — never render a missing verdict as a neutral
+   *  or zero result. */
+  outcome: ExperimentOutcome | null;
 }
 
 export interface HabitBounceBack {
@@ -101,8 +107,15 @@ export async function loadInsightsData(): Promise<InsightsLoadResult> {
 
   const activeExperiments: ActiveExperiment[] = await Promise.all(
     runningExperimentsResult.data.map(async (experiment) => {
-      const measurementsResult = await listExperimentMeasurements(client, experiment.id);
-      return { experiment, measurements: measurementsResult.ok ? measurementsResult.data : [] };
+      const [measurementsResult, outcomeResult] = await Promise.all([
+        listExperimentMeasurements(client, experiment.id),
+        getExperimentOutcome(client, experiment.id),
+      ]);
+      return {
+        experiment,
+        measurements: measurementsResult.ok ? measurementsResult.data : [],
+        outcome: outcomeResult.ok ? outcomeResult.data : null,
+      };
     }),
   );
 

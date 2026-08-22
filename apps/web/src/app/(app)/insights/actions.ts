@@ -1,7 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createExperiment, getUserLocalToday, getOwnProfile } from "@collegeos/api";
+import {
+  createExperiment,
+  getUserLocalToday,
+  getOwnProfile,
+  logExperimentMeasurement,
+  scoreExperiment,
+} from "@collegeos/api";
 import { addDays } from "@collegeos/core";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -10,6 +16,14 @@ export interface RunExperimentInput {
   hypothesis: string;
   protocol?: string;
   durationDays: number;
+  /** U9: what this trial measures, what it was before, and which way it should move.
+   *  All three are required for a real verdict — `getExperimentOutcome` returns null
+   *  without baseline and direction, and without a metric it cannot tell this trial's
+   *  readings apart from any other. A trial created without them is unscoreable by
+   *  construction, which is exactly the state every pre-U9 experiment is stuck in. */
+  metricName: string;
+  baselineValue: number;
+  hypothesizedDirection: "increase" | "decrease";
 }
 
 export interface RunExperimentResult {
@@ -33,12 +47,110 @@ export async function runExperiment(input: RunExperimentInput): Promise<RunExper
 
   const today = getUserLocalToday(profileResult.data.timezone, new Date());
 
+  const metricName = input.metricName.trim();
+  if (!metricName) return { ok: false, error: "Name what this trial measures." };
+  if (!Number.isFinite(input.baselineValue)) {
+    return { ok: false, error: "Enter the measure's current value, so movement has something to move from." };
+  }
+
   const result = await createExperiment(client, user.id, {
     insightId: input.insightId,
     hypothesis: input.hypothesis,
     startDate: today,
     endDate: addDays(today, input.durationDays),
+    metricName,
+    baselineValue: input.baselineValue,
+    hypothesizedDirection: input.hypothesizedDirection,
     ...(input.protocol ? { protocol: input.protocol } : {}),
+  });
+  if (!result.ok) return { ok: false, error: result.error.message };
+
+  revalidatePath("/insights");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// U9 — closing the experiment loop.
+//
+// Before this, `createExperiment` was the only reachable write: a user could START a
+// trial and then had no way to record a single reading or score it. `logExperimentMeasurement`,
+// `scoreExperiment` and `getExperimentOutcome` all existed, fully tested, with zero callers
+// on either platform — so the Learn step of the closed loop dead-ended, and the demo
+// account sat on "Day 8 of 7 · no measurements logged yet" forever.
+// ---------------------------------------------------------------------------
+
+export interface LogMeasurementInput {
+  experimentId: number;
+  metric: string;
+  value: number;
+}
+
+export interface ActionResult {
+  ok: boolean;
+  error?: string;
+}
+
+/** One reading for a running trial. The date is always the user's own local today —
+ *  never `new Date().toISOString()`, which is a UTC date and would file an evening
+ *  reading under tomorrow for anyone east of UTC and under yesterday for anyone west
+ *  of it (B4). */
+export async function logMeasurement(input: LogMeasurementInput): Promise<ActionResult> {
+  const client = await getServerSupabaseClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const metric = input.metric.trim();
+  if (!metric) return { ok: false, error: "Name the measure you're recording." };
+  if (!Number.isFinite(input.value)) return { ok: false, error: "Enter a number." };
+
+  const profileResult = await getOwnProfile(client);
+  if (!profileResult.ok) return { ok: false, error: profileResult.error.message };
+  const today = getUserLocalToday(profileResult.data.timezone, new Date());
+
+  const result = await logExperimentMeasurement(client, user.id, {
+    experimentId: input.experimentId,
+    metric,
+    value: input.value,
+    localDate: today,
+  });
+  if (!result.ok) return { ok: false, error: result.error.message };
+
+  revalidatePath("/insights");
+  return { ok: true };
+}
+
+export interface CloseExperimentInput {
+  experimentId: number;
+  status: "completed" | "abandoned";
+  outcomeSummary: string;
+}
+
+/** Closes a trial. The deterministic verdict is computed separately and shown to the user
+ *  before they write this summary — it informs the text, it does not replace it. Scoring
+ *  what actually happened is the user's job; the engine's job is to stop them
+ *  misremembering it. */
+export async function closeExperiment(input: CloseExperimentInput): Promise<ActionResult> {
+  const client = await getServerSupabaseClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const summary = input.outcomeSummary.trim();
+  if (!summary) return { ok: false, error: "Say what happened — a closed trial with no finding teaches nothing." };
+
+  const profileResult = await getOwnProfile(client);
+  if (!profileResult.ok) return { ok: false, error: profileResult.error.message };
+  const today = getUserLocalToday(profileResult.data.timezone, new Date());
+
+  // endDate is required by scoreExperiment on purpose: the data layer has no timezone,
+  // so a default there would necessarily be a UTC date in a local-date column.
+  const result = await scoreExperiment(client, input.experimentId, {
+    status: input.status,
+    outcomeSummary: summary,
+    endDate: today,
   });
   if (!result.ok) return { ok: false, error: result.error.message };
 

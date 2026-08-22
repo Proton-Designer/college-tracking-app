@@ -28,6 +28,12 @@ export interface CreateExperimentInput {
    *  as baselineValue -- both must be present for computeExperimentOutcome to run at
    *  all, see getExperimentOutcome below. */
   hypothesizedDirection?: ExperimentDirection;
+  /** The single measurable this trial scores (U9, migration 0032). Optional only so
+   *  that historical trials -- created before the column existed, and unscoreable for
+   *  exactly that reason -- remain representable. Every new trial should declare one:
+   *  without it getExperimentOutcome cannot restrict itself to the readings that
+   *  actually belong to this trial. */
+  metricName?: string;
 }
 
 /** "Observe → hypothesize → N-of-1 experiment → measure" -- the brief's alternative to
@@ -48,6 +54,7 @@ export async function createExperiment(
       end_date: input.endDate ?? null,
       baseline_value: input.baselineValue ?? null,
       hypothesized_direction: input.hypothesizedDirection ?? null,
+      metric_name: input.metricName ?? null,
       status: 'running',
     })
     .select()
@@ -123,7 +130,7 @@ export async function listExperimentMeasurements(
 export async function getExperimentOutcome(client: TypedSupabaseClient, experimentId: number): Promise<DataResult<ExperimentOutcome | null>> {
   const { data: experiment, error: experimentError } = await client
     .from('experiments')
-    .select('baseline_value, hypothesized_direction')
+    .select('baseline_value, hypothesized_direction, metric_name')
     .eq('id', experimentId)
     .single();
   if (experimentError) return dataErr(mapDataError(experimentError));
@@ -132,10 +139,24 @@ export async function getExperimentOutcome(client: TypedSupabaseClient, experime
   const measurementsResult = await listExperimentMeasurements(client, experimentId);
   if (!measurementsResult.ok) return measurementsResult;
 
+  // Only the readings that belong to THIS trial's declared measurable. Before migration
+  // 0032 there was no such column and every measurement was scored regardless of its
+  // `metric`, so a trial holding two differently-named metrics averaged them into a
+  // single verdict -- unnoticed only because no UI logged measurements at all (U9).
+  //
+  // Falls back to unfiltered when metric_name is null, which is true of every trial
+  // created before 0032. Those are unscoreable anyway (they also predate baseline_value
+  // and hypothesized_direction being captured), so the fallback preserves their existing
+  // behaviour rather than silently changing history.
+  const scored =
+    experiment.metric_name != null
+      ? measurementsResult.data.filter((m) => m.metric === experiment.metric_name)
+      : measurementsResult.data;
+
   const outcome = computeExperimentOutcome(
     Number(experiment.baseline_value),
     experiment.hypothesized_direction as ExperimentDirection,
-    measurementsResult.data.map((m) => ({ value: Number(m.value), localDate: m.local_date })),
+    scored.map((m) => ({ value: Number(m.value), localDate: m.local_date })),
   );
   return dataOk(outcome);
 }
@@ -143,9 +164,12 @@ export async function getExperimentOutcome(client: TypedSupabaseClient, experime
 export interface ScoreExperimentInput {
   status: 'completed' | 'abandoned';
   outcomeSummary: string;
-  /** Defaults to today if not given -- closing the trial is what sets the end date if
-   *  one wasn't fixed up front. */
-  endDate?: LocalDate;
+  /** The local date the trial closed. **Required, deliberately.** This used to default to
+   *  `new Date().toISOString().slice(0, 10)` -- a UTC date written into a local-date
+   *  column, the same defect family as B4. This layer has no access to the user's
+   *  timezone; the caller does. Making it required removes the fabrication at the source
+   *  rather than papering over it with a default that is wrong for most of the day. */
+  endDate: LocalDate;
 }
 
 export interface ScoreExperimentResult {
@@ -173,7 +197,7 @@ export async function scoreExperiment(
     .update({
       status: input.status,
       outcome_summary: input.outcomeSummary,
-      end_date: input.endDate ?? new Date().toISOString().slice(0, 10),
+      end_date: input.endDate,
     })
     .eq('id', experimentId)
     .select()

@@ -3,7 +3,7 @@
 import type { Insight } from "@collegeos/api";
 import { useState, useTransition } from "react";
 import { runExperiment } from "@/app/(app)/insights/actions";
-import { Button, Input, Textarea } from "@/components/ui";
+import { Button, Input, Select, Textarea } from "@/components/ui";
 import type { InsightsByTier } from "@/app/(app)/insights/data";
 
 const TIER_BORDER: Record<keyof InsightsByTier, string> = {
@@ -85,6 +85,9 @@ function RunExperimentForm({
   const [hypothesis, setHypothesis] = useState(defaultHypothesis);
   const [protocol, setProtocol] = useState("");
   const [durationDays, setDurationDays] = useState("7");
+  const [metricName, setMetricName] = useState("");
+  const [baselineValue, setBaselineValue] = useState("");
+  const [direction, setDirection] = useState<"increase" | "decrease">("decrease");
   const [error, setError] = useState<string | null>(null);
   const [started, setStarted] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -95,6 +98,15 @@ function RunExperimentForm({
       setError("Enter a duration in days.");
       return;
     }
+    if (!metricName.trim()) {
+      setError("Name the one thing this trial measures.");
+      return;
+    }
+    const baseline = Number(baselineValue);
+    if (baselineValue.trim() === "" || !Number.isFinite(baseline)) {
+      setError("Enter the measure's value now — movement needs something to move from.");
+      return;
+    }
     setError(null);
     startTransition(async () => {
       const result = await runExperiment({
@@ -102,6 +114,9 @@ function RunExperimentForm({
         hypothesis,
         ...(protocol.trim() ? { protocol: protocol.trim() } : {}),
         durationDays: days,
+        metricName: metricName.trim(),
+        baselineValue: baseline,
+        hypothesizedDirection: direction,
       });
       if (!result.ok) {
         setError(result.error ?? "Couldn't start that trial — try again.");
@@ -125,8 +140,42 @@ function RunExperimentForm({
         rows={2}
         placeholder="e.g. log minutes distracted each day"
       />
-      <div className="w-32">
-        <Input label="Duration (days)" type="number" min={1} value={durationDays} onChange={(e) => setDurationDays(e.target.value)} />
+      {/* U9: a trial with no measurable, no baseline and no predicted direction cannot be
+          scored — getExperimentOutcome returns null without them. Every experiment created
+          before these fields existed is permanently unscoreable, which is why the demo
+          account's trial sat at "no measurements logged yet" indefinitely. */}
+      <div className="flex flex-wrap gap-3">
+        <div className="min-w-[12rem] flex-1">
+          <Input
+            label="Measure"
+            value={metricName}
+            onChange={(e) => setMetricName(e.target.value)}
+            placeholder="minutes_distracted"
+          />
+        </div>
+        <div className="w-32">
+          <Input
+            label="Its value now"
+            type="number"
+            step="any"
+            value={baselineValue}
+            onChange={(e) => setBaselineValue(e.target.value)}
+          />
+        </div>
+        <div className="w-40">
+          <Select
+            label="Should move"
+            value={direction}
+            onValueChange={(v) => setDirection(v === "increase" ? "increase" : "decrease")}
+            options={[
+              { value: "decrease", label: "Down" },
+              { value: "increase", label: "Up" },
+            ]}
+          />
+        </div>
+        <div className="w-32">
+          <Input label="Duration (days)" type="number" min={1} value={durationDays} onChange={(e) => setDurationDays(e.target.value)} />
+        </div>
       </div>
       {error ? <p className="text-body-s text-risk-critical">{error}</p> : null}
       <div className="flex gap-2">

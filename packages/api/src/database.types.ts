@@ -885,6 +885,7 @@ export type Database = {
           hypothesized_direction: string | null
           id: number
           insight_id: number | null
+          metric_name: string | null
           outcome_summary: string | null
           protocol: string | null
           start_date: string
@@ -900,6 +901,7 @@ export type Database = {
           hypothesized_direction?: string | null
           id?: never
           insight_id?: number | null
+          metric_name?: string | null
           outcome_summary?: string | null
           protocol?: string | null
           start_date: string
@@ -915,6 +917,7 @@ export type Database = {
           hypothesized_direction?: string | null
           id?: never
           insight_id?: number | null
+          metric_name?: string | null
           outcome_summary?: string | null
           protocol?: string | null
           start_date?: string

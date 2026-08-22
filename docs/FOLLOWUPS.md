@@ -148,7 +148,7 @@ the proximate one.
 
 ---
 
-## 🔴🔴🔴 B4 — Day boundaries are derived from UTC across the domain layer
+## ~~🔴🔴🔴 B4~~ — Day boundaries are derived from UTC across the domain layer
 
 > **The most serious logic defect in the codebase.** It breaks the one rule `CLAUDE.md` emphasises
 > hardest: *"This product is about local days. Never derive a day boundary from UTC."*
@@ -181,7 +181,17 @@ CI happens to run at 14:00 UTC is how this survived). Fix every site including b
 copies. Check whether persisted rows are already wrong. Consider a `check:*` guard for the
 `T00:00:00Z`-concatenation idiom — if it was copied eight times, a ninth exists somewhere.
 
-## 🟡 B5 — Seeded fixtures drift against real wall-clock time, and the integration suite is red
+**Resolved (commit `3b38366`).** 15 sites measured, not "8+" — the 8 listed above plus
+`planning/weeklyPlan.ts`'s `dayCount` (correct by luck, both operands wrong the same way, cleaned up
+to `daysBetween` anyway) and a second Deno-mirror gap found while fixing this one: `domainQueries.ts`'s
+`computeRiskAssessment` had the SAME unscoped-deliverables bug B1/B2 fixed on the Node side, missed
+because only `packages/api/src/day/risk.ts` was touched when B1/B2 landed — fixed here too. Red proven
+deterministically (`dayViewTimezoneBoundary.itest.ts`, a fixed `now` inside the gap for both a
+UTC-negative and a UTC-positive zone, no wall-clock dependency), fixed by threading `timezone` through
+every affected function and replacing the naive construction with `localTimeToInstant`. Full itest
+suite green except B5 (see below, now also resolved). See B7 for the proposed guard.
+
+## ~~🟡 B5~~ — Seeded fixtures drift against real wall-clock time, and the integration suite is red
 
 Three integration tests currently fail (`agentReports.itest.ts` ×1, `dayView.itest.ts` ×2) on
 Recovery-Mode assertions, apparently because seed data is anchored to **relative offsets from
@@ -201,6 +211,70 @@ paid for itself.
 failures counting B4's.** `npm run verify` does not run the itests (they need a live DB), so *"verify
 is green"* has been simultaneously true and not the whole picture, for an unknown length of time.
 That is a D14-shaped lesson: the thing you don't run routinely is the thing that rots.
+
+**Resolved (commit `5bf5046`), properly root-caused rather than patched.** seed.sql plants everything
+relative to `current_date` AT SEED TIME — a snapshot, not a live value, that only "looks current"
+immediately after a fresh `db reset`. Three tests computed their reference dates from real
+`new Date()` and implicitly assumed it still lined up with whatever the DB was last reset to.
+Independently confirmed the drift's exact size two ways: the demo account's own `agent_reports` row
+(2026-07-28) matches `recoveryDay = seedToday - 22` exactly, and three tasks seeded as "due today"
+had drifted into "overdue within the last 7 days," independently tripping the `overdueTasks` signal
+for a reason unrelated to the 22-day-old scenario the test was actually about. Per the Lead's framing
+— *tests control `now`, not the seed becomes static* — every affected test now recovers its reference
+date directly from the seed's own persisted anchor rows (the `recovery_mode_triggered=true`
+`daily_checkins` row; the most-recent/earliest `agent_reports`/`daily_summaries` rows), never from
+real wall-clock time. `dayView.itest.ts`'s "ordinary day" test (same shape, not yet failing) got the
+same treatment on inspection — it was passing by accident against an uncorrelated date, not because
+its assertion meant anything. Audited the rest of the itest suite for the same class: every other
+`new Date()`-relative test creates its own throwaway-account fixture at test-run time (self-consistent,
+not comparing against a frozen seed snapshot) — not the same bug. 21 files, 88/88 green, twice.
+
+## ~~🟡 B6~~ — An all-day calendar event contributed a full 24h of committed time
+
+`calendar_events` has no `is_all_day` column of its own — that flag exists only on the ICS staging
+table (`ics_event_extractions`) and is used exactly once, in `brightspace/confirm.ts`, to pick a
+default duration (24h vs 1h) when `DTEND` is absent, then discarded. `confirmIcsEvent` hardcoded
+`is_busy: true` regardless, so a promoted all-day entry (a reading day, a break, a no-class day)
+looked identical to a real 24-hour timed commitment to every committed-hours consumer (`risk.ts`,
+`recoveryMode.ts`, `backplan.ts`, `workload.ts`, the Deno mirror) — deflating capacity and inflating
+risk on exactly the days a student has *more* free time, not less.
+
+**What should an all-day event contribute? Zero — not a policy preference, a constraint.** The flag
+doesn't survive promotion into `calendar_events`, so there is no way to distinguish a real all-day
+commitment (a field trip, an institution-published exam block) from a floating label ("Fall Break")
+with the data actually available. Treating it as committed time would fabricate a fact we don't have;
+the same "understate rather than invent" rule as everywhere else in this codebase.
+
+**Resolved (commit `93684fe`).** One line: `is_busy: !row.is_all_day` instead of a hardcoded `true`.
+No new column, no consumer changes — every consumer's existing `.eq('is_busy', true)` filter already
+does the right thing once it's told the truth. `confirm.ts` had **zero test coverage** before this —
+the sole write path for an entire table, untested. New `confirm.test.ts`: an all-day event proven red
+first, a timed event proving real committed time stays untouched. Checked for poisoned persisted
+data — zero `calendar_events` rows anywhere in this DB are `is_busy=true` with a >=20h span (no real
+Brightspace sync has run here), nothing to repair.
+
+## 🟡 B7 — No staleness guard for packages/api logic hand-ported into supabase/functions/_shared/
+
+`check:core-mirror` proves `supabase/functions/_shared/core` matches `packages/core/src` — but that
+guard covers **only** the domain-engine mirror. `supabase/functions/_shared/nightly/domainQueries.ts`
+is a *different* kind of duplication: hand-ported **query composition** from `packages/api/src/day/*.ts`
+(documented in its own header as deliberate, since the Deno Edge Runtime can't import
+`@supabase/supabase-js`-dependent packages the same way `_shared/core` was mechanically mirrored). It
+has zero automated staleness check.
+
+**This is exactly how B1/B2's fix went stale in one place.** `packages/api/src/day/risk.ts`'s
+unscoped-deliverables bug was fixed there, but the identical bug in `domainQueries.ts`'s hand-ported
+copy of `computeRiskAssessment` was never touched — found only because B4 happened to require editing
+the same function again for an unrelated reason. Without that coincidence, an archived course's own
+deliverable would have 500'd the nightly pipeline with no guard to catch it.
+
+**Proposed, not built:** a `check:*` script analogous to `check-core-mirror.mjs`, but structural rather
+than textual — each ported function in `domainQueries.ts` already carries a `// Ported from
+packages/api/src/day/X.ts` comment; a guard could parse those comments, diff each pair's query-shape
+essentials (selected columns, `.eq`/`.gte`/`.lt` filters, `.in()` scoping), and fail loud on drift,
+the same "impossible to forget" property the four existing `check:*` guards already have. Smaller
+version: at minimum, lint for the raw `${date}T00:00:00Z` idiom this session just spent two commits
+removing, so a tenth site can't quietly reappear.
 
 ---
 
