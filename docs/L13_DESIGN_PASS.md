@@ -55,6 +55,27 @@ to live — which is precisely why "Add course" had nowhere to go. Atlas is abou
 Define one **PageHeader** primitive: title, optional subtitle/context (date, term, range), and an
 actions slot. Both platforms. This unblocks the entire data-entry track.
 
+### 2a. Courses ending short is NOT a defect — deliberate decision, 2026-08-22 🟢
+
+Item #1 above named Courses as ending around y=400 with empty ground below. **On review that was
+wrong, and the ruling is to leave Courses alone.**
+
+Nova raised the tension correctly: this document's own "already working" section protects Courses'
+table and density, two-column pairing doesn't apply (it is one table with no independent secondary
+readout to place beside it), and the only remaining lever was bounding the table in a card to make
+the page look fuller.
+
+**Five courses is a short list.** The screen is short because the content is short, and that is the
+truth about a student with five courses. Chrome added to make a page look "full" is decoration
+standing in for content — the layout equivalent of fabricating a value, which is the exact failure
+this build spent a day removing. **A page that ends where its content ends is not a defect.**
+
+Where item #1 *was* real it has been fixed: Today had independent readouts stacked in a single column
+(now paired at ≥1280px), and Recovery Mode stretched a deliberately sparse day across the full canvas
+(now constrained to 640px). Those were composition problems. Courses is not one.
+
+Recorded so nobody "fixes" this later by adding chrome.
+
 ### 3. Rows don't look interactive 🟡
 Course rows carry no affordance — no hover treatment, no chevron, nothing that says "this opens."
 Nova already found the mobile counterpart: `CourseRow` was a bare `Pressable` with *zero* press
