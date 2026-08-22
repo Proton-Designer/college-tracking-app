@@ -1,74 +1,96 @@
 # CollegeOS — Project Status
 
 **Always current.** Updated at every layer boundary by the Lead.
-Last updated: **2026-08-22**, mid-L12/L13.
+Last updated: **2026-08-22**, end of the completion session.
 
 ---
 
 ## The headline
 
-The build is **not** in a wrap-up state. A reachability audit plus a live walkthrough as an empty
-account found that **the product has no data-entry path** — no way to create a course, a task, or an
-assignment, and no onboarding at all. See `FOLLOWUPS.md` **E1–E5** and `docs/E0_ONBOARDING_SPEC.md`.
+**The closed loop has a working surface at every step, for the first time.**
 
-Everything previously verified was verified against the **seeded demo account**. *"All screens
-render correctly"* was proven and remains true. *"A user can actually use this"* was never asked,
-and the answer is no. Closing that is the current priority.
+```
+Observe → Plan → Execute → Detect deviation → Intervene → Reflect → Learn → Update next plan
+```
+
+Two of those steps had never executed in the real request path. **Intervene** had four evaluators,
+fully tested, with no caller anywhere — the demo account held zero intervention rows. **Learn** let a
+user start an experiment and then never measure or score it, and had no decision journal at all.
+Both now close, on both platforms.
+
+And the product acquired the verb it was missing entirely: **data entry**. See `HANDOFF.md` §2 for
+why that was invisible for so long — every verification ran against a seeded demo account.
 
 ---
 
-## Verified state
+## Measured state
+
+```
+181 commits · 32 migrations · 46 tables · 0 without RLS · 11 edge functions
+web: 17 routes · mobile: 16 routes · 23 integration-test files · 8 E2E specs
+```
 
 | Suite | Count |
 |---|---|
 | `packages/core` unit | **332** |
-| pgTAP (RLS, constraints, triggers) | **356+** (new: `08_course_archive`) |
-| `packages/api` integration (live DB) | 75+ |
-| Deno edge (offline, no API key) | 84 |
-| Web E2E (Playwright, real stack) | 17 |
+| pgTAP | **459** assertions, 10 files |
+| `packages/api` integration | 100+, run twice (D14) |
+| Deno edge (offline) | 84 |
+| Web E2E (Playwright) | 8 specs, incl. the E0 acceptance test |
 
-Four guards run **before** typecheck and every one has caught a real defect:
-`check:imports` · `check:core-mirror` · `check:barrel-exports` · `check:demo-clean`.
+`npm run verify` → **exit 0**. Four guards run before typecheck; each has caught a real defect.
 
-**46 tables · 0 without RLS · 11 edge functions · 21 recorded decisions · 30+ migrations**
+**Production bundle, measured:** 1,264 KB raw / **348 KB gzipped** across 18 routes. A full day of
+new UI cost **+0.6 KB gzipped** — server-components-by-default doing its job.
+
+---
+
+## Landed this session
+
+**Data entry & onboarding (E0–E5)** — course/assignment/task CRUD, weight categories, grade
+boundaries, deliverable detail with backplan generation, syllabus upload → extract → confirm,
+Brightspace ICS confirmation, and an onboarding gate that checks for a real course rather than a
+flag. **Acceptance test passing on both platforms:** brand-new account → populated Today, no psql,
+no seed.
+
+**Loop completion** — U1 interventions · U3 proof-of-work · U5 office hours · U6 weekly planning ·
+U7 decision journal · U9 experiment measurement and scoring.
+
+**Correctness** — B1/B2 (course detail 500'd on every real course) · **B4** (day boundaries derived
+from UTC across 15 sites) · B6 (all-day events counted as 24h of committed time) · T1/T2 (Recovery
+Mode named nothing and removed all agency) · R1 · V1 (night-review voice, from the brief) · R2.
+
+**Design** — L13.0 primitives (motion, depth, five states, `PageHeader`, `Modal`, `Select`,
+Date/TimePicker) and L13.1 composition on both platforms.
+
+**Hardening** — production perf measured for the first time · security review · sparse-account pass ·
+structural accessibility audit · RLS guard fixed so it can actually fail.
 
 ---
 
 ## In flight
+- **NOVA** — the full manual user journey, both platforms (L11 §5).
+- **ATLAS** — L14 §5 full regression.
 
-- **ATLAS** (`qtqzxwut`) — **L12A, data entry.** Landed: UTC-midnight straddle fix in
-  planning-vs-execution start delay; `courses.archived_at` + 6-site read-path audit. In progress:
-  nullable `predicted_completion_pct` migration, deliverable CRUD. Then grade-category/boundary CRUD,
-  `updateCourse`/`updateTask`/`deleteTask`, and client wrappers for `syllabus-confirm` /
-  `brightspace-confirm` (**no edge function is currently app-reachable except `account-delete`**).
-- **NOVA** (`8h36nekc`) — **L13.0 complete** (5 commits: motion/press states, Panel depth, 5-state
-  audit + bare-`Pressable` sweep, `PageHeader`, tab-bar active indicator). In progress: form/modal
-  primitive + date/time picker — the last thing blocking Atlas's UI phase.
+## Remaining, doable here
+- A mid-request database-failure test — the last untested failure mode. Needs a window when nobody
+  else is using the database.
 
-## Queued
+## Deferred deliberately (with reasons, not forgotten)
+- **Offline** — "last-known data with a staleness timestamp" is a caching *feature*, not a hardening
+  task. Building it late and unproven would be worse than shipping without it and saying so.
+- **U5's contextual surfacing** and **U8** — both need a real rule or real data, not effort.
+  "Repeatedly" is not a threshold anyone gets to invent.
+- **`computeRiskAssessment`'s shared read** — 9 callers; churn at 8 sites for a gain at 1. Shape
+  filed, not scheduled.
 
-| Owner | Work |
-|---|---|
-| Nova | **T1/T2** Recovery Mode (names nothing it kept; removes every action) → **U6** weekly planning UI → **L13.1** screen composition |
-| Atlas | Onboarding + CRUD UI (E0–E5) → **U3** proof-of-work → **U7 + U9** decision journal & experiment scoring (one piece of work) |
-| Unassigned | **U1** interventions surface · **U5** office hours · **U8** semester lessons · **S9** WHOOP notification→fetch wiring |
-
-## Then: L14 hardening
-`docs/L11_HARDENING.md` — performance against a **production** build (never measured), keyboard +
-VoiceOver accessibility, sparse/failed/offline states, full regression, complete manual journey on
-both platforms.
-
----
-
-## Blocked on credentials (not on us)
-- **Supabase cloud** — `docs/SUPABASE_SETUP.md`, including **four must-fix-before-launch security
-  items**.
-- **Anthropic API key** — LLM layer complete and offline-tested. The nightly report currently
-  discloses this honestly on screen (*"No ANTHROPIC_API_KEY configured — deterministic report
-  only"*), which is the behaviour we want. On activation: if a live response shape differs from a
-  fixture, **update the fixture from reality, never patch the test to pass.**
+## Blocked (not on us)
+- **Cloud deploy** — `docs/SUPABASE_SETUP.md`, including four must-fix-before-launch security items.
+- **Anthropic key** — the model path has never run. The nightly report is produced by the
+  deterministic fallback and says so on screen.
+- **A physical device** — real VoiceOver/TalkBack, and the native date/time picker submit path.
 
 ## Key reference
-`HANDOFF.md` · `docs/L12_COMPLETION_PLAN.md` · `docs/E0_ONBOARDING_SPEC.md` ·
-`docs/L13_DESIGN_PASS.md` · `docs/L11_HARDENING.md` · `docs/FOLLOWUPS.md` ·
-`.brain/memory/decisions.md` (D1–D21) · `.brain/memory/tooling-gotchas.md`
+`HANDOFF.md` · `docs/FOLLOWUPS.md` · `docs/L11_HARDENING.md` · `docs/L13_DESIGN_PASS.md` ·
+`docs/E0_ONBOARDING_SPEC.md` · `.brain/memory/decisions.md` (D1–D22) ·
+`.brain/memory/tooling-gotchas.md`
