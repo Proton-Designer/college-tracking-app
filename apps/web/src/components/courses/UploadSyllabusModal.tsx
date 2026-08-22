@@ -146,7 +146,7 @@ export function UploadSyllabusModal({ courseId }: { courseId: number }) {
               ) : (
                 <ul className="flex flex-col gap-3">
                   {state.items.map((item) => (
-                    <li key={item.id} className="flex flex-col gap-2 rounded-md border border-border p-3">
+                    <li key={item.id} className="glass-sunken flex flex-col gap-2 rounded-md p-3">
                       <span className="text-body-s text-ink">{itemLabel(item)}</span>
                       <span className="font-mono text-caption text-ink-faint">
                         Model confidence: {Math.round(item.extraction_confidence * 100)}%

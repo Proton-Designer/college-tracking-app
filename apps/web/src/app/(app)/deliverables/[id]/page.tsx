@@ -2,7 +2,7 @@ import Link from "next/link";
 import { DeliverableTasksSection } from "@/components/deliverables/DeliverableTasksSection";
 import { EditDeliverableModal } from "@/components/deliverables/EditDeliverableModal";
 import { GenerateBackplanSection } from "@/components/deliverables/GenerateBackplanSection";
-import { PageHeader } from "@/components/ui";
+import { Aurora, PageHeader } from "@/components/ui";
 import { daysRemainingLabel } from "@/lib/dates";
 import { loadDeliverableDetail } from "./data";
 
@@ -40,6 +40,10 @@ export default async function DeliverableDetailPage({ params }: { params: Promis
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-8 px-8 py-10">
+      {/* §6.0 -- resting wash. No risk assessment is loaded for a single deliverable here
+          (loadDeliverableDetail doesn't call computeRiskAssessment), so there's no real band
+          to derive without adding a query this screen doesn't otherwise need. */}
+      <Aurora />
       <div className="flex flex-col gap-1">
         <Link
           href={`/courses/${course.id}`}
