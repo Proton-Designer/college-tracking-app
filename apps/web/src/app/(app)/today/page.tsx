@@ -9,6 +9,7 @@ import { KillListSection } from "@/components/today/KillListSection";
 import { MitList } from "@/components/today/MitList";
 import { OnboardingGate } from "@/components/today/OnboardingGate";
 import { QuickAddTaskModal } from "@/components/today/QuickAddTaskModal";
+import { InterventionsSection } from "@/components/today/InterventionsSection";
 import { RecoveryBanner } from "@/components/today/RecoveryBanner";
 import { UnplannedGate } from "@/components/today/UnplannedGate";
 import { WorkloadBand } from "@/components/today/WorkloadBand";
@@ -116,7 +117,7 @@ export default async function TodayPage({
     );
   }
 
-  const { dayView, courses, mode, killHabits, activeFocusSession, now } = result.data;
+  const { dayView, courses, mode, killHabits, activeFocusSession, interventions, now } = result.data;
   const hasAnyData =
     dayView.todayTasks.length > 0 || dayView.todayCalendarEvents.length > 0 || dayView.upcomingDeliverables.length > 0;
   const mitItems = buildMitItems(dayView, courses);
@@ -177,6 +178,13 @@ export default async function TodayPage({
         taskSessions={dayView.todayTaskSessions}
         tasks={dayView.todayTasks}
       />
+
+      {/* U1 sits above the mode-specific body in every mode. An intervention fires because
+          something has already gone off-plan, so it outranks whatever the day was otherwise
+          going to show -- and burying it inside one mode's branch would mean the deviation
+          prompt never appears on precisely the days it matters most. Renders nothing when
+          there is nothing pending. */}
+      <InterventionsSection interventions={interventions} />
 
       {mode === "recovery" ? (
         <div className="flex flex-col gap-8">

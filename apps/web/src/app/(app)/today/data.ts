@@ -4,8 +4,11 @@ import {
   getDayView,
   listCourses,
   listKillHabits,
+  listPendingInterventions,
+  runInterventionSweep,
   type Course,
   type DayView,
+  type InterventionRow,
   type KillHabitRow,
   type TaskSessionRow,
 } from "@collegeos/api";
@@ -25,6 +28,10 @@ export interface TodayData {
    *  "Resume focus" rather than trying to start a second one (the backend would reject
    *  it anyway; this just gives the UI a truthful state to render instead of an error). */
   activeFocusSession: TaskSessionRow | null;
+  /** U1 -- prompts awaiting a decision. Includes both `pending` and `delivered`: seeing one
+   *  doesn't answer it, so a delivered prompt stays on screen until the user responds or
+   *  dismisses it. */
+  interventions: InterventionRow[];
   /** The instant getDayView was computed against — passed to the Day Trace's live cursor so
    *  it never drifts from what the query actually saw. */
   now: Date;
@@ -85,6 +92,17 @@ export async function loadTodayData(options?: { asOf?: Date }): Promise<TodayLoa
     return { ok: false, error: activeFocusSessionResult.error.message };
   }
 
+  // U1. Runs AFTER the reads above rather than alongside them, because the sweep writes
+  // intervention rows and the list has to see what it just created. Every evaluator dedupes,
+  // so re-running on each load produces nothing new.
+  //
+  // A failed sweep is deliberately not fatal: interventions are advisory, and losing today's
+  // prompts should never cost the user the Today screen itself. runInterventionSweep collects
+  // failures rather than throwing, and a failed listing degrades to no prompts rather than an
+  // error page.
+  await runInterventionSweep(client, user.id, dayViewResult.data.today, now);
+  const interventionsResult = await listPendingInterventions(client, user.id);
+
   return {
     ok: true,
     data: {
@@ -93,6 +111,7 @@ export async function loadTodayData(options?: { asOf?: Date }): Promise<TodayLoa
       mode: decideMode(dayViewResult.data, coursesResult.data.length),
       killHabits: killHabitsResult.data,
       activeFocusSession: activeFocusSessionResult.data,
+      interventions: interventionsResult.ok ? interventionsResult.data : [],
       now,
     },
   };

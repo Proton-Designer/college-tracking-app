@@ -68,7 +68,12 @@ export async function evaluateUpcomingBlockNotifications(
 
     const result = await createIntervention(client, userId, {
       kind: 'exception_notification',
-      triggerReason: decision.reason!,
+      // triggerReason is the EVIDENCE, message is what the user reads. They were the same
+      // string, which made the UI render one sentence twice and -- worse -- meant the
+      // record of *why* an intervention fired carried no measurement at all. The whole
+      // claim of this product is that it argues from the record; an intervention that
+      // can't show its working is asking for trust it hasn't earned.
+      triggerReason: `Block begins in ${decision.minutesUntilStart} min`,
       message: decision.reason!,
       actions: ['Start', 'Move block'],
       relatedTaskId: task.id,
@@ -125,7 +130,7 @@ export async function evaluateDeviationPrompts(
 
     const result = await createIntervention(client, userId, {
       kind: 'deviation_prompt',
-      triggerReason: decision.reason!,
+      triggerReason: `${decision.minutesLate} min past planned start, no session started`,
       message: decision.reason!,
       actions: [...DEVIATION_PROMPT_ACTIONS],
       relatedTaskId: task.id,
@@ -271,7 +276,7 @@ export async function evaluateStaleTaskPrompts(client: TypedSupabaseClient, user
 
     const result = await createIntervention(client, userId, {
       kind: 'stale_task_prompt',
-      triggerReason: decision.reason!,
+      triggerReason: `Planned ${decision.daysSincePlanned} days ago, never started`,
       message: decision.reason!,
       actions: [...STALE_TASK_PROMPT_ACTIONS],
       relatedTaskId: task.id,
