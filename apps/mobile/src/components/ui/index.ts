@@ -51,3 +51,5 @@ export type { ToastProps, ToastVariant } from "./Toast";
 export { ToastProvider, useToast } from "./ToastProvider";
 export { Toggle } from "./Toggle";
 export type { ToggleProps } from "./Toggle";
+export { WarningCard } from "./WarningCard";
+export type { WarningCardProps } from "./WarningCard";

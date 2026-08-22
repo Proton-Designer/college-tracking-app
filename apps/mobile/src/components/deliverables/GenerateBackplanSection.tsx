@@ -2,7 +2,7 @@ import { color, space } from "@collegeos/design/native";
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { BackplanChain } from "../courses/BackplanChain";
-import { Button, FieldError, Panel } from "../ui";
+import { Button, FieldError, Panel, WarningCard } from "../ui";
 import { useToast } from "../ui/ToastProvider";
 import { textStyle } from "../../design/typography";
 import { generateBackplanAction } from "../../lib/deliverableActions";
@@ -50,7 +50,7 @@ export function GenerateBackplanSection({
         <>
           <BackplanChain chain={chain} />
           {confirmingForce ? (
-            <View style={{ gap: space[2], borderRadius: 6, borderWidth: 1, borderColor: color.riskHigh, backgroundColor: color.riskHighWash, padding: space[3] }}>
+            <WarningCard>
               <Text style={textStyle("bodyS", color.riskHigh)}>
                 This plan has milestones already marked done. Regenerating replaces the whole plan and discards that progress.
               </Text>
@@ -62,7 +62,7 @@ export function GenerateBackplanSection({
                   Cancel
                 </Button>
               </View>
-            </View>
+            </WarningCard>
           ) : (
             <View style={{ alignSelf: "flex-start" }}>
               <Button variant="secondary" onPress={() => generate(false)} loading={isPending}>

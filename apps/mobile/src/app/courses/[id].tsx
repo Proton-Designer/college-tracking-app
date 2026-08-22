@@ -1,4 +1,4 @@
-import { color, radius, shadow, space } from "@collegeos/design/native";
+import { color, space } from "@collegeos/design/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,9 +9,8 @@ import { EditCourseModal } from "../../components/courses/EditCourseModal";
 import { GradeBoundariesSection } from "../../components/courses/GradeBoundariesSection";
 import { GradeCategoriesSection } from "../../components/courses/GradeCategoriesSection";
 import { ScenarioPlanner } from "../../components/courses/ScenarioPlanner";
-import { Aurora, Button, GlassSurface, Metric, NavLink, Panel, RiskPill, Skeleton } from "../../components/ui";
+import { Aurora, Button, Metric, NavLink, Panel, RiskPill, Skeleton, WarningCard } from "../../components/ui";
 import { textStyle } from "../../design/typography";
-import { tintWithAlpha } from "../../lib/colorAlpha";
 import { useAuthSession } from "../../lib/useAuthSession";
 import { type CourseDetailData, useCourseDetailData } from "../../lib/useCourseDetailData";
 
@@ -122,14 +121,12 @@ function CourseDetailReady({
       </View>
 
       {weightSumIssue ? (
-        <View style={styles.warningShadow}>
-          <GlassSurface tier="base" style={styles.warningClip} contentStyle={[styles.warningContent, { backgroundColor: tintWithAlpha(color.riskHigh, 0.07) }]}>
-            <Text style={textStyle("bodyS", color.riskHigh)}>
-              {weightSumIssue.message} — category weights are never silently normalized, so this course&apos;s grade math is provisional until
-              the weights add up to 100.
-            </Text>
-          </GlassSurface>
-        </View>
+        <WarningCard>
+          <Text style={textStyle("bodyS", color.riskHigh)}>
+            {weightSumIssue.message} — category weights are never silently normalized, so this course&apos;s grade math is provisional until
+            the weights add up to 100.
+          </Text>
+        </WarningCard>
       ) : null}
 
       {gradeResult ? (
@@ -258,16 +255,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: space[7],
-  },
-  warningShadow: {
-    borderRadius: radius.lg,
-    ...shadow.glass,
-  },
-  warningClip: {
-    borderRadius: radius.lg,
-  },
-  warningContent: {
-    padding: space[4],
   },
   policyPanel: {
     gap: space[3],

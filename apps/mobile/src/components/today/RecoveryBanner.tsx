@@ -1,11 +1,10 @@
 import type { CalendarEvent, Task } from "@collegeos/api";
 import type { MvdCandidateItem, MvdPlan, RecoveryModeResult } from "@collegeos/core";
-import { color, radius, shadow, space } from "@collegeos/design/native";
+import { color, space } from "@collegeos/design/native";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { textStyle } from "../../design/typography";
-import { tintWithAlpha } from "../../lib/colorAlpha";
-import { GlassSurface } from "../ui";
+import { WarningCard } from "../ui";
 
 const EVENT_ID_PREFIX = "event-";
 
@@ -36,16 +35,8 @@ function itemLabel(item: MvdCandidateItem, tasksById: Map<number, Task>, eventsB
   return task?.title ?? KIND_LABEL[item.kind];
 }
 
-/** §2 -- glass-base, the same tier and `glassEdge` border as every other card (a hard
- *  solid-color border was the first attempt and it read as v1: flat, no depth, visibly a
- *  different design language from the intervention cards beside it). The alert identity
- *  lives in the eyebrow ("Recovery Mode active", already `riskHigh`) and a *low*-alpha
- *  riskHigh tint on top of the neutral glass -- not a border override, not an opaque fill.
- *  The tint is painted as an ordinary background on GlassSurface's own content wrapper (not
- *  a separate absolutely-positioned overlay), so it sits behind its own children the normal
- *  way -- no extra position/zIndex bookkeeping needed, per the stacking lesson from
- *  FOLLOWUPS/§2.2. */
-
+/** A `WarningCard` (§2 glass-base + a low-alpha riskHigh tint) -- see that component for why
+ *  this isn't a hard-bordered flat box. */
 export function RecoveryBanner({
   recoveryMode,
   mvdPlan,
@@ -63,12 +54,7 @@ export function RecoveryBanner({
   const activeSignals = recoveryMode.signals.filter((s) => s.active);
 
   return (
-    <View style={styles.shadowWrap}>
-      <GlassSurface
-        tier="base"
-        style={styles.clip}
-        contentStyle={[styles.content, { backgroundColor: tintWithAlpha(color.riskHigh, 0.07) }]}
-      >
+    <WarningCard contentStyle={styles.content}>
         <Text style={textStyle("label", color.riskHigh)}>Recovery Mode active</Text>
         <Text style={[textStyle("body", color.ink), styles.intro]}>
           Today is scaled down to the minimum viable day. Nothing that doesn&apos;t fit is dropped — it&apos;s rolled
@@ -116,19 +102,11 @@ export function RecoveryBanner({
             </Text>
           </View>
         ) : null}
-      </GlassSurface>
-    </View>
+    </WarningCard>
   );
 }
 
 const styles = StyleSheet.create({
-  shadowWrap: {
-    borderRadius: radius.lg,
-    ...shadow.glass,
-  },
-  clip: {
-    borderRadius: radius.lg,
-  },
   content: {
     padding: space[5],
     gap: space[1],
