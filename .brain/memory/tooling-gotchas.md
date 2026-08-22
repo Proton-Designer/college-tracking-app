@@ -174,3 +174,40 @@ fails the accessibility requirement it looks like it satisfies. Use
 `reduceMotionChanged` event and updates live. Verified by reading the library source, not assumed.
 
 **Do not "simplify" this back to the built-in hook.**
+
+---
+
+## Mobile visual verification: use Expo Web, not only the simulator
+
+**The simulator is not the only way to see the mobile app, and it is the least reliable one here.**
+`HANDOFF.md` §5.2 records mobile visual rendering as our least-verified area because `idb ui text`
+corrupts input and blocks sign-in. Two separate attempts have now failed — including a dispatched
+sim-pilot run that went **fully dark for 45 minutes** and produced no screenshot, no partial finding
+and no reply to a direct status check.
+
+**Expo Web works and takes about a minute:**
+
+```bash
+cd apps/mobile && npx expo start --web --port 8082
+```
+
+`react-native-web` is already a dependency and `app.json` already declares web output, so no setup is
+needed. Sign-in works **instantly** through normal browser text entry — the entire class of
+simulator text-injection corruption simply does not exist. Drive it with Playwright at a phone
+viewport (414×896) and screenshot freely.
+
+Verified 2026-08-22: welcome screen, sign-in, Today (Recovery Mode), and Insights all rendered, and
+it confirmed **T1 reproduces identically on mobile** ("Class / commitment" ×3) plus that Nova's new
+tab-bar active indicator renders correctly.
+
+**What it does NOT prove — state this whenever you cite it as evidence:**
+- Native pickers (`@react-native-community/datetimepicker` renders differently or not at all)
+- Real iOS/Android font rasterisation, shadows, and blur
+- How a spring animation actually *feels* on device
+- Safe-area insets, notch/home-indicator clearance, and true tab-bar height
+- Keyboard behaviour, including the dictation key that is mobile's half of V1
+- VoiceOver / TalkBack
+
+**So it is not a substitute for an on-device pass before launch.** It is a fast, reliable way to
+verify layout, states, copy, data flow, and component behaviour — which is most of what a UI change
+needs — instead of verifying nothing at all because the simulator is wedged.
