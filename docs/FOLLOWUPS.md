@@ -124,6 +124,21 @@ passes* were both true the whole time.
 
 ---
 
+## Smaller items from the 2026-08-22 live review
+
+| # | Item | Notes |
+|---|---|---|
+| 🟡 R1 | **Night review shows `0/0 completed` and `0 / 0 min` on a day with nothing planned** | On the demo account's current day, "TONIGHT'S NUMBERS" reads `MITS 0/0 completed` · `DEEP WORK 0 / 0 min`. `0/0` reads as failure; it actually means *nothing was planned*. Same family as the fabricated-80% prediction default — a real zero and an absent value are different facts and must not render identically. Should say "no MITs planned" (or omit) rather than `0/0`. |
+| 🟡 R2 | **Night review is three identical free-text boxes** | "What went well / what went wrong / anything important" is a journal, not an instrument. The product's whole thesis is that the record argues with the story — so the review should lead with *confirming or disputing what the record already says* (friction causes, prediction vs. actual), with prose secondary. `FrictionPicker`, `ReviewDraft` and `EvidenceClaimList` all exist as components; the current form doesn't lead with them. Design work, not a defect. |
+| 🟢 R3 | **Demo seed: the showcase report history has a three-week hole** | `daily_summaries` holds 6 consecutive days (Aug 13–18) but `agent_reports` holds only **2** rows — Aug 18 and **Jul 28**. So `/review/[date]`'s history sidebar shows two entries three weeks apart. **Verified NOT a code defect** — `listAgentReports` and `ReportHistoryList` are both correct, and the two tables are genuinely different things. It's seed quality, and it matters only because this is the account every screenshot is taken from. |
+
+**Verification note:** R3 was initially suspected as a broken history query (6 rows in the database,
+2 rows on screen). Checking the actual source — `agent_reports`, not `daily_summaries` — showed the
+UI was right and the seed was thin. Recorded here as a reminder that "the number on screen doesn't
+match the number in the table I checked" usually means *I checked the wrong table*.
+
+---
+
 ## Found at session close
 
 | # | Item | Notes |
