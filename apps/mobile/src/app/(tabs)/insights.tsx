@@ -1,5 +1,6 @@
 import { color, space } from "@collegeos/design/native";
 import { Text, View } from "react-native";
+import { DecisionJournal } from "../../components/insights/DecisionJournal";
 import { ActiveExperiments } from "../../components/insights/ActiveExperiments";
 import { BounceBackSection } from "../../components/insights/BounceBackSection";
 import { CalibrationTable } from "../../components/insights/CalibrationTable";
@@ -45,6 +46,17 @@ export default function InsightsScreen() {
             <ActiveExperiments
               experiments={result.data.activeExperiments}
               today={result.data.today}
+              userId={session.user.id}
+              onChanged={result.refetch}
+            />
+          </Section>
+
+          {/* U7 sits beside experiments on purpose: both are observe-then-score, and seeing
+              an unscored decision next to an unscored trial is what makes closing the loop a
+              habit rather than a feature. */}
+          <Section title="Decision journal">
+            <DecisionJournal
+              decisions={result.data.decisions}
               userId={session.user.id}
               onChanged={result.refetch}
             />

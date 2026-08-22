@@ -7,11 +7,13 @@ import {
   getUserLocalToday,
   listActiveInsights,
   listCalibrationTable,
+  listDecisions,
   getExperimentOutcome,
   listExperimentMeasurements,
   listExperiments,
   listKillHabits,
   type CalibrationTableRow,
+  type DecisionJournalRow,
   type Experiment,
   type ExperimentMeasurementRow,
   type Insight,
@@ -53,6 +55,8 @@ export interface InsightsData {
   frictionDistribution: FrictionDistribution;
   frictionTrend: CauseTrendEntry[];
   bounceBackByHabit: HabitBounceBack[];
+  /** U7 -- newest first. Unscored ones are the "close the loop" queue. Mirrors web. */
+  decisions: DecisionJournalRow[];
   planningExecution: PlanningExecutionResult | null;
 }
 
@@ -103,7 +107,8 @@ export function useInsightsData() {
         computeUserFrictionTrend(client, userId, previousWindow, currentWindow),
         computeYesterdayPlanningExecution(client, userId, today),
         listCalibrationTable(client, userId, profile.timezone, now),
-      ]).then(([insightsResult, runningExperimentsResult, killHabitsResult, frictionDistributionResult, frictionTrendResult, planningExecution, calibrationTable]) => {
+        listDecisions(client, { limit: 20 }),
+      ]).then(([insightsResult, runningExperimentsResult, killHabitsResult, frictionDistributionResult, frictionTrendResult, planningExecution, calibrationTable, decisionsResult]) => {
         if (cancelled) return;
         if (!insightsResult.ok) {
           setFetchState({ status: "error", error: insightsResult.error.message });
@@ -160,6 +165,7 @@ export function useInsightsData() {
                 frictionDistribution: frictionDistributionResult.data,
                 frictionTrend: frictionTrendResult.data,
                 bounceBackByHabit,
+                decisions: decisionsResult.ok ? decisionsResult.data : [],
                 planningExecution,
               },
             });

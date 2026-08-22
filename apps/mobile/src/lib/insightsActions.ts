@@ -2,7 +2,9 @@ import {
   createExperiment,
   getOwnProfile,
   getUserLocalToday,
+  logDecision,
   logExperimentMeasurement,
+  scoreDecision,
   scoreExperiment,
 } from "@collegeos/api";
 import { addDays } from "@collegeos/core";
@@ -106,6 +108,49 @@ export async function closeExperiment(input: {
     outcomeSummary: summary,
     endDate: today,
   });
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true };
+}
+
+/** U7 — mirrors web's logDecisionAction. Confidence is optional and stays genuinely unset
+ *  when not given; a defaulted confidence would be a fabricated one, and a decision journal
+ *  exists to measure exactly that. */
+export async function logDecisionAction(input: {
+  userId: string;
+  decision: string;
+  rationale?: string;
+  predictionPct?: number;
+  predictedOutcome?: string;
+}): Promise<RunExperimentResult> {
+  const client = getMobileSupabaseClient();
+
+  const decision = input.decision.trim();
+  if (!decision) return { ok: false, error: "What did you decide?" };
+  if (input.predictionPct != null && (!Number.isFinite(input.predictionPct) || input.predictionPct < 0 || input.predictionPct > 100)) {
+    return { ok: false, error: "Confidence is a percentage between 0 and 100." };
+  }
+
+  const result = await logDecision(client, input.userId, {
+    decision,
+    ...(input.rationale?.trim() ? { rationale: input.rationale.trim() } : {}),
+    ...(input.predictionPct != null ? { predictionPct: input.predictionPct } : {}),
+    ...(input.predictedOutcome?.trim() ? { predictedOutcome: input.predictedOutcome.trim() } : {}),
+  });
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true };
+}
+
+/** Mirrors web's scoreDecisionAction. Idempotent — re-scoring overwrites. */
+export async function scoreDecisionAction(input: {
+  decisionId: number;
+  actualOutcome: string;
+}): Promise<RunExperimentResult> {
+  const client = getMobileSupabaseClient();
+
+  const actualOutcome = input.actualOutcome.trim();
+  if (!actualOutcome) return { ok: false, error: "Say what actually happened." };
+
+  const result = await scoreDecision(client, input.decisionId, { actualOutcome });
   if (!result.ok) return { ok: false, error: result.error.message };
   return { ok: true };
 }
