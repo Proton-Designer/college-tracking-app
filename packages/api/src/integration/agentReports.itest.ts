@@ -21,9 +21,20 @@ describe('agent report and summary pyramid reads', () => {
   });
 
   it('getAgentReport reads the seeded nightly report by its anchor date; a date with no report is null, not an error', async () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    const localDate = yesterday.toISOString().slice(0, 10);
+    // seed.sql plants this row at `current_date - 1` AT SEED TIME, a frozen snapshot,
+    // not a live value -- it only matches real wall-clock "yesterday" immediately after
+    // a fresh db reset. Query the row's own local_date directly rather than assuming
+    // `new Date()` still lines up with whenever the DB was last reset (same fix as
+    // dayView.itest.ts's Recovery Mode tests, same root cause).
+    const { data: mostRecent, error: mostRecentError } = await client
+      .from('agent_reports')
+      .select('local_date')
+      .eq('report_type', 'nightly')
+      .order('local_date', { ascending: false })
+      .limit(1)
+      .single();
+    expect(mostRecentError).toBeNull();
+    const localDate = mostRecent!.local_date;
 
     const result = await getAgentReport(client, 'nightly', localDate);
     expect(result.ok).toBe(true);
@@ -53,7 +64,19 @@ describe('agent report and summary pyramid reads', () => {
   });
 
   it('listRecentDailySummaries returns the seeded 6-day run in chronological order', async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    // Anchored to the seed's own most recent row, not real wall-clock `new Date()` --
+    // same reasoning as the nightly-report anchor above: seed.sql's 6-day run
+    // (current_date - 6 .. current_date - 1) is a snapshot from whenever the DB was
+    // last reset, and drifts out of a real-"today"-relative lookback window the longer
+    // it's been since then.
+    const { data: mostRecentSummary, error: mostRecentSummaryError } = await client
+      .from('daily_summaries')
+      .select('local_date')
+      .order('local_date', { ascending: false })
+      .limit(1)
+      .single();
+    expect(mostRecentSummaryError).toBeNull();
+    const today = mostRecentSummary!.local_date;
     const result = await listRecentDailySummaries(client, today, 14);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
@@ -65,9 +88,16 @@ describe('agent report and summary pyramid reads', () => {
   });
 
   it('getDailySummary and getWeeklySummary read the exact seeded rows', async () => {
-    const sixDaysAgo = new Date();
-    sixDaysAgo.setDate(sixDaysAgo.getDate() - 6);
-    const daily = await getDailySummary(client, sixDaysAgo.toISOString().slice(0, 10));
+    // The earliest row of the seeded 6-day run, read directly rather than computed as
+    // "6 days before real now" -- same anchoring fix as above.
+    const { data: earliestSummary, error: earliestSummaryError } = await client
+      .from('daily_summaries')
+      .select('local_date')
+      .order('local_date', { ascending: true })
+      .limit(1)
+      .single();
+    expect(earliestSummaryError).toBeNull();
+    const daily = await getDailySummary(client, earliestSummary!.local_date);
     expect(daily.ok).toBe(true);
     if (daily.ok) expect(daily.data).not.toBeNull();
 

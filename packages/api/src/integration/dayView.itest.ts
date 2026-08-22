@@ -17,6 +17,19 @@ describe('getDayView against the seeded demo user', () => {
   let client: TypedSupabaseClient;
   let userId: string;
   let today: string;
+  /** seed.sql plants everything relative to `current_date` AT SEED TIME -- a snapshot,
+   *  not a live value -- so it only "looks current" immediately after a fresh
+   *  `db reset`. This suite deliberately avoids resetting (it would wipe concurrent
+   *  test accounts), so real wall-clock time can drift days ahead of whatever the seed
+   *  considered "today" when it last ran. Tests that reference the seed's specific
+   *  historical scenarios (the 22-days-ago Recovery Mode day, the ordinary day before
+   *  it, the near-term overdue-task count) must reconstruct the SEED's own "today"
+   *  rather than assume it matches real `new Date()` -- otherwise every one of them
+   *  silently breaks a few real days after whoever last reset the DB. Recovered from
+   *  the one row seed.sql marks unambiguously: the single daily_checkins row with
+   *  recovery_mode_triggered=true is exactly `current_date - 22` at seed time. */
+  let seedToday: string;
+  let recoveryDayLocalDate: string;
 
   beforeAll(async () => {
     client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY!);
@@ -24,6 +37,15 @@ describe('getDayView against the seeded demo user', () => {
     if (!result.ok) throw new Error(`demo signIn failed: ${result.error.code}`);
     userId = result.data.session.user.id;
     today = getUserLocalToday(TIMEZONE);
+
+    const { data: recoveryDayCheckin, error: recoveryDayError } = await client
+      .from('daily_checkins')
+      .select('local_date')
+      .eq('recovery_mode_triggered', true)
+      .single();
+    if (recoveryDayError) throw recoveryDayError;
+    recoveryDayLocalDate = recoveryDayCheckin.local_date;
+    seedToday = addDays(recoveryDayLocalDate, 22);
   });
 
   it('assembles a full day view for the demo user today', async () => {
@@ -41,7 +63,17 @@ describe('getDayView against the seeded demo user', () => {
     // live view into Recovery Mode too -- confirmed live while building this seed
     // coverage, then fixed by windowing the query in recoveryMode.ts to the last 7 days,
     // matching every sibling signal's near-term shape (today/yesterday/48h).
-    const result = await getDayView(client, userId);
+    //
+    // Evaluated as of seedToday (the seed's own "today"), not real wall-clock now: real
+    // today drifts further from seedToday the longer it's been since the last db reset,
+    // and by real today several of seed.sql's `current_date`-relative near-term tasks
+    // (originally due exactly "today" at seed time) have themselves drifted into
+    // "overdue within the last 7 days," independently pushing the signal active for a
+    // reason that has nothing to do with the 22-day-old scenario this test is actually
+    // about. Anchoring to seedToday reproduces the seed's own internally-consistent
+    // picture regardless of how many real days have passed since it was written.
+    const asOf = new Date(`${seedToday}T17:00:00Z`);
+    const result = await getDayView(client, userId, asOf);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 
@@ -134,7 +166,10 @@ describe('getDayView against the seeded demo user', () => {
   });
 
   it('the seeded Recovery Mode day (22 days ago: 4.2h sleep, 28% WHOOP recovery) actually triggers Recovery Mode through the full stack', async () => {
-    const recoveryDayLocalDate = addDays(today, -22);
+    // recoveryDayLocalDate comes straight from the DB (beforeAll), not from
+    // addDays(today, -22) -- today is real wall-clock and drifts away from the seed's
+    // own frame of reference the longer it's been since the last db reset; the row
+    // itself never does.
     // 17:00 UTC is comfortably mid-afternoon in America/Indiana/Indianapolis regardless
     // of DST, so this resolves to exactly recoveryDayLocalDate.
     const asOf = new Date(`${recoveryDayLocalDate}T17:00:00Z`);
@@ -172,11 +207,12 @@ describe('getDayView against the seeded demo user', () => {
   });
 
   it('an ordinary seeded day does not trigger Recovery Mode', async () => {
-    // Deliberately BEFORE the bad day (22 days ago), not after -- the bad day's tasks are
-    // genuinely never completed (that's the point, see seed.sql), so overdueTaskCount
-    // (unbounded lookback, not scoped to a window) correctly flags them as overdue for
-    // every later day's view too. A day earlier than the bad day has no such tasks yet.
-    const ordinaryDay = addDays(today, -27);
+    // Deliberately BEFORE the bad day, not after -- the bad day's tasks are genuinely
+    // never completed (that's the point, see seed.sql), so overdueTaskCount (unbounded
+    // lookback, not scoped to a window) correctly flags them as overdue for every later
+    // day's view too. A day earlier than the bad day has no such tasks yet. Relative to
+    // recoveryDayLocalDate (from the DB), not `today` (real wall-clock, drifts).
+    const ordinaryDay = addDays(recoveryDayLocalDate, -5);
     const asOf = new Date(`${ordinaryDay}T17:00:00Z`);
     const result = await getDayView(client, userId, asOf);
     expect(result.ok).toBe(true);
