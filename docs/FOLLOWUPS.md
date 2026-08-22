@@ -189,7 +189,7 @@ because only `packages/api/src/day/risk.ts` was touched when B1/B2 landed — fi
 deterministically (`dayViewTimezoneBoundary.itest.ts`, a fixed `now` inside the gap for both a
 UTC-negative and a UTC-positive zone, no wall-clock dependency), fixed by threading `timezone` through
 every affected function and replacing the naive construction with `localTimeToInstant`. Full itest
-suite green except B5 (see below, now also resolved). See B7 for the proposed guard.
+suite green except B5 (see below, now also resolved). See B8 for the proposed guard.
 
 ## ~~🟡 B5~~ — Seeded fixtures drift against real wall-clock time, and the integration suite is red
 
@@ -253,7 +253,7 @@ first, a timed event proving real committed time stays untouched. Checked for po
 data — zero `calendar_events` rows anywhere in this DB are `is_busy=true` with a >=20h span (no real
 Brightspace sync has run here), nothing to repair.
 
-## 🟡 B7 — No staleness guard for packages/api logic hand-ported into supabase/functions/_shared/
+## 🟡 B8 — No staleness guard for packages/api logic hand-ported into supabase/functions/_shared/
 
 `check:core-mirror` proves `supabase/functions/_shared/core` matches `packages/core/src` — but that
 guard covers **only** the domain-engine mirror. `supabase/functions/_shared/nightly/domainQueries.ts`
