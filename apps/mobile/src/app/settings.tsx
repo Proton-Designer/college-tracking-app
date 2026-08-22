@@ -7,7 +7,7 @@ import { IntegrationsSection } from "../components/settings/IntegrationsSection"
 import { KillHabitsSection } from "../components/settings/KillHabitsSection";
 import { LlmBudgetSection } from "../components/settings/LlmBudgetSection";
 import { ProfileSection } from "../components/settings/ProfileSection";
-import { Button, Skeleton } from "../components/ui";
+import { Aurora, Button, Skeleton } from "../components/ui";
 import { textStyle } from "../design/typography";
 import { useSettingsData } from "../lib/useSettingsData";
 
@@ -17,12 +17,13 @@ export default function SettingsScreen() {
   const result = useSettingsData();
 
   return (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}
-    >
+    <View style={styles.screen}>
       <Stack.Screen options={{ headerShown: true, title: "Settings", headerBackButtonDisplayMode: "minimal" }} />
-
+      <Aurora band={null} />
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}
+      >
       {result.status === "loading" ? (
         <View style={{ gap: space[4] }}>
           <Skeleton height={140} radius="lg" />
@@ -74,7 +75,8 @@ export default function SettingsScreen() {
           </Section>
         </View>
       ) : null}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -88,9 +90,13 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 const styles = StyleSheet.create({
-  flex: {
+  screen: {
     flex: 1,
     backgroundColor: color.ground,
+  },
+  flex: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
   content: {
     paddingHorizontal: space[5],

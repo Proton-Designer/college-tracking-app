@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { textStyle } from "../../design/typography";
+import { Aurora } from "../ui/Aurora";
 
 export interface AuthShellProps {
   title: string;
@@ -19,29 +20,33 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
   const insets = useSafeAreaInsets();
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-    >
-      <ScrollView
+    <View style={styles.screen}>
+      <Aurora band={null} />
+      <KeyboardAvoidingView
         style={styles.flex}
-        contentContainerStyle={[styles.content, { paddingTop: insets.top + space[10], paddingBottom: insets.bottom + space[10] }]}
-        keyboardShouldPersistTaps="handled"
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
-        <Link href="/" style={textStyle("title", color.ink)}>
-          CollegeOS
-        </Link>
-        <Text style={[textStyle("displayM", color.ink), styles.title]}>{title}</Text>
-        {subtitle ? <Text style={[textStyle("body", color.inkMuted), styles.subtitle]}>{subtitle}</Text> : null}
-        <View style={styles.body}>{children}</View>
-        {footer ? <View style={styles.footer}>{footer}</View> : null}
-      </ScrollView>
-    </KeyboardAvoidingView>
+        <ScrollView
+          style={styles.flex}
+          contentContainerStyle={[styles.content, { paddingTop: insets.top + space[10], paddingBottom: insets.bottom + space[10] }]}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Link href="/" style={textStyle("title", color.ink)}>
+            CollegeOS
+          </Link>
+          <Text style={[textStyle("displayM", color.ink), styles.title]}>{title}</Text>
+          {subtitle ? <Text style={[textStyle("body", color.inkMuted), styles.subtitle]}>{subtitle}</Text> : null}
+          <View style={styles.body}>{children}</View>
+          {footer ? <View style={styles.footer}>{footer}</View> : null}
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1, backgroundColor: color.ground },
+  screen: { flex: 1, backgroundColor: color.ground },
+  flex: { flex: 1, backgroundColor: "transparent" },
   content: { paddingHorizontal: space[6] },
   title: { marginTop: space[10] },
   subtitle: { marginTop: space[2] },

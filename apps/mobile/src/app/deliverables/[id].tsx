@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EditDeliverableModal } from "../../components/deliverables/EditDeliverableModal";
 import { GenerateBackplanSection } from "../../components/deliverables/GenerateBackplanSection";
 import { DeliverableTasksSection } from "../../components/deliverables/DeliverableTasksSection";
-import { Button, NavLink, PageHeader, Skeleton } from "../../components/ui";
+import { Aurora, Button, NavLink, PageHeader, Skeleton } from "../../components/ui";
 import { textStyle } from "../../design/typography";
 import { daysRemainingLabel } from "../../lib/dates";
 import { useAuthSession } from "../../lib/useAuthSession";
@@ -27,36 +27,39 @@ export default function DeliverableDetailScreen() {
   const result = useDeliverableDetailData(deliverableId);
 
   return (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}
-    >
-      <NavLink label="Back" direction="back" onPress={() => router.back()} />
+    <View style={styles.screen}>
+      <Aurora band={null} />
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}
+      >
+        <NavLink label="Back" direction="back" onPress={() => router.back()} />
 
-      {!Number.isInteger(deliverableId) ? <Text style={textStyle("body", color.inkMuted)}>Not a valid assignment.</Text> : null}
+        {!Number.isInteger(deliverableId) ? <Text style={textStyle("body", color.inkMuted)}>Not a valid assignment.</Text> : null}
 
-      {Number.isInteger(deliverableId) && result.status === "loading" ? (
-        <View style={{ gap: space[4] }}>
-          <Skeleton height={48} width={200} />
-          <Skeleton height={120} radius="lg" />
-          <Skeleton height={160} radius="lg" />
-        </View>
-      ) : null}
+        {Number.isInteger(deliverableId) && result.status === "loading" ? (
+          <View style={{ gap: space[4] }}>
+            <Skeleton height={48} width={200} />
+            <Skeleton height={120} radius="lg" />
+            <Skeleton height={160} radius="lg" />
+          </View>
+        ) : null}
 
-      {Number.isInteger(deliverableId) && result.status === "error" ? (
-        <View style={styles.errorBox}>
-          <Text style={textStyle("label", color.riskCritical)}>Couldn&apos;t load this assignment</Text>
-          <Text style={textStyle("body", color.inkMuted)}>{result.error}</Text>
-          <Button variant="secondary" onPress={result.refetch}>
-            Try again
-          </Button>
-        </View>
-      ) : null}
+        {Number.isInteger(deliverableId) && result.status === "error" ? (
+          <View style={styles.errorBox}>
+            <Text style={textStyle("label", color.riskCritical)}>Couldn&apos;t load this assignment</Text>
+            <Text style={textStyle("body", color.inkMuted)}>{result.error}</Text>
+            <Button variant="secondary" onPress={result.refetch}>
+              Try again
+            </Button>
+          </View>
+        ) : null}
 
-      {Number.isInteger(deliverableId) && result.status === "ready" && session?.user.id ? (
-        <DeliverableDetailReady userId={session.user.id} deliverableId={deliverableId} data={result.data} onChanged={result.refetch} />
-      ) : null}
-    </ScrollView>
+        {Number.isInteger(deliverableId) && result.status === "ready" && session?.user.id ? (
+          <DeliverableDetailReady userId={session.user.id} deliverableId={deliverableId} data={result.data} onChanged={result.refetch} />
+        ) : null}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -101,9 +104,13 @@ function DeliverableDetailReady({
 }
 
 const styles = StyleSheet.create({
-  flex: {
+  screen: {
     flex: 1,
     backgroundColor: color.ground,
+  },
+  flex: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
   content: {
     paddingHorizontal: space[5],

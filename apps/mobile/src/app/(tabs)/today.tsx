@@ -6,7 +6,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { LogOut, Settings as SettingsIcon } from "lucide-react-native";
 import { useState, type ReactNode } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
-import { Aurora, Button, Skeleton, TabScreenScrollView } from "../../components/ui";
+import { Aurora, Button, Panel, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { CheckinFlow } from "../../components/today/CheckinFlow";
 import { DayTrace } from "../../components/today/DayTrace";
 import { InterventionsSection } from "../../components/today/InterventionsSection";
@@ -319,18 +319,22 @@ function TodayReady({
         </Text>
       ) : null}
       <Section title="Top 3" action={<QuickAddTaskModal userId={userId} today={dayView.today} courses={courses} onAdded={onInterventionChanged} />}>
-        <MitList items={mitItems} onToggle={handleMitToggle} />
+        <Panel>
+          <MitList items={mitItems} onToggle={handleMitToggle} />
+        </Panel>
       </Section>
       <Section title="Workload">
         <WorkloadBand workload={dayView.workload} />
       </Section>
       <Section title="Deadline radar">
-        <DeadlineRadar
-          today={dayView.today}
-          deliverables={dayView.upcomingDeliverables}
-          deliverableRisks={dayView.risk.deliverableRisks}
-          courses={courses}
-        />
+        <Panel>
+          <DeadlineRadar
+            today={dayView.today}
+            deliverables={dayView.upcomingDeliverables}
+            deliverableRisks={dayView.risk.deliverableRisks}
+            courses={courses}
+          />
+        </Panel>
       </Section>
       <KillListSection userId={dayView.profile.id} habits={killHabits} />
       <FocusLauncher userId={dayView.profile.id} block={focusBlock} activeSession={activeFocusSession} />

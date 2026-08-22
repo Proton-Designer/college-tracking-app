@@ -2,7 +2,7 @@ import type { DailyPredictionRow, DailyReview } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
 import { useRouter } from "expo-router";
 import { StyleSheet, Text, View } from "react-native";
-import { Button, NavLink, PageHeader, Panel, Skeleton, TabScreenScrollView } from "../../components/ui";
+import { Aurora, Button, NavLink, PageHeader, Panel, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { ReviewForm } from "../../components/review/ReviewForm";
 import { textStyle } from "../../design/typography";
 import { useAuthSession } from "../../lib/useAuthSession";
@@ -14,7 +14,9 @@ export default function ReviewScreen() {
   const result = useReviewData();
 
   return (
-    <TabScreenScrollView>
+    <View style={styles.screen}>
+      <Aurora band={null} />
+      <TabScreenScrollView transparent>
       <PageHeader
         title="Night review"
         actions={
@@ -51,7 +53,8 @@ export default function ReviewScreen() {
           />
         )
       ) : null}
-    </TabScreenScrollView>
+      </TabScreenScrollView>
+    </View>
   );
 }
 
@@ -97,6 +100,10 @@ function ReviewLoading() {
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: color.ground,
+  },
   errorBox: {
     gap: space[3],
     alignItems: "flex-start",

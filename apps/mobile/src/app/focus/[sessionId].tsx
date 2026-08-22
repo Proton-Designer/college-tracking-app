@@ -4,7 +4,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState, useTransition } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Panel, SegmentedControl, Skeleton, Textarea } from "../../components/ui";
+import { Aurora, Button, Panel, SegmentedControl, Skeleton, Textarea } from "../../components/ui";
 import { textStyle } from "../../design/typography";
 import { abandonFocus, completeFocus } from "../../lib/focusActions";
 import { useAuthSession } from "../../lib/useAuthSession";
@@ -33,32 +33,35 @@ export default function FocusSessionScreen() {
   const result = useFocusSessionData(id);
 
   return (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}
-    >
-      {!Number.isInteger(id) ? <Text style={textStyle("body", color.inkMuted)}>Not a valid focus session.</Text> : null}
+    <View style={styles.screen}>
+      <Aurora band={null} />
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}
+      >
+        {!Number.isInteger(id) ? <Text style={textStyle("body", color.inkMuted)}>Not a valid focus session.</Text> : null}
 
-      {Number.isInteger(id) && result.status === "loading" ? (
-        <View style={{ gap: space[4], marginTop: space[9] }}>
-          <Skeleton height={20} width={140} />
-          <Skeleton height={40} width={260} />
-          <Skeleton height={56} width={160} />
-        </View>
-      ) : null}
+        {Number.isInteger(id) && result.status === "loading" ? (
+          <View style={{ gap: space[4], marginTop: space[9] }}>
+            <Skeleton height={20} width={140} />
+            <Skeleton height={40} width={260} />
+            <Skeleton height={56} width={160} />
+          </View>
+        ) : null}
 
-      {Number.isInteger(id) && result.status === "error" ? (
-        <Text style={textStyle("label", color.riskCritical)}>{result.error}</Text>
-      ) : null}
+        {Number.isInteger(id) && result.status === "error" ? (
+          <Text style={textStyle("label", color.riskCritical)}>{result.error}</Text>
+        ) : null}
 
-      {Number.isInteger(id) && result.status === "ready" && authSession?.user.id ? (
-        result.data.session.status !== "active" ? (
-          <Text style={textStyle("body", color.inkMuted)}>This focus session already ended.</Text>
-        ) : (
-          <FocusActive userId={authSession.user.id} data={result.data} onDone={() => router.replace("/today")} />
-        )
-      ) : null}
-    </ScrollView>
+        {Number.isInteger(id) && result.status === "ready" && authSession?.user.id ? (
+          result.data.session.status !== "active" ? (
+            <Text style={textStyle("body", color.inkMuted)}>This focus session already ended.</Text>
+          ) : (
+            <FocusActive userId={authSession.user.id} data={result.data} onDone={() => router.replace("/today")} />
+          )
+        ) : null}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -161,9 +164,13 @@ function FocusActive({
 }
 
 const styles = StyleSheet.create({
-  flex: {
+  screen: {
     flex: 1,
     backgroundColor: color.ground,
+  },
+  flex: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
   content: {
     flexGrow: 1,

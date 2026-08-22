@@ -7,7 +7,7 @@ import { CalibrationTable } from "../../components/insights/CalibrationTable";
 import { FrictionDistributionSection } from "../../components/insights/FrictionDistributionSection";
 import { InsightsList } from "../../components/insights/InsightsList";
 import { PlanningExecutionQuadrant } from "../../components/insights/PlanningExecutionQuadrant";
-import { Button, Skeleton, TabScreenScrollView } from "../../components/ui";
+import { Aurora, Button, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { textStyle } from "../../design/typography";
 import { useAuthSession } from "../../lib/useAuthSession";
 import { useInsightsData } from "../../lib/useInsightsData";
@@ -17,7 +17,9 @@ export default function InsightsScreen() {
   const result = useInsightsData();
 
   return (
-    <TabScreenScrollView>
+    <View style={styles.screen}>
+      <Aurora band={null} />
+      <TabScreenScrollView transparent>
       <Text style={textStyle("displayM", color.ink)}>Insights</Text>
 
       {result.status === "loading" ? (
@@ -79,7 +81,8 @@ export default function InsightsScreen() {
           </Section>
         </View>
       ) : null}
-    </TabScreenScrollView>
+      </TabScreenScrollView>
+    </View>
   );
 }
 
@@ -101,6 +104,10 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: color.ground,
+  },
   section: {
     gap: space[3],
     borderTopWidth: StyleSheet.hairlineWidth,
