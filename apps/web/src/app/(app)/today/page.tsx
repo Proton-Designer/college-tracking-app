@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import type { FocusBlock } from "@/components/today/FocusLauncher";
 import { MitList, type MitItem } from "@/components/today/MitList";
 import { Aurora } from "@/components/ui/Aurora";
+import { Panel } from "@/components/ui/Panel";
 import { DayTrace } from "@/components/today/DayTrace";
 import { DeadlineRadar } from "@/components/today/DeadlineRadar";
 import { FocusLauncher } from "@/components/today/FocusLauncher";
@@ -18,16 +19,19 @@ import { UnplannedGate } from "@/components/today/UnplannedGate";
 import { WorkloadBand } from "@/components/today/WorkloadBand";
 import { loadTodayData } from "./data";
 
-/** L13.1 composition (docs/L13_DESIGN_PASS.md #1) -- same Section pattern the Insights
- *  rewrite already established: a hairline above each heading, one place the rhythm lives. */
+/** Panel earned by a rule, not a hunch: Top 3 and Deadline radar are lists of rows, the same
+ *  shape as InterventionsSection and KillListSection, which already sit in real Panels a few
+ *  lines away on this exact page -- bare-next-to-panelled was the one wrong answer. The heading
+ *  itself is page structure, so it stays on the ground above the panel, not inside it; the
+ *  hairline top border is gone since a panel boundary is the section's own separation now. */
 function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3 border-t border-hairline pt-6">
+    <section className="flex flex-col gap-3">
       <div className="flex items-center justify-between">
         <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">{title}</h2>
         {action}
       </div>
-      {children}
+      <Panel>{children}</Panel>
     </section>
   );
 }

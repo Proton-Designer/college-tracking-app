@@ -131,30 +131,34 @@ export function ThisWeekView({ today, timezone, plan }: { today: string; timezon
       {plan.highestRisk.length > 0 ? (
         <section className="flex flex-col gap-3">
           <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Highest risk</h2>
-          <ol className="flex flex-col gap-1">
-            {plan.highestRisk.map((r, i) => (
-              <li key={r.deliverableId} className="flex items-center gap-2 text-body-s text-ink">
-                <span className="font-mono text-ink-faint">{i + 1}.</span>
-                <span className="text-ink-faint">{r.courseCode}</span>
-                <span>{r.title}</span>
-                <span className="text-ink-faint">— {daysRemainingLabel(today, r.dueDate)}</span>
-                <RiskPill band={r.riskBand} label={r.riskBand.toUpperCase()} />
-              </li>
-            ))}
-          </ol>
+          <Panel>
+            <ol className="flex flex-col gap-1">
+              {plan.highestRisk.map((r, i) => (
+                <li key={r.deliverableId} className="flex items-center gap-2 text-body-s text-ink">
+                  <span className="font-mono text-ink-faint">{i + 1}.</span>
+                  <span className="text-ink-faint">{r.courseCode}</span>
+                  <span>{r.title}</span>
+                  <span className="text-ink-faint">— {daysRemainingLabel(today, r.dueDate)}</span>
+                  <RiskPill band={r.riskBand} label={r.riskBand.toUpperCase()} />
+                </li>
+              ))}
+            </ol>
+          </Panel>
         </section>
       ) : null}
 
       {plan.courseAllocations.length > 0 ? (
         <section className="flex flex-col gap-3">
           <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Recommended deep-work allocation</h2>
-          <ul className="flex flex-wrap gap-4">
-            {plan.courseAllocations.map((a) => (
-              <li key={a.courseId} className="font-mono text-body-s tabular-nums text-ink">
-                {a.courseCode} <span className="text-ink-faint">{formatMinutes(a.minutesAllocated)}</span>
-              </li>
-            ))}
-          </ul>
+          <Panel>
+            <ul className="flex flex-wrap gap-4">
+              {plan.courseAllocations.map((a) => (
+                <li key={a.courseId} className="font-mono text-body-s tabular-nums text-ink">
+                  {a.courseCode} <span className="text-ink-faint">{formatMinutes(a.minutesAllocated)}</span>
+                </li>
+              ))}
+            </ul>
+          </Panel>
         </section>
       ) : null}
 
@@ -163,11 +167,13 @@ export function ThisWeekView({ today, timezone, plan }: { today: string; timezon
         {plan.blocks.length === 0 ? (
           <p className="text-body-s text-ink-faint">Nothing placed this week.</p>
         ) : (
-          <ul className="flex flex-col">
-            {plan.blocks.map((block) => (
-              <BlockRow key={block.id} block={block} timezone={timezone} />
-            ))}
-          </ul>
+          <Panel>
+            <ul className="flex flex-col">
+              {plan.blocks.map((block) => (
+                <BlockRow key={block.id} block={block} timezone={timezone} />
+              ))}
+            </ul>
+          </Panel>
         )}
       </section>
 

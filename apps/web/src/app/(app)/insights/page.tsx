@@ -6,7 +6,7 @@ import { CalibrationTable } from "@/components/insights/CalibrationTable";
 import { FrictionDistributionSection } from "@/components/insights/FrictionDistributionSection";
 import { InsightsList } from "@/components/insights/InsightsList";
 import { PlanningExecutionQuadrant } from "@/components/insights/PlanningExecutionQuadrant";
-import { PageHeader } from "@/components/ui";
+import { PageHeader, Panel } from "@/components/ui";
 import { loadInsightsData } from "./data";
 
 /**
@@ -28,9 +28,9 @@ import { loadInsightsData } from "./data";
  */
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="flex flex-col gap-3 border-t border-hairline pt-6">
+    <section className="flex flex-col gap-3">
       <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">{title}</h2>
-      {children}
+      <Panel>{children}</Panel>
     </section>
   );
 }
@@ -63,7 +63,9 @@ export default async function InsightsPage() {
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-6 px-8 py-10">
       <PageHeader title="Insights" context="Last 30 days" />
 
-      <InsightsList insightsByTier={insightsByTier} />
+      <Panel>
+        <InsightsList insightsByTier={insightsByTier} />
+      </Panel>
 
       {/* Observe-then-score, together and above the fold: an unscored trial sitting next to
           an unscored decision is what turns closing the loop into a habit. */}

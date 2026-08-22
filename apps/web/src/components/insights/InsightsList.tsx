@@ -131,7 +131,10 @@ function RunExperimentForm({
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-hairline bg-surface p-4">
+    // glass-sunken, not another flat bg-surface card: this form is nested inside InsightsList's
+    // own Panel now, and base-on-base glass reads muddy (confirmed rendering the comparison
+    // directly for the identical GenerateBackplanSection case) -- sunken keeps the well distinct.
+    <div className="glass-sunken flex flex-col gap-3 overflow-hidden rounded-md p-4">
       <Textarea label="Hypothesis" value={hypothesis} onChange={(e) => setHypothesis(e.target.value)} rows={2} />
       <Textarea
         label="What will you measure, and how"

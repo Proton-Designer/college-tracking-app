@@ -1,6 +1,6 @@
 import { CapacityStrip } from "@/components/calendar/CapacityStrip";
 import { BackplanChain } from "@/components/courses/BackplanChain";
-import { RiskPill } from "@/components/ui";
+import { Panel, RiskPill } from "@/components/ui";
 import { daysRemainingLabel } from "@/lib/dates";
 import type { CalendarData, CalendarObligation } from "@/app/(app)/calendar/data";
 
@@ -16,17 +16,21 @@ export function HorizonView({ data }: { data: CalendarData }) {
     <div className="flex flex-col gap-6">
       <section className="flex flex-col gap-2">
         <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Uncommitted time, next two weeks</h2>
-        <CapacityStrip days={data.capacity} />
+        <Panel>
+          <CapacityStrip days={data.capacity} />
+        </Panel>
       </section>
 
       {data.obligations.length === 0 ? (
         <p className="text-body-s text-ink-faint">Nothing open on the horizon.</p>
       ) : (
-        <ul className="flex flex-col">
-          {data.obligations.map((o) => (
-            <ObligationRow key={o.deliverable.id} obligation={o} courseCode={data.courses[o.deliverable.course_id]?.code ?? "—"} today={data.today} />
-          ))}
-        </ul>
+        <Panel>
+          <ul className="flex flex-col">
+            {data.obligations.map((o) => (
+              <ObligationRow key={o.deliverable.id} obligation={o} courseCode={data.courses[o.deliverable.course_id]?.code ?? "—"} today={data.today} />
+            ))}
+          </ul>
+        </Panel>
       )}
     </div>
   );
