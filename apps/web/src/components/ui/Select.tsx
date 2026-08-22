@@ -22,6 +22,9 @@ export interface SelectProps {
   required?: boolean;
   id?: string;
   className?: string;
+  /** For a compact inline use with no visible `label` (a per-row control in a list, not
+   *  a form field) -- without this, an unlabeled Select has no accessible name at all. */
+  "aria-label"?: string;
 }
 
 /** A styled native <select> -- full keyboard/a11y support for free, matches Input's chrome. */
@@ -36,6 +39,7 @@ export function Select({
   required,
   id,
   className,
+  "aria-label": ariaLabel,
 }: SelectProps) {
   const generatedId = useId();
   const selectId = id ?? generatedId;
@@ -53,6 +57,7 @@ export function Select({
         disabled={disabled}
         aria-invalid={Boolean(error) || undefined}
         aria-required={required || undefined}
+        aria-label={!label ? (ariaLabel ?? placeholder) : ariaLabel}
         onChange={(e) => onValueChange(e.target.value)}
         className={cn(
           "h-10 rounded-md border bg-surface-sunken px-3",

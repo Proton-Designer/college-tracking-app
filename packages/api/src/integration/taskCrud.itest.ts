@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { deleteTask, updateTask } from '../data/tasks';
+import { deleteTask, listTasksForDeliverable, updateTask } from '../data/tasks';
 import { createConfirmedUser, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from '../client/types';
@@ -142,5 +142,30 @@ describe('task update/delete against a dedicated throwaway user', () => {
 
     const { data: stillThere } = await otherClient.from('tasks').select('title').eq('id', otherTask!.id).eq('user_id', otherUser.id).single();
     expect(stillThere!.title).toBe('other user task');
+  });
+
+  it('lists every task linked to one deliverable -- /deliverables/[id]\'s own task list', async () => {
+    const { data: course, error: courseError } = await client
+      .from('courses')
+      .insert({ user_id: userId, code: 'PHYS 241', name: 'Modern Physics', term: 'Fall 2026' })
+      .select('id')
+      .single();
+    expect(courseError).toBeNull();
+
+    const { data: deliverable, error: deliverableError } = await client
+      .from('deliverables')
+      .insert({ user_id: userId, course_id: course!.id, title: 'Exam 2', type: 'exam', due_at: '2026-12-10T18:00:00Z', local_due_date: '1970-01-01' })
+      .select('id')
+      .single();
+    expect(deliverableError).toBeNull();
+
+    const linkedTaskId = await makeTask({ deliverable_id: deliverable!.id, title: 'Retrieval practice block' });
+    await makeTask({ title: 'Unrelated task' }); // no deliverable_id -- must not show up
+
+    const result = await listTasksForDeliverable(client, deliverable!.id);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data.map((t) => t.id)).toEqual([linkedTaskId]);
+    expect(result.data[0]!.title).toBe('Retrieval practice block');
   });
 });

@@ -89,4 +89,58 @@ test.describe("E0 manual path: a brand-new account can add a real course with no
       await deleteTestUser(user.id);
     }
   });
+
+  test("E5/U3: /deliverables/[id] generates a real backplan and configures a real task's proof-of-work requirement", async ({ page }) => {
+    const user = await createTestUser({ emailPrefix: "onboarding-deliverable-detail" });
+
+    try {
+      await page.goto("/login");
+      await page.getByTestId("email-input").fill(user.email);
+      await page.getByTestId("password-input").fill(user.password);
+      await page.getByTestId("login-submit").click();
+      await page.waitForURL(/\/today$/, { timeout: 10_000 });
+
+      await page.goto("/courses");
+      await page.getByRole("button", { name: "Add course" }).click();
+      await page.getByLabel("Code").fill("PHYS 241");
+      await page.getByLabel("Name").fill("Modern Physics");
+      await page.getByLabel("Term").fill("Fall 2026");
+      await page.getByRole("button", { name: "Add course", exact: true }).last().click();
+      await page.waitForURL(/\/courses\/\d+$/, { timeout: 10_000 });
+
+      await page.getByRole("button", { name: "Add assignment" }).click();
+      await page.getByLabel("Title").fill("Exam 2");
+      await page.getByLabel("Type").selectOption("exam");
+      await page.getByLabel("Due date").fill("2026-12-10");
+      await page.getByLabel("Estimated minutes (optional)").fill("120");
+      await page.getByRole("button", { name: "Add assignment", exact: true }).last().click();
+
+      await page.getByRole("link", { name: "Exam 2" }).click();
+      await page.waitForURL(/\/deliverables\/\d+$/, { timeout: 10_000 });
+      await expect(page.getByTestId("deliverable-detail-title")).toHaveText("Exam 2");
+
+      // Backplan: none yet, generate a real one.
+      await expect(page.getByText("No backplan generated yet.")).toBeVisible();
+      await page.getByRole("button", { name: "Generate backplan" }).click();
+      await expect(page.getByText("No backplan generated yet.")).not.toBeVisible();
+
+      // Add a real task under this assignment.
+      await page.getByRole("button", { name: "Add task" }).click();
+      await page.getByLabel("Title").fill("Retrieval practice block");
+      await page.getByLabel("Category").fill("exam_prep");
+      await page.getByLabel("Planned date").fill("2026-12-08");
+      await page.getByRole("button", { name: "Add task", exact: true }).last().click();
+      await expect(page.getByText("Retrieval practice block")).toBeVisible();
+
+      // Configure that task's proof-of-work requirement.
+      await page.getByLabel("Requires proof of work").click();
+      await page.getByLabel("Proof type…").selectOption("summary_text");
+      await page.waitForTimeout(500); // debounced-by-network save, no explicit submit button
+      await page.reload();
+      const toggle = page.getByLabel("Requires proof of work");
+      await expect(toggle).toBeChecked();
+    } finally {
+      await deleteTestUser(user.id);
+    }
+  });
 });

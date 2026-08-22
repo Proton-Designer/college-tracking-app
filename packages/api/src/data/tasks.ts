@@ -25,6 +25,17 @@ export async function listTasksForDate(
   return dataOk(data);
 }
 
+/** Every task linked to one deliverable, oldest-planned-first -- /deliverables/[id]'s
+ *  own "tasks under this assignment" list. */
+export async function listTasksForDeliverable(
+  client: TypedSupabaseClient,
+  deliverableId: number,
+): Promise<DataResult<Task[]>> {
+  const { data, error } = await client.from('tasks').select('*').eq('deliverable_id', deliverableId).order('planned_date');
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(data);
+}
+
 export async function listOverdueTasks(
   client: TypedSupabaseClient,
   beforeDate: LocalDate,

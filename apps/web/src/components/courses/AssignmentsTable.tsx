@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { Deliverable, GradeCategoryRow, GradeItemRow } from "@collegeos/api";
 import { BackplanChain } from "@/components/courses/BackplanChain";
 import { daysRemainingLabel } from "@/lib/dates";
@@ -58,7 +59,9 @@ export function AssignmentsTable({
             return (
               <tr key={d.id} className="border-b border-hairline last:border-b-0">
                 <td className="py-3 pr-4 align-top text-body-s text-ink">
-                  {d.title}
+                  <Link href={`/deliverables/${d.id}`} className="hover:underline">
+                    {d.title}
+                  </Link>
                   <BackplanChain chain={chain} />
                 </td>
                 <td className="py-3 pr-4 align-top font-mono text-body-s text-ink-faint">{typeLabel(d.type)}</td>

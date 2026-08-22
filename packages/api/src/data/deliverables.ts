@@ -108,6 +108,14 @@ export async function deleteDeliverable(
   return dataOk(null);
 }
 
+/** One deliverable by id -- /deliverables/[id]'s own detail read. RLS scopes this to the
+ *  caller's own row; there is no separate userId filter to get wrong. */
+export async function getDeliverable(client: TypedSupabaseClient, deliverableId: number): Promise<DataResult<Deliverable>> {
+  const { data, error } = await client.from('deliverables').select('*').eq('id', deliverableId).single();
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(data);
+}
+
 /** Raw deliverables rows for one course, ordered soonest-due-first -- for rendering an
  *  assignments table (due_at, type, status). DeliverableRisk (day/risk.ts) only carries
  *  title + courseId, which is enough to score risk but not enough to render a list. */

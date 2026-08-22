@@ -1,6 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { beforeAll, describe, expect, it } from 'vitest';
-import { createDeliverable, deleteDeliverable, updateDeliverable } from '../data/deliverables';
+import { createDeliverable, deleteDeliverable, getDeliverable, updateDeliverable } from '../data/deliverables';
 import { createConfirmedUser, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from '../client/types';
@@ -48,6 +48,11 @@ describe('deliverable CRUD against a dedicated throwaway user', () => {
     // Real value derived from due_at + the profile's timezone -- any real-world offset
     // keeps it on the same UTC calendar day or the one before, never further off.
     expect(['2026-11-14', '2026-11-15']).toContain(created.data.local_due_date);
+
+    // /deliverables/[id]'s own single-row read.
+    const fetched = await getDeliverable(client, created.data.id);
+    expect(fetched.ok).toBe(true);
+    if (fetched.ok) expect(fetched.data.title).toBe('HW3');
 
     // Verify the write directly, not just the function's return value.
     const { data: row } = await client.from('deliverables').select('*').eq('id', created.data.id).single();

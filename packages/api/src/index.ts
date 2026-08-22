@@ -27,7 +27,7 @@ export { getOwnProfile, updateOwnProfile } from "./data/profiles";
 export type { Profile, ProfileUpdate } from "./data/profiles";
 export { createCourse, getCourse, listCourses, updateCourse } from "./data/courses";
 export type { Course, CourseInsert, UpdateCourseInput } from "./data/courses";
-export { createTask, deleteTask, listOverdueTasks, listTasksForDate, updateTask, updateTaskStatus } from "./data/tasks";
+export { createTask, deleteTask, listOverdueTasks, listTasksForDate, listTasksForDeliverable, updateTask, updateTaskStatus } from "./data/tasks";
 export type { Task, TaskInsert, TaskStatus, TaskProofOfWorkType, UpdateTaskInput } from "./data/tasks";
 export { getCheckinForDate, upsertCheckin } from "./data/dailyCheckins";
 export type { DailyCheckin, DailyCheckinInsert } from "./data/dailyCheckins";
@@ -51,7 +51,7 @@ export type {
   UpdateGradeCategoryInput,
   UpsertGradeBoundaryInput,
 } from "./data/gradeStructure";
-export { listDeliverables, createDeliverable, updateDeliverable, deleteDeliverable } from "./data/deliverables";
+export { getDeliverable, listDeliverables, createDeliverable, updateDeliverable, deleteDeliverable } from "./data/deliverables";
 export type { Deliverable, DeliverableType, DeliverableStatus, CreateDeliverableInput, UpdateDeliverableInput } from "./data/deliverables";
 export {
   listSyllabusExtractions,
