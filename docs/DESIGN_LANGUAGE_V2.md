@@ -277,12 +277,29 @@ a gap to fill:
 | `/today` | `deriveDayBand(risk.deliverableRisks)` |
 | `/courses` | `deriveDayBand` over every course's deliverables |
 | `/courses/[id]` | that course's own `CourseRiskSummary.result.band` |
-| `/deliverables/[id]` | that deliverable's `result.band` |
+| `/deliverables/[id]` | **none — flat ground.** See below; this row originally said "that deliverable's `result.band`" and that was wrong. |
 | `/review/[date]` | the band recorded **for that date**, never today's — a report is an archival record of a moment |
 | `/calendar`, `/insights`, `/settings`, `/focus`, auth, landing | **none — flat ground** |
 
+**Why `/deliverables/[id]` gets none.** `useDeliverableDetailData` computes no risk at all — it fetches
+the deliverable, its course, its tasks and the backplan chain. Giving that screen a band would mean
+adding a `computeRiskAssessment` call (course facts, grade projections, sleep baseline, timezone) to
+a leaf screen **purely to tint a background**. The Aurora is explicitly ambient and carries no
+information a user must read, so paying a real fetch for it is the wrong trade — especially with
+`HANDOFF.md` §7.5 open, where `/today`'s round-trip count is already a known problem against cloud
+RTT and invisible only locally.
+
+The tempting middle option — computing a cheaper per-deliverable band from data the hook already
+holds — is the one to refuse. It would create a **second definition of risk**, computed differently
+from `computeRiskAssessment`. That is exactly what D16's core-mirror guard exists to prevent, and
+this repo has already been bitten twice by the same shape (B1/B2 going stale in the hand-ported Deno
+copy; B8's untracked query duplication). Two places answering "how risky is this?" will disagree
+eventually, and the one on the prettier screen will be the wrong one.
+
 **Constraints:**
 - Derived from an existing computed value. **Never a new number, never a fabricated one.**
+- **Never worth a new query.** If a screen would need one to know its band, that screen gets flat
+  ground. Atmosphere does not justify I/O.
 - Ambient only — it never carries information the user must read. A colourblind user loses nothing.
   Risk is always *also* stated in text and in a `RiskPill`.
 - Renders once per navigation. It does not animate, pulse, or breathe. A background that moves while
