@@ -1,8 +1,12 @@
 import Link from "next/link";
+import { AddAssignmentModal } from "@/components/courses/AddAssignmentModal";
 import { AssignmentsTable } from "@/components/courses/AssignmentsTable";
 import { CourseRiskPanel } from "@/components/courses/CourseRiskPanel";
+import { EditCourseModal } from "@/components/courses/EditCourseModal";
+import { GradeBoundariesSection } from "@/components/courses/GradeBoundariesSection";
+import { GradeCategoriesSection } from "@/components/courses/GradeCategoriesSection";
 import { ScenarioPlanner } from "@/components/courses/ScenarioPlanner";
-import { Metric, Panel, RiskPill } from "@/components/ui";
+import { Metric, PageHeader, Panel, RiskPill } from "@/components/ui";
 import { loadCourseDetail } from "./data";
 
 function formatPct(pct: number | null): string {
@@ -46,22 +50,22 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         <Link href="/courses" className="font-mono text-caption uppercase tracking-[0.08em] text-ink-faint hover:text-ink">
           ← Courses
         </Link>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <h1 data-testid="course-detail-code" className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">
-              {course.code}
-            </h1>
-            <p className="text-body text-ink-muted">
-              {course.name} · {course.term}
-            </p>
-          </div>
-          {courseRisk ? (
-            <div className="flex items-center gap-2">
-              <RiskPill band={courseRisk.result.band} label={courseRisk.result.band.toUpperCase()} />
-              <span className="font-mono text-body-s tabular-nums text-ink-faint">{courseRisk.result.score}</span>
-            </div>
-          ) : null}
-        </div>
+        <PageHeader
+          title={course.code}
+          titleTestId="course-detail-code"
+          context={course.archived_at != null ? `${course.name} · ${course.term} · Archived` : `${course.name} · ${course.term}`}
+          actions={
+            <>
+              {courseRisk ? (
+                <div className="flex items-center gap-2">
+                  <RiskPill band={courseRisk.result.band} label={courseRisk.result.band.toUpperCase()} />
+                  <span className="font-mono text-body-s tabular-nums text-ink-faint">{courseRisk.result.score}</span>
+                </div>
+              ) : null}
+              <EditCourseModal course={course} />
+            </>
+          }
+        />
       </div>
 
       <div className="flex flex-wrap gap-8">
@@ -84,6 +88,8 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         </p>
       ) : null}
 
+      <GradeCategoriesSection courseId={courseId} categories={categories} />
+
       {gradeResult ? (
         <ScenarioPlanner
           courseId={courseId}
@@ -99,7 +105,10 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
       </section>
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Assignments &amp; exams</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Assignments &amp; exams</h2>
+          <AddAssignmentModal courseId={courseId} />
+        </div>
         <AssignmentsTable
           deliverables={deliverables}
           gradeItems={gradeItems}
@@ -117,20 +126,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           {course.allowed_absences != null ? (
             <PolicyRow label="Allowed absences" value={String(course.allowed_absences)} />
           ) : null}
-          {gradeBoundaries.length > 0 ? (
-            <div className="flex flex-col gap-0.5">
-              <span className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Grade boundaries</span>
-              <ul className="flex flex-wrap gap-x-4 gap-y-0.5 font-mono text-body-s tabular-nums text-ink">
-                {gradeBoundaries.map((b) => (
-                  <li key={b.id}>
-                    {b.letter} {Math.round(b.min_pct)}%+
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : (
-            <PolicyRow label="Grade boundaries" value={null} />
-          )}
+          <GradeBoundariesSection courseId={courseId} boundaries={gradeBoundaries} />
         </Panel>
       </section>
     </main>

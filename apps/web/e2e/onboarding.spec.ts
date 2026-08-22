@@ -38,4 +38,55 @@ test.describe("E0 manual path: a brand-new account can add a real course with no
       await deleteTestUser(user.id);
     }
   });
+
+  test("E2/E1: a course can be edited, given a weight category, a grade boundary, and a real assignment", async ({ page }) => {
+    const user = await createTestUser({ emailPrefix: "onboarding-course-detail" });
+
+    try {
+      await page.goto("/login");
+      await page.getByTestId("email-input").fill(user.email);
+      await page.getByTestId("password-input").fill(user.password);
+      await page.getByTestId("login-submit").click();
+      await page.waitForURL(/\/today$/, { timeout: 10_000 });
+
+      await page.goto("/courses");
+      await page.getByRole("button", { name: "Add course" }).click();
+      await page.getByLabel("Code").fill("CS 180");
+      await page.getByLabel("Name").fill("Problem Solving");
+      await page.getByLabel("Term").fill("Fall 2026");
+      await page.getByRole("button", { name: "Add course", exact: true }).last().click();
+      await page.waitForURL(/\/courses\/\d+$/, { timeout: 10_000 });
+
+      // Edit course.
+      await page.getByRole("button", { name: "Edit course" }).click();
+      await page.getByLabel("Target grade (%)").fill("90");
+      await page.getByRole("button", { name: "Save" }).click();
+      await expect(page.getByText("90", { exact: true })).toBeVisible();
+
+      // Add a weight category.
+      await page.getByRole("button", { name: "Add category" }).click();
+      await page.getByLabel("Name").fill("Homework");
+      await page.getByLabel("Weight (%)").fill("60");
+      await page.getByRole("button", { name: "Save" }).click();
+      await expect(page.getByText("Homework").first()).toBeVisible();
+      await expect(page.getByText("60%", { exact: false }).first()).toBeVisible();
+
+      // Add a grade boundary.
+      await page.getByRole("button", { name: "+ Add boundary" }).click();
+      await page.getByLabel("Letter").fill("A");
+      await page.getByLabel("Minimum percent").fill("93");
+      await page.getByRole("button", { name: "Save" }).click();
+      await expect(page.getByText("A 93%+")).toBeVisible();
+
+      // Add a real assignment with a real due date.
+      await page.getByRole("button", { name: "Add assignment" }).click();
+      await page.getByLabel("Title").fill("Homework 1");
+      await page.getByLabel("Type").selectOption("problem_set");
+      await page.getByLabel("Due date").fill("2026-12-01");
+      await page.getByRole("button", { name: "Add assignment", exact: true }).last().click();
+      await expect(page.getByText("Homework 1")).toBeVisible();
+    } finally {
+      await deleteTestUser(user.id);
+    }
+  });
 });
