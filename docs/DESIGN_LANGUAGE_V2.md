@@ -281,6 +281,17 @@ a gap to fill:
 | `/review/[date]` | the band recorded **for that date**, never today's — a report is an archival record of a moment |
 | `/calendar`, `/insights`, `/settings`, `/focus`, auth, landing | **none — flat ground** |
 
+**The landing page is the one deliberate exception, and it is not a loophole.** `/` (web) and
+`index.tsx` (mobile) may paint the Aurora as **design**, from a fixed chosen stop pair, because
+there is no signed-in user and therefore **no one whose state could be misreported**. The honesty
+rule exists to stop the surface claiming to know something it doesn't; a marketing page claims
+nothing about anybody. Use one fixed pair — do not call `auroraForRisk` with an invented band, which
+would put a fabricated `RiskBand` into the codebase for a decorative result.
+
+This holds only while the landing page shows no real user data. Its hero (`DayReading`) is already
+an explicit non-live illustration and says so in its own header comment; **if it ever binds to a
+real account, the exception dies with it.**
+
 **Why `/deliverables/[id]` gets none.** `useDeliverableDetailData` computes no risk at all — it fetches
 the deliverable, its course, its tasks and the backplan chain. Giving that screen a band would mean
 adding a `computeRiskAssessment` call (course facts, grade projections, sleep baseline, timezone) to
