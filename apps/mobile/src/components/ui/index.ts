@@ -21,7 +21,7 @@ export type { NavLinkProps } from "./NavLink";
 export { Metric } from "./Metric";
 export type { MetricDelta, MetricProps } from "./Metric";
 export { Panel } from "./Panel";
-export type { PanelProps } from "./Panel";
+export type { PanelProps, PanelTone } from "./Panel";
 export { RiskPill } from "./RiskPill";
 export type { RiskBand, RiskPillProps } from "./RiskPill";
 export { SegmentedControl } from "./SegmentedControl";

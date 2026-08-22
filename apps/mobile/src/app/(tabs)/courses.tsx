@@ -101,7 +101,7 @@ function CourseRow({ row, today, isLast }: { row: CoursesIndexRow; today: string
   return (
     <Pressable
       onPress={() => router.push(`/courses/${course.id}`)}
-      style={[styles.row, isLast ? styles.rowLast : styles.rowBorder]}
+      style={({ pressed }) => [styles.row, isLast ? styles.rowLast : styles.rowBorder, { opacity: pressed ? 0.6 : 1 }]}
     >
       <View style={styles.rowTop}>
         <View style={styles.rowText}>
