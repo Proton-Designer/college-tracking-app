@@ -5,6 +5,7 @@ export * from './util/localToday';
 
 export * from './risk/assignmentRisk';
 export * from './risk/courseRisk';
+export * from './risk/dayBand';
 export * from './risk/riskAssessment';
 
 export * from './grades/types';

@@ -218,6 +218,39 @@ The aurora is never decoration applied for mood; if it is showing, it is reporti
 system actually computed. This is the three laws applied to pixels: *deterministic code calculates,
 the surface only interprets.*
 
+### 6.1 Where each screen's band comes from
+
+**There was no day-level risk band before this.** `RiskAssessment` is per-deliverable and
+per-course only. The obvious move — `Math.max(...)` inline in an `<Aurora>` component — would put a
+domain calculation in a shell (forbidden, CLAUDE.md law 2) and would let web and mobile silently
+derive the *same day* differently.
+
+So one definition exists, in core, unit-tested, imported by both platforms:
+
+```ts
+import { deriveDayBand } from "@collegeos/core";
+deriveDayBand(dayView.risk.deliverableRisks); // RiskBand | null
+```
+
+It is a **maximum**, deliberately not an average: a day holding one critical deliverable and nine
+low ones *is* a critical day, and averaging would report it as calm — exactly the
+comfortable-but-false reading this product exists to argue with. It is deliberately **not** blended
+with recovery mode, workload or capacity; those describe the *person*, not deadline exposure, and
+each already has its own surface. A number meaning two things at once can be honestly explained as
+neither.
+
+Per screen — and where the answer is "none", the screen gets flat ground, which is correct and not
+a gap to fill:
+
+| Screen | Band source |
+|---|---|
+| `/today` | `deriveDayBand(risk.deliverableRisks)` |
+| `/courses` | `deriveDayBand` over every course's deliverables |
+| `/courses/[id]` | that course's own `CourseRiskSummary.result.band` |
+| `/deliverables/[id]` | that deliverable's `result.band` |
+| `/review/[date]` | the band recorded **for that date**, never today's — a report is an archival record of a moment |
+| `/calendar`, `/insights`, `/settings`, `/focus`, auth, landing | **none — flat ground** |
+
 **Constraints:**
 - Derived from an existing computed value. **Never a new number, never a fabricated one.**
 - Ambient only — it never carries information the user must read. A colourblind user loses nothing.

@@ -8,6 +8,7 @@ export * from './util/localToday.ts';
 
 export * from './risk/assignmentRisk.ts';
 export * from './risk/courseRisk.ts';
+export * from './risk/dayBand.ts';
 export * from './risk/riskAssessment.ts';
 
 export * from './grades/types.ts';
