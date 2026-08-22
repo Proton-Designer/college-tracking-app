@@ -547,6 +547,41 @@ its own state correctly can still be a dead end.
 
 ---
 
+## 🔴 P2 — A backend outage hangs the page; it does not produce an honest error
+
+Found by the mid-request database-failure pass (partial — see scope below).
+
+**What happens:** with PostgREST stopped and GoTrue/Kong still up — i.e. the session still validates,
+so this is a *data-layer* outage rather than a total one — **6 of 6 routes tested never reached
+DOMContentLoaded within 8 seconds.** `/today`, `/courses`, `/courses/[id]`, `/deliverables/[id]`,
+`/calendar`, `/insights`. The server-rendered page simply does not respond.
+
+**Root cause, confirmed from config rather than inferred:**
+- Kong's own `kong.yml` sets `read_timeout: 150000` — **150 seconds** — with a comment saying it is
+  set deliberately *"to match hosted project"*. So this is **production behaviour, not a local
+  artifact.**
+- There is **no `AbortSignal` or request timeout anywhere** in either app's Supabase client wrappers
+  (`apps/web`, `apps/mobile`, `packages/api`). Nothing in application code caps how long a call may
+  hang, so the effective failure-detection ceiling is however long Kong takes to give up.
+
+**Why this matters more than it first looks.** `L11_HARDENING` §3 records that all 9 `(app)` routes
+have explicit `!result.ok` error branches — **that finding stands, and is now known to be
+insufficient.** The branches are correct and unreachable in practice for this failure mode: a user
+does not wait 150 seconds to be told something went wrong. A structurally-present error state that
+never renders inside human patience is not an error state.
+
+**Scope — deliberately not closed:** `/review`, `/review/[date]` and `/settings` were **not** reached,
+and **the mutation-mid-flight test was never run** — the earlier hangs consumed the whole test budget.
+That last one is the important gap: *a failed read is visible; a write that silently appears to
+succeed is the failure mode that costs real data.*
+
+**Direction (not yet ratified as an implementation):** a request-level timeout in the shared Supabase
+client wrapper, well below Kong's 150s, so a data-layer outage degrades to the error branch that
+already exists rather than to a hang. Any such timeout is a product decision about how long a user
+should wait — pick it deliberately, don't inherit 150s by accident.
+
+---
+
 ## Smaller items from the 2026-08-22 live review
 
 | # | Item | Notes |
