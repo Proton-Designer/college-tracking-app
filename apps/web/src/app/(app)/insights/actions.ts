@@ -5,7 +5,9 @@ import {
   createExperiment,
   getUserLocalToday,
   getOwnProfile,
+  logDecision,
   logExperimentMeasurement,
+  scoreDecision,
   scoreExperiment,
 } from "@collegeos/api";
 import { addDays } from "@collegeos/core";
@@ -152,6 +154,70 @@ export async function closeExperiment(input: CloseExperimentInput): Promise<Acti
     outcomeSummary: summary,
     endDate: today,
   });
+  if (!result.ok) return { ok: false, error: result.error.message };
+
+  revalidatePath("/insights");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// U7 — the decision journal.
+//
+// Built in L8 with log/score/list and no caller on either platform. The brief wants
+// decisions recorded with their reasoning and a prediction, then scored later, so that
+// systematic decision errors surface over time. Same observe-then-score shape as
+// experiments (U9) and daily predictions — which is why they live on the same screen.
+// ---------------------------------------------------------------------------
+
+export interface LogDecisionActionInput {
+  decision: string;
+  rationale?: string;
+  /** Confidence, 0-100. Optional and genuinely unset when not given — never defaulted.
+   *  A fabricated confidence is exactly what poisoned the first calibration point a new
+   *  user ever produced (E0), and a decision journal exists to measure this. */
+  predictionPct?: number;
+  predictedOutcome?: string;
+}
+
+export async function logDecisionAction(input: LogDecisionActionInput): Promise<ActionResult> {
+  const client = await getServerSupabaseClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const decision = input.decision.trim();
+  if (!decision) return { ok: false, error: "What did you decide?" };
+
+  if (input.predictionPct != null && (!Number.isFinite(input.predictionPct) || input.predictionPct < 0 || input.predictionPct > 100)) {
+    return { ok: false, error: "Confidence is a percentage between 0 and 100." };
+  }
+
+  const result = await logDecision(client, user.id, {
+    decision,
+    ...(input.rationale?.trim() ? { rationale: input.rationale.trim() } : {}),
+    ...(input.predictionPct != null ? { predictionPct: input.predictionPct } : {}),
+    ...(input.predictedOutcome?.trim() ? { predictedOutcome: input.predictedOutcome.trim() } : {}),
+  });
+  if (!result.ok) return { ok: false, error: result.error.message };
+
+  revalidatePath("/insights");
+  return { ok: true };
+}
+
+/** Records what actually happened. Idempotent — re-scoring overwrites, same as
+ *  scorePredictionForDate. */
+export async function scoreDecisionAction(input: { decisionId: number; actualOutcome: string }): Promise<ActionResult> {
+  const client = await getServerSupabaseClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const actualOutcome = input.actualOutcome.trim();
+  if (!actualOutcome) return { ok: false, error: "Say what actually happened." };
+
+  const result = await scoreDecision(client, input.decisionId, { actualOutcome });
   if (!result.ok) return { ok: false, error: result.error.message };
 
   revalidatePath("/insights");

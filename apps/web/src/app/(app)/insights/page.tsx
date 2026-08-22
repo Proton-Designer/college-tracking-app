@@ -1,4 +1,5 @@
 import { ActiveExperiments } from "@/components/insights/ActiveExperiments";
+import { DecisionJournal } from "@/components/insights/DecisionJournal";
 import { BounceBackSection } from "@/components/insights/BounceBackSection";
 import { CalibrationTable } from "@/components/insights/CalibrationTable";
 import { FrictionDistributionSection } from "@/components/insights/FrictionDistributionSection";
@@ -18,7 +19,7 @@ export default async function InsightsPage() {
     );
   }
 
-  const { today, insightsByTier, activeExperiments, calibrationTable, frictionDistribution, frictionTrend, bounceBackByHabit, planningExecution } =
+  const { today, insightsByTier, activeExperiments, calibrationTable, frictionDistribution, frictionTrend, bounceBackByHabit, planningExecution, decisions } =
     result.data;
 
   return (
@@ -30,6 +31,14 @@ export default async function InsightsPage() {
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Active experiments</h2>
         <ActiveExperiments experiments={activeExperiments} today={today} />
+      </section>
+
+      {/* U7 sits directly beside experiments on purpose: both are observe-then-score, and
+          seeing an unscored decision next to an unscored trial is what makes "close the
+          loop" a habit rather than a feature. */}
+      <section className="flex flex-col gap-3">
+        <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Decision journal</h2>
+        <DecisionJournal decisions={decisions} />
       </section>
 
       <section className="flex flex-col gap-3">

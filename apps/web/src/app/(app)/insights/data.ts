@@ -8,11 +8,13 @@ import {
   getUserLocalToday,
   listActiveInsights,
   listCalibrationTable,
+  listDecisions,
   getExperimentOutcome,
   listExperimentMeasurements,
   listExperiments,
   listKillHabits,
   type CalibrationTableRow,
+  type DecisionJournalRow,
   type Experiment,
   type ExperimentMeasurementRow,
   type Insight,
@@ -52,6 +54,8 @@ export interface InsightsData {
   frictionDistribution: FrictionDistribution;
   frictionTrend: CauseTrendEntry[];
   bounceBackByHabit: HabitBounceBack[];
+  /** U7 — newest first. Unscored ones are the "close the loop" queue. */
+  decisions: DecisionJournalRow[];
   planningExecution: PlanningExecutionResult | null;
 }
 
@@ -89,6 +93,7 @@ export async function loadInsightsData(): Promise<InsightsLoadResult> {
     frictionTrendResult,
     planningExecution,
     calibrationTable,
+    decisionsResult,
   ] = await Promise.all([
     listActiveInsights(client),
     listExperiments(client, "running"),
@@ -97,6 +102,7 @@ export async function loadInsightsData(): Promise<InsightsLoadResult> {
     computeUserFrictionTrend(client, user.id, previousWindow, currentWindow),
     computeYesterdayPlanningExecution(client, user.id, today),
     listCalibrationTable(client, user.id, profile.timezone, now),
+    listDecisions(client, { limit: 20 }),
   ]);
 
   if (!insightsResult.ok) return { ok: false, error: insightsResult.error.message };
@@ -139,6 +145,7 @@ export async function loadInsightsData(): Promise<InsightsLoadResult> {
       frictionTrend: frictionTrendResult.data,
       bounceBackByHabit,
       planningExecution,
+      decisions: decisionsResult.ok ? decisionsResult.data : [],
     },
   };
 }
