@@ -1,10 +1,11 @@
 import type { ButtonHTMLAttributes, HTMLAttributes, ReactNode } from "react";
 import { cn } from "./cn";
 
-export type PanelTone = "surface" | "sunken";
+export type PanelTone = "surface" | "raised" | "sunken";
 
 const TONE_CLASS: Record<PanelTone, string> = {
   surface: "glass",
+  raised: "glass-raised",
   sunken: "glass-sunken",
 };
 

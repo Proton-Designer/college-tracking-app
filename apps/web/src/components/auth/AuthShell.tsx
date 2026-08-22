@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 import { Aurora } from "@/components/ui/Aurora";
+import { Panel } from "@/components/ui/Panel";
 
 export function AuthShell({
   title,
@@ -27,7 +28,13 @@ export function AuthShell({
           {title}
         </h1>
         {subtitle ? <p className="mt-2 text-body text-ink-muted">{subtitle}</p> : null}
-        <div className="mt-8">{children}</div>
+        {/* This is the one screen where nothing else on the page carries the glass
+            language -- no table, no list, no dashboard widgets, just a form. Raised
+            tier: it's the single surface on the page, so it should read as elevated,
+            not merely present. */}
+        <Panel tone="raised" className="mt-8">
+          {children}
+        </Panel>
         {footer ? <div className="mt-6 text-body-s text-ink-muted">{footer}</div> : null}
       </div>
     </main>
