@@ -40,11 +40,26 @@ export async function proxy(request: NextRequest) {
   // calls getUser(), which for a static/cached page might never happen.
   const {
     data: { user },
+    error: authError,
   } = await client.auth.getUser();
 
   const { pathname } = request.nextUrl;
   const isAuthRoute = isPathIn(pathname, AUTH_ROUTES);
   const isPublicRoute = isPathIn(pathname, PUBLIC_ROUTES);
+
+  // Discarding this error made session loss undiagnosable: a failing getUser() silently
+  // becomes "not signed in", @supabase/ssr clears the auth cookie through setAll above, and
+  // the user is bounced to /login with nothing written anywhere explaining why. Observed
+  // three times during the 2026-08-22 review with an empty server log every time.
+  //
+  // Logs the error CODE and the path only — never the message body, never a token, never a
+  // cookie. Auth errors can echo back credential material and this runs on every request.
+  // A signed-out visitor hitting a public or auth route is the normal case, not a signal.
+  if (authError && !isPublicRoute && !isAuthRoute) {
+    console.warn(
+      `[proxy] auth.getUser() failed on ${pathname}: code=${authError.code ?? "unknown"} status=${authError.status ?? "unknown"}`,
+    );
+  }
 
   if (!user && !isAuthRoute && !isPublicRoute) {
     const redirectUrl = new URL("/login", request.url);
