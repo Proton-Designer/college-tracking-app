@@ -486,6 +486,26 @@ must-fix-before-launch items are still accurate and still flagged.
 
 ---
 
+## The false-green pattern worth remembering (L14 §5, 2026-08-22)
+
+`runNightlyAnalysis.itest.ts` held a hand-built `VALID_ANALYSIS` fixture that predated `lenses`
+being added to `DailyAnalysisSchema`. `safeParse` therefore rejected it silently, and **two tests
+ran the deterministic fallback path while asserting on the success path.** They passed.
+
+That is the most dangerous shape a test can take. Not a test that fails to run, and not a test that
+fails — a test that **runs the wrong code and reports success**, so the thing it claims to cover has
+in fact never been exercised.
+
+**The generalisable rule: when a schema gains a required field, every hand-built fixture for that
+schema becomes a silent liar.** Nothing in typecheck, lint or the test run catches it, because the
+fixture is valid TypeScript and the parse failure is handled gracefully by design.
+
+Two defences worth considering if this recurs: derive fixtures from the schema rather than
+hand-writing them, or assert on the *path taken* (`usedModel`, `model`) and not only on the output
+shape — a test that asserted `model !== 'deterministic'` would have caught this immediately.
+
+---
+
 ## Smaller items from the 2026-08-22 live review
 
 | # | Item | Notes |
