@@ -2,6 +2,7 @@ import { color, radius, space } from "@collegeos/design/native";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { textStyle } from "../../design/typography";
+import { GlassSurface } from "./GlassSurface";
 import { Label } from "./Label";
 
 export interface ChipOption {
@@ -38,6 +39,8 @@ export function ChipGroup({ label, options, value, onValueChange, disabled = fal
   );
 }
 
+/** Same split as Button: a selected chip is a decision (solid accent), an unselected chip is
+ *  `glass-base` -- a chip resting on the ground, the tier table's own words for this tier. */
 function Chip({
   option,
   selected,
@@ -51,26 +54,44 @@ function Chip({
 }) {
   const [focused, setFocused] = useState(false);
 
+  if (selected) {
+    return (
+      <Pressable
+        accessibilityRole="radio"
+        accessibilityState={{ selected, disabled }}
+        disabled={disabled}
+        onPress={onPress}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={({ pressed }) => [
+          styles.chip,
+          styles.chipSelected,
+          { opacity: disabled ? 0.4 : pressed ? 0.85 : 1 },
+          focused && !disabled ? styles.focusRing : null,
+        ]}
+      >
+        <Text style={textStyle("bodyS", "#FFFFFF")}>{option.label}</Text>
+      </Pressable>
+    );
+  }
+
   return (
-    <Pressable
-      accessibilityRole="radio"
-      accessibilityState={{ selected, disabled }}
-      disabled={disabled}
-      onPress={onPress}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      style={({ pressed }) => [
-        styles.chip,
-        {
-          borderColor: selected ? color.accent : color.border,
-          backgroundColor: selected ? color.accent : color.surface,
-          opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
-        },
-        focused && !disabled ? styles.focusRing : null,
-      ]}
+    <GlassSurface
+      tier="base"
+      style={[styles.chip, { opacity: disabled ? 0.4 : 1 }, focused && !disabled ? styles.focusRing : null]}
     >
-      <Text style={textStyle("bodyS", selected ? "#FFFFFF" : color.ink)}>{option.label}</Text>
-    </Pressable>
+      <Pressable
+        accessibilityRole="radio"
+        accessibilityState={{ selected, disabled }}
+        disabled={disabled}
+        onPress={onPress}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        style={({ pressed }) => [styles.chipInner, { opacity: pressed ? 0.85 : 1 }]}
+      >
+        <Text style={textStyle("bodyS", color.ink)}>{option.label}</Text>
+      </Pressable>
+    </GlassSurface>
   );
 }
 
@@ -87,9 +108,17 @@ const styles = StyleSheet.create({
     minHeight: 44,
     justifyContent: "center",
     borderRadius: radius.pill,
-    borderWidth: StyleSheet.hairlineWidth,
+  },
+  chipInner: {
+    justifyContent: "center",
     paddingHorizontal: space[5],
     paddingVertical: space[2],
+  },
+  chipSelected: {
+    backgroundColor: color.accent,
+    paddingHorizontal: space[5],
+    paddingVertical: space[2],
+    alignItems: "center",
   },
   focusRing: {
     outlineWidth: 2,

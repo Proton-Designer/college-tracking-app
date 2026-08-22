@@ -23,6 +23,7 @@ import {
   Badge,
   Button,
   Checkbox,
+  ChipGroup,
   DatePicker,
   EmptyState,
   FieldError,
@@ -30,6 +31,7 @@ import {
   Label,
   Metric,
   Modal,
+  NavLink,
   Panel,
   RiskPill,
   SegmentedControl,
@@ -167,6 +169,7 @@ export default function DesignPreviewScreen() {
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [studyTime, setStudyTime] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
+  const [derailment, setDerailment] = useState<string | null>("phone");
   const insets = useSafeAreaInsets();
 
   return (
@@ -304,6 +307,28 @@ export default function DesignPreviewScreen() {
       <SegmentedControl label="Energy" value={scale} onValueChange={setScale} />
       <View style={{ height: space[4] }} />
       <SegmentedControl label="Disabled" value={4} onValueChange={() => {}} disabled />
+
+      <SectionTitle note="Unselected chip is glass-base; selected is a decision, not a surface.">
+        ChipGroup
+      </SectionTitle>
+      <ChipGroup
+        label="Likely derailment"
+        options={[
+          { value: "phone", label: "Phone" },
+          { value: "oversleep", label: "Overslept" },
+          { value: "social", label: "Social plans" },
+        ]}
+        value={derailment}
+        onValueChange={setDerailment}
+      />
+
+      <SectionTitle note="Same glass-base chip material as Button secondary and ChipGroup.">
+        NavLink
+      </SectionTitle>
+      <View style={styles.row}>
+        <NavLink label="Courses" onPress={() => {}} />
+        <NavLink label="Next deliverable" direction="forward" onPress={() => {}} />
+      </View>
 
       <SectionTitle note="Trigger opens a picker sheet built on Modal.">Select</SectionTitle>
       <StateLabel>unset / chosen (live)</StateLabel>
