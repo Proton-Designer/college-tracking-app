@@ -13,7 +13,14 @@ function ReadoutRow({ label, value }: { label: string; value: string }) {
 /** Auto-populated actuals — SCREEN_SPEC §3: "the user only adds what the system cannot
  *  know." Every value here comes from getNightReviewDraft, never from user input.
  *  A field is omitted entirely rather than shown as a fabricated zero when its source
- *  table has no row for today (no screen-time integration, no health sync, etc). */
+ *  table has no row for today (no screen-time integration, no health sync, etc).
+ *
+ *  MITs and deep work are the two rows that always render, because "you planned nothing"
+ *  is a fact we genuinely know rather than a gap in a source table — so they say that,
+ *  instead of "0/0 completed" and "0 / 0 min". A real zero and an absent value are
+ *  different facts and must never render identically: `0/0 completed` reads as failure
+ *  when it actually means there was nothing to fail at. Keep these in sync with the
+ *  mobile copy of this component. */
 export function ReviewDraft({
   draft,
   draftCompletionPct,
@@ -26,8 +33,20 @@ export function ReviewDraft({
   return (
     <Panel className="flex flex-col gap-3">
       <p className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Tonight&apos;s numbers</p>
-      <ReadoutRow label="MITs" value={`${draft.mitsCompleted}/${draft.mitsPlanned} completed`} />
-      <ReadoutRow label="Deep work" value={`${draft.deepWorkActualMin} / ${draft.deepWorkPlannedMin} min`} />
+      <ReadoutRow
+        label="MITs"
+        value={draft.mitsPlanned === 0 ? "none planned" : `${draft.mitsCompleted}/${draft.mitsPlanned} completed`}
+      />
+      <ReadoutRow
+        label="Deep work"
+        value={
+          draft.deepWorkPlannedMin === 0
+            ? draft.deepWorkActualMin === 0
+              ? "none planned"
+              : `${draft.deepWorkActualMin} min · unplanned`
+            : `${draft.deepWorkActualMin} / ${draft.deepWorkPlannedMin} min`
+        }
+      />
       {draft.screenTimeMin != null ? (
         <ReadoutRow
           label="Screen time"

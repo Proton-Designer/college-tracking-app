@@ -44,7 +44,10 @@ export default async function ReviewPage() {
             <ReviewField label="Anything important" value={existingReview.important_note_text} />
           ) : null}
           <p className="text-caption text-ink-faint">
-            MITs {existingReview.mits_completed}/{existingReview.mits_planned} ·{" "}
+            {existingReview.mits_planned === 0
+              ? "No MITs planned"
+              : `MITs ${existingReview.mits_completed}/${existingReview.mits_planned}`}{" "}
+            ·{" "}
             {existingReview.deep_work_actual_min != null ? `${existingReview.deep_work_actual_min} min deep work` : "no session data"}
           </p>
           {prediction && prediction.predicted_completion_pct != null && prediction.actual_completion_pct != null ? (

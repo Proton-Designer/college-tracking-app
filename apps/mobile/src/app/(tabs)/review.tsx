@@ -63,7 +63,10 @@ function ReviewSaved({ review, prediction }: { review: DailyReview; prediction: 
       {review.went_wrong_text ? <ReviewField label="What went wrong" value={review.went_wrong_text} /> : null}
       {review.important_note_text ? <ReviewField label="Anything important" value={review.important_note_text} /> : null}
       <Text style={textStyle("caption", color.inkFaint)}>
-        MITs {review.mits_completed}/{review.mits_planned} ·{" "}
+        {review.mits_planned === 0
+          ? "No MITs planned"
+          : `MITs ${review.mits_completed}/${review.mits_planned}`}{" "}
+        ·{" "}
         {review.deep_work_actual_min != null ? `${review.deep_work_actual_min} min deep work` : "no session data"}
       </Text>
       {prediction && prediction.predicted_completion_pct != null && prediction.actual_completion_pct != null ? (
