@@ -632,6 +632,45 @@ match the number in the table I checked" usually means *I checked the wrong tabl
 
 ---
 
+## 🔴 G2 — The E2E suite fails a *different set* of specs each full run. Its signal is degraded.
+
+Established during the v2 revamp, when the suite was being used as the safety net proving the
+redesign broke no behaviour — which is exactly the job it cannot currently do.
+
+`onboarding.spec.ts:64` failed in a full run. It was first reported as "a revalidation gap in
+EditCourseModal's save path, predates this work." **Both halves of that were inference, not
+finding**, and both turned out wrong. What actually settled it:
+
+- The Lead read the path: `revalidatePath` **is** called (`courses/[id]/actions.ts:47-48`) and
+  `targetGradePct` **does** reach the write (`EditCourseModal.tsx:46` → `courses.ts:74`). The
+  revalidation-gap hypothesis died on a read.
+- ATLAS ran the spec in a `git worktree` at the pre-revamp commit `657f804`: **passed**. Then alone
+  against HEAD: **also passed.** Then instrumented against HEAD: input `"90"` correct pre-submit,
+  POST → 200, DB row `target_grade_pct: 90` immediately after, RSC refresh fires, UI shows `90`
+  within 2s. The save path is entirely correct.
+- Two more full runs: run 2 failed E2/E1 + `authenticated-smoke`; run 3 failed E2/E1 +
+  `authenticated-smoke` + `syllabus-and-ics`. **A different set each time, every one passing in
+  isolation.**
+
+**Verdict: parallel-worker contention against the shared local Supabase under `fullyParallel`.**
+Not a regression, not a product defect.
+
+**Why this is 🔴 and not a footnote:** a suite that fails a different set each run cannot
+distinguish "this change broke something" from "the stack was busy." Every real regression it
+catches from now on will be argued about, and the cheap resolution — re-run until green — is how a
+real failure gets waved through. This is the same family as **S1** (both suites sign in as the
+shared `demo@collegeos.app`), **S2** (14 `auth.users` against a seed of 1), and **S8** (unscoped
+assertion queries picking up prior runs), and it is probably the same root cause: **shared mutable
+state across workers.** Fix S1/S2 first and re-measure before adding worker limits — capping
+`--workers=1` would hide it rather than fix it, and would also undo the D-note that two workers is
+what exposed a real locator ambiguity single-worker hid.
+
+**Process note worth keeping separate from the finding:** ATLAS reversed his own published
+conclusion once he had evidence, and said plainly which parts had been inference. That is the
+behaviour that makes a report trustworthy; the wrong lesson would be "don't report until certain."
+
+---
+
 ## 🟡 G1 — On Android, `expo-blur` never blurs; the glass effect does not exist there
 
 Found by NOVA reading `expo-blur`'s actual platform sources during the v2 revamp, in response to a
