@@ -1,8 +1,9 @@
-import { color, space } from "@collegeos/design/native";
+import { color, radius, space } from "@collegeos/design/native";
 import { useState, type ReactNode } from "react";
 import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { textStyle } from "../../design/typography";
 import { Button } from "./Button";
+import { GlassSurface } from "./GlassSurface";
 
 export interface EmptyStateProps {
   title: string;
@@ -55,7 +56,12 @@ function DashedBorder({ width, height }: { width: number; height: number }) {
   );
 }
 
-/** States what the screen is for and gives one action. Never an illustration, never a mood. */
+/** §2/§7 -- a `glass-sunken` well (the tier's own table names "empty states" explicitly),
+ *  with no shadow: recessed, not floating, same reasoning as Input. Glass does not get to
+ *  make an empty screen look full -- the fill stays at its normal 0.38 alpha, no extra tint,
+ *  and the dashed edge (this component's own pre-existing "this is a placeholder" signifier)
+ *  is unchanged. States what the screen is for and gives one action. Never an illustration,
+ *  never a mood. */
 export function EmptyState({ title, description, actionLabel, onAction, action }: EmptyStateProps) {
   const [size, setSize] = useState({ width: 0, height: 0 });
 
@@ -65,8 +71,10 @@ export function EmptyState({ title, description, actionLabel, onAction, action }
   }
 
   return (
-    <View style={styles.container} onLayout={handleLayout}>
-      <DashedBorder width={size.width} height={size.height} />
+    <GlassSurface tier="sunken" style={styles.clip} contentStyle={styles.container}>
+      <View style={StyleSheet.absoluteFill} onLayout={handleLayout}>
+        <DashedBorder width={size.width} height={size.height} />
+      </View>
       <Text style={textStyle("title", color.ink)}>{title}</Text>
       <Text style={textStyle("body", color.inkMuted)}>{description}</Text>
       {action ?? (actionLabel && onAction ? (
@@ -74,16 +82,17 @@ export function EmptyState({ title, description, actionLabel, onAction, action }
           {actionLabel}
         </Button>
       ) : null)}
-    </View>
+    </GlassSurface>
   );
 }
 
 const styles = StyleSheet.create({
+  clip: {
+    borderRadius: radius.lg,
+  },
   container: {
     alignItems: "flex-start",
     gap: space[3],
-    borderRadius: 8,
-    overflow: "hidden",
     padding: space[8],
   },
   hRow: {
