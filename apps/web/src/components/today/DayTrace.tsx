@@ -1,18 +1,19 @@
 import type { CalendarEvent, Task, TaskSession } from "@collegeos/api";
 
-// The signature element, DESIGN_SYSTEM §6.1: the day rendered as a chart-recorder trace — a
-// ghost PLANNED row, a solid accent ACTUAL row directly below it so the eye reads the offset
-// without saccading, a shaded connector where they diverge, and a live cursor at current time.
-// Calendar events (classes, fixed commitments) carry no attendance signal in the schema — there's
-// no "did you attend" data to observe either way — so a class is never marked missed; it's
-// planned-only until the live cursor reaches it, then reads as matched. Task sessions are the
-// real planned-vs-actual signal: that's what planned_start/actual_start exist to record, and late
-// starts and no-shows are computed from them specifically, not from the merged block geometry.
+// The Day Ribbon, DESIGN_LANGUAGE_V2 §6: the product's whole thesis rendered as two parallel
+// glass lanes — a ghost PLANNED lane (inkFaint, unfilled) and a solid accent ACTUAL lane directly
+// below it, so the eye reads the offset without saccading, plus a shaded connector where they
+// diverge and a live cursor at current time. Calendar events (classes, fixed commitments) carry
+// no attendance signal in the schema — there's no "did you attend" data to observe either way —
+// so a class is never marked missed; it's planned-only until the live cursor reaches it, then
+// reads as matched. Task sessions are the real planned-vs-actual signal: that's what
+// planned_start/actual_start exist to record, and late starts and no-shows are computed from them
+// specifically, not from the merged block geometry.
 
 const VIEW_W = 1000;
-const VIEW_H = 96;
-const ROW_H = 24;
-const ROW_GAP = 8;
+const VIEW_H = 104;
+const ROW_H = 28;
+const ROW_GAP = 10;
 const PLANNED_Y = 6;
 const ACTUAL_Y = PLANNED_Y + ROW_H + ROW_GAP;
 const CONNECTOR_TOP = PLANNED_Y;
@@ -150,8 +151,8 @@ export function DayTrace({
   ];
 
   return (
-    <div className="w-full">
-      <div className="mb-1.5 flex items-center justify-between font-mono text-caption uppercase tracking-[0.08em] text-ink-faint">
+    <div className="glass w-full rounded-lg p-5">
+      <div className="mb-3 flex items-center justify-between font-mono text-caption uppercase tracking-[0.08em] text-ink-faint">
         <span>{weekday} · planned vs. actual</span>
         <span>
           {formatHour(dayStart)} – {formatHour(dayEnd)}
@@ -169,15 +170,15 @@ export function DayTrace({
             : "Nothing scheduled yet today."
         }
       >
-        <div className="relative w-14 shrink-0" style={{ height: VIEW_H }}>
+        <div className="relative w-16 shrink-0" style={{ height: VIEW_H }}>
           <span
-            className="absolute left-0 font-mono text-[10px] uppercase tracking-[0.08em] text-ink-faint"
+            className="absolute left-0 font-mono text-caption uppercase tracking-[0.08em] text-ink-faint"
             style={{ top: PLANNED_Y, lineHeight: `${ROW_H}px` }}
           >
             Planned
           </span>
           <span
-            className="absolute left-0 font-mono text-[10px] uppercase tracking-[0.08em] text-ink"
+            className="absolute left-0 font-mono text-caption uppercase tracking-[0.08em] text-ink"
             style={{ top: ACTUAL_Y, lineHeight: `${ROW_H}px` }}
           >
             Actual
@@ -240,7 +241,7 @@ export function DayTrace({
               y={PLANNED_Y}
               width={Math.max(1, x(iv.endMin) - x(iv.startMin))}
               height={ROW_H}
-              rx={3}
+              rx={6}
               fill="none"
               stroke={iv.missed ? "var(--color-risk-high)" : "var(--color-ink-faint)"}
               strokeDasharray="4 3"
@@ -268,7 +269,7 @@ export function DayTrace({
               y={ACTUAL_Y}
               width={Math.max(1, x(iv.endMin) - x(iv.startMin))}
               height={ROW_H}
-              rx={3}
+              rx={6}
               fill="var(--color-accent)"
             />
           ))}
@@ -290,7 +291,7 @@ export function DayTrace({
               x={x(min)}
               y={ACTUAL_Y + ROW_H + 20}
               textAnchor={i === 0 ? "start" : i === hourTicks.length - 1 ? "end" : "middle"}
-              className="fill-ink-faint font-mono text-[11px]"
+              className="fill-ink-faint font-mono text-caption"
             >
               {formatHour(min)}
             </text>

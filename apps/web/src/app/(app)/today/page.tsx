@@ -1,7 +1,9 @@
 import type { Course, DayView } from "@collegeos/api";
+import { deriveDayBand } from "@collegeos/core";
 import type { ReactNode } from "react";
 import type { FocusBlock } from "@/components/today/FocusLauncher";
 import type { MitItem } from "@/components/today/MitList";
+import { Aurora } from "@/components/ui/Aurora";
 import { DayTrace } from "@/components/today/DayTrace";
 import { DeadlineRadar } from "@/components/today/DeadlineRadar";
 import { FocusLauncher } from "@/components/today/FocusLauncher";
@@ -91,6 +93,20 @@ function buildRecoveryMitItems(dayView: DayView, courses: Record<number, Course>
   return items;
 }
 
+/**
+ * DESIGN_LANGUAGE_V2 §8 — what is the ONE thing this screen exists to tell the user? For a
+ * normal day it's the same answer "Top 3" already tracks: how much of today's real priority
+ * work is actually done. Never a fabricated fraction -- `mitItems` is the same computed list
+ * the section below renders, just also read as a headline.
+ */
+function buildTodayHeadline(mitItems: MitItem[]): string | null {
+  if (mitItems.length === 0) return null;
+  const done = mitItems.filter((m) => m.completed).length;
+  if (done === mitItems.length) return `All ${mitItems.length} priorities done`;
+  if (done === 0) return `${mitItems.length} ${mitItems.length === 1 ? "priority" : "priorities"} to go today`;
+  return `${done} of ${mitItems.length} priorities done`;
+}
+
 function buildRecoveryFocusBlock(dayView: DayView, courses: Record<number, Course>): FocusBlock | null {
   const keptStudyBlock = dayView.mvdPlan?.kept.find((i) => i.kind === "studyBlock");
   if (!keptStudyBlock) return null;
@@ -139,6 +155,10 @@ export default async function TodayPage({
   const focusBlock = buildFocusBlock(dayView, courses);
   const recoveryMitItems = buildRecoveryMitItems(dayView, courses);
   const recoveryFocusBlock = buildRecoveryFocusBlock(dayView, courses);
+  const headline = buildTodayHeadline(mitItems);
+  // §6 — an instrument reading, not decoration. `deriveDayBand` returns null for an account
+  // with no deliverable risk yet, and that's the honest case: no history, no atmosphere.
+  const dayBand = deriveDayBand(dayView.risk.deliverableRisks);
 
   const normalBody = (
     <div className="flex flex-col gap-8">
@@ -187,7 +207,15 @@ export default async function TodayPage({
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-8 px-8 py-10">
+      <Aurora band={dayBand} />
       <TodayHeader today={dayView.today} health={dayView.todayHealth} sleepBaselineHours={dayView.profile.sleep_baseline_hours} />
+
+      {/* §8 — the one thing this screen exists to tell the user, at displayL+. Only a normal
+          day has a stable "priorities done" reading; Recovery/Unplanned lead with their own
+          narrower message instead of this one. */}
+      {mode === "normal" && headline ? (
+        <h1 className="font-sans text-display-l font-semibold tracking-[-0.025em] text-ink">{headline}</h1>
+      ) : null}
 
       <DayTrace
         today={dayView.today}
