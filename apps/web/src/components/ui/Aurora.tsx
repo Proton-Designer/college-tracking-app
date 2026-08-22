@@ -56,9 +56,13 @@ export function Aurora({ band, variant = "fixed" }: AuroraProps) {
           : "pointer-events-none absolute inset-0 z-0"
       }
       style={{
-        background: `radial-gradient(ellipse 80% 60% at 20% -10%, ${a} 0%, transparent 60%),
-          radial-gradient(ellipse 70% 55% at 100% 0%, ${b} 0%, transparent 55%)`,
-        opacity: 0.55,
+        // A bloom, not a wash: §1's aurora stops are atmosphere, never a fill, and the first
+        // pass painted them as one -- full-bleed, opacity 0.55, transparent stop late enough
+        // that colour reached past mid-page. Tightened so most of the screen stays the cool
+        // near-white ground and colour only blooms from the top corners.
+        background: `radial-gradient(ellipse 55% 38% at 12% -12%, ${a} 0%, transparent 45%),
+          radial-gradient(ellipse 48% 34% at 100% -8%, ${b} 0%, transparent 45%)`,
+        opacity: 0.4,
       }}
     />
   );
