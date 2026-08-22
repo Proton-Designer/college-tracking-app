@@ -56,8 +56,14 @@ export async function proxy(request: NextRequest) {
   // cookie. Auth errors can echo back credential material and this runs on every request.
   // A signed-out visitor hitting a public or auth route is the normal case, not a signal.
   if (authError && !isPublicRoute && !isAuthRoute) {
+    // The message is included OUTSIDE production only. GoTrue's auth error messages are
+    // descriptive ("Invalid Refresh Token: Refresh Token Not Found") and do not echo
+    // tokens, but this runs on every request and the cost of being wrong about that in
+    // production is a credential in a log file. Code and status alone turned out to be
+    // too thin to diagnose with — several real failures report code=undefined.
+    const detail = process.env.NODE_ENV !== "production" ? ` message=${JSON.stringify(authError.message)}` : "";
     console.warn(
-      `[proxy] auth.getUser() failed on ${pathname}: code=${authError.code ?? "unknown"} status=${authError.status ?? "unknown"}`,
+      `[proxy] auth.getUser() failed on ${pathname}: code=${authError.code ?? "unknown"} status=${authError.status ?? "unknown"}${detail}`,
     );
   }
 
