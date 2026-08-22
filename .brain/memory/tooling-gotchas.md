@@ -140,3 +140,37 @@ before use, especially on a simulator that might be shared with other engineers'
 before you need clean input — every string typed (including into Settings, search bars, anywhere)
 adds to what QuickType can later re-suggest. If you must fight this live, expect it to compound, not
 self-resolve; don't try to "type your way out of it" by retrying the same field repeatedly.
+
+---
+
+## "Signed in, then instantly signed out" after restarting the Supabase stack
+
+**Symptom:** sign in successfully, load one or two protected pages, then get bounced to
+`/login?next=...` on the next navigation. Dev server log shows
+`AuthApiError: Invalid Refresh Token: Refresh Token Not Found` / `code: 'refresh_token_not_found'`.
+
+**Cause:** a stale auth cookie in the browser profile from a *previous* session, pointing at a
+refresh token that no longer exists because the local Supabase containers were restarted (or
+`db:reset` ran) in between. GoTrue correctly refuses a token it has no row for.
+
+**This is correct behavior, not a product defect.** Verified 2026-08-22: after one fresh sign-in,
+8/8 protected routes returned 200 with a single stable `sb-127-auth-token` cookie, and zero auth
+errors followed. `jwt_expiry` is 3600s, so a minute-old session never needed a refresh at all —
+which is what ruled out an expiry/rotation bug.
+
+**Fix:** clear cookies for `localhost:3000` (or just sign in again) after restarting the stack.
+**Do not** "fix" `proxy.ts` or the cookie adapter in response to this — both are correct, and the
+Server-Component `setAll` swallow is intentional and documented in `client/serverClient.ts`.
+
+## Reanimated's built-in `useReducedMotion` is static — do not use it
+
+`react-native-reanimated`'s own `useReducedMotion` reads the OS setting **once at module load**
+(`IS_REDUCED_MOTION_ENABLED_IN_SYSTEM`, computed at import time). Its own doc comment states:
+*"Changing the reduced motion system setting doesn't cause your components to rerender."*
+
+A user who enables Reduce Motion mid-session gets no effect until the app is restarted — which
+fails the accessibility requirement it looks like it satisfies. Use
+`apps/mobile/src/lib/useReducedMotion.ts` instead: it subscribes to `AccessibilityInfo`'s
+`reduceMotionChanged` event and updates live. Verified by reading the library source, not assumed.
+
+**Do not "simplify" this back to the built-in hook.**
