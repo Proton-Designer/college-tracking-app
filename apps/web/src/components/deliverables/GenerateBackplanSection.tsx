@@ -39,7 +39,7 @@ export function GenerateBackplanSection({ deliverableId, chain }: { deliverableI
         <>
           <BackplanChain chain={chain} />
           {confirmingForce ? (
-            <WarningCard className="rounded-md" contentClassName="flex flex-col gap-2 p-3">
+            <WarningCard tier="sunken" className="rounded-md" contentClassName="flex flex-col gap-2 p-3">
               <p className="text-body-s text-risk-high">
                 This plan has milestones already marked done. Regenerating replaces the whole plan and discards that progress.
               </p>

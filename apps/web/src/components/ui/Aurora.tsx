@@ -6,8 +6,17 @@ import { auroraForRisk, type RiskBand } from "@collegeos/design";
 export interface AuroraProps {
   /** The real computed band this screen is reporting, or null. Never fabricate one to make a
    *  screen look alive -- `auroraForRisk(null)` is a first-class value: no history, no atmosphere.
-   *  See DESIGN_LANGUAGE_V2 §6. */
-  band: RiskBand | null;
+   *  See DESIGN_LANGUAGE_V2 §6. Ignored when `stops` is provided. */
+  band?: RiskBand | null;
+  /**
+   * Bypasses `auroraForRisk` entirely and paints this exact stop pair. The ONLY sanctioned use
+   * is a page with no signed-in user's state to misreport -- the landing page, painting the
+   * aurora as design rather than an instrument reading (ratified by the Lead: honesty exists to
+   * stop a surface claiming to know something about somebody, and a page with nobody's data
+   * claims nothing). Never pass a `RiskBand` here to get a decorative result through the band
+   * path instead -- that's the exact move this prop exists to avoid.
+   */
+  stops?: readonly [string, string];
   /** "fixed" (default) paints behind the whole viewport, for mounting once per screen.
    *  "contained" fills its nearest positioned ancestor instead -- for a showcase/preview box
    *  that needs to demonstrate the field without covering the page. */
@@ -38,11 +47,11 @@ function usePrefersReduced(query: string): boolean {
  * breathes. `prefers-reduced-motion` and `prefers-reduced-transparency` both collapse it to flat
  * ground, same as a null band. Ambient only: risk is always also stated in text and a RiskPill.
  */
-export function Aurora({ band, variant = "fixed" }: AuroraProps) {
+export function Aurora({ band = null, stops: fixedStops, variant = "fixed" }: AuroraProps) {
   const reducedMotion = usePrefersReduced("(prefers-reduced-motion: reduce)");
   const reducedTransparency = usePrefersReduced("(prefers-reduced-transparency: reduce)");
 
-  const stops = reducedMotion || reducedTransparency ? null : auroraForRisk(band);
+  const stops = reducedMotion || reducedTransparency ? null : (fixedStops ?? auroraForRisk(band));
   if (!stops) return null;
 
   const [a, b] = stops;

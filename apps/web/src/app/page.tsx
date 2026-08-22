@@ -1,15 +1,26 @@
+import { aurora } from "@collegeos/design";
 import Link from "next/link";
 import { Suspense } from "react";
 import { buttonClassName } from "@/components/ui/buttonStyles";
+import { Aurora } from "@/components/ui/Aurora";
 import { RiskPill } from "@/components/ui/RiskPill";
 import { DayReading } from "@/components/marketing/DayReading";
 import { AuthCodeRedirect } from "./AuthCodeRedirect";
 
 const LOOP = ["Observe", "Plan", "Execute", "Detect deviation", "Intervene", "Reflect", "Learn"];
 
+// Ratified by the Lead: the landing page has no signed-in user, so there is nobody whose state
+// the aurora could misreport -- painted here as design, from a fixed pair, never through
+// auroraForRisk (that would mean inventing a RiskBand to get a decorative result, which is the
+// exact move §6's honesty rule forbids everywhere else). Periwinkle + lilac: the neutral
+// cool-toned middle of the range -- mint reads specifically "calm" and blush reads specifically
+// "urgent," both readings this page shouldn't imply about nobody's real day.
+const LANDING_AURORA_STOPS = [aurora.periwinkle, aurora.lilac] as const;
+
 export default function LandingPage() {
   return (
     <main className="flex flex-1 flex-col">
+      <Aurora stops={LANDING_AURORA_STOPS} />
       <Suspense>
         <AuthCodeRedirect />
       </Suspense>
@@ -35,7 +46,7 @@ export default function LandingPage() {
           tomorrow&apos;s plan because of it. It is not a to-do list, and it does not cheer you on.
         </p>
 
-        <div className="mt-2 rounded-lg border border-hairline bg-surface p-6">
+        <div className="glass mt-2 rounded-lg p-6">
           <DayReading />
         </div>
 
@@ -78,7 +89,7 @@ export default function LandingPage() {
               disagrees with the evidence, it says so.
             </p>
           </div>
-          <div className="rounded-lg border border-hairline bg-surface p-6">
+          <div className="glass rounded-lg p-6">
             <div className="mb-3 flex items-center justify-between">
               <span className="font-sans text-title font-semibold text-ink">BME 301</span>
               <RiskPill band="high" label="HIGH ATTENTION" />

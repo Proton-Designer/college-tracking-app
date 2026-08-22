@@ -107,9 +107,15 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         />
       ) : null}
 
+      {/* §2 (Lead's ruling): a panel is earned by a coherent group of content that reads as one
+          unit -- a table, a list of rows. Both of these are exactly that, and sat bare on the
+          ground while GradeBoundariesSection and office hours (same page, same level) sit in
+          real glass right next to them. Siblings at the same level get the same treatment. */}
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Why this score</h2>
-        <CourseRiskPanel deliverableRisks={deliverableRisks} today={today} />
+        <Panel>
+          <CourseRiskPanel deliverableRisks={deliverableRisks} today={today} />
+        </Panel>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -120,13 +126,15 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
             <AddAssignmentModal courseId={courseId} />
           </div>
         </div>
-        <AssignmentsTable
-          deliverables={deliverables}
-          gradeItems={gradeItems}
-          categories={categories}
-          backplanChains={backplanChains}
-          today={today}
-        />
+        <Panel>
+          <AssignmentsTable
+            deliverables={deliverables}
+            gradeItems={gradeItems}
+            categories={categories}
+            backplanChains={backplanChains}
+            today={today}
+          />
+        </Panel>
       </section>
 
       <section className="flex flex-col gap-3">
