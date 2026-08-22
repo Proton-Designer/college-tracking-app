@@ -3,11 +3,14 @@ import { useRouter } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CapacityStrip } from "../../components/calendar/CapacityStrip";
+import { ThisWeekView } from "../../components/calendar/ThisWeekView";
 import { BackplanChain } from "../../components/courses/BackplanChain";
 import { Button, RiskPill, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { textStyle } from "../../design/typography";
 import { type CalendarObligation, useCalendarData } from "../../lib/useCalendarData";
 import { type CoursesIndexRow, useCoursesIndexData } from "../../lib/useCoursesIndexData";
+import { useThisWeekData } from "../../lib/useThisWeekData";
+import { useAuthSession } from "../../lib/useAuthSession";
 import { daysRemainingLabel } from "../../lib/dates";
 
 function formatPct(pct: number | null): string {
@@ -18,29 +21,77 @@ function typeLabel(type: string): string {
   return type.replace(/_/g, " ");
 }
 
-type View_ = "courses" | "calendar";
+type View_ = "courses" | "week" | "horizon";
+
+const VIEW_TITLE: Record<View_, string> = {
+  courses: "Courses",
+  week: "This week",
+  horizon: "Horizon",
+};
 
 /**
- * SCREEN_SPEC §0 — Calendar is a segment inside Courses on mobile, not a fifth tab. The
- * segment toggle here is page-local chrome (not the shared numeric SegmentedControl,
- * which is built for discrete 1-10 scales, not a two-view switch).
+ * SCREEN_SPEC §0 — Calendar is folded into Courses on mobile, not a fifth tab (five tabs
+ * plus a settings entry point is past the right ceiling for a bottom bar). This is a flat
+ * three-way peer switch, not a nested sub-toggle: "a list of my courses," "my week," and
+ * "what's coming" are three equal answers to "what do I want to look at right now," not a
+ * thing and a sub-thing -- ratified over an earlier nested-segments proposal specifically
+ * to avoid the second row reading as a sub-mode nobody presses.
  */
 export default function CoursesScreen() {
   const [view, setView] = useState<View_>("courses");
+  const { session } = useAuthSession();
   const courses = useCoursesIndexData();
   const calendar = useCalendarData();
+  const thisWeek = useThisWeekData();
 
   return (
     <TabScreenScrollView>
-      <Text style={textStyle("displayM", color.ink)}>{view === "courses" ? "Courses" : "Calendar"}</Text>
+      <Text style={textStyle("displayM", color.ink)}>{VIEW_TITLE[view]}</Text>
 
       <View style={styles.segmentRow}>
         <SegmentTab label="Courses" active={view === "courses"} onPress={() => setView("courses")} />
-        <SegmentTab label="Calendar" active={view === "calendar"} onPress={() => setView("calendar")} />
+        <SegmentTab label="This week" active={view === "week"} onPress={() => setView("week")} />
+        <SegmentTab label="Horizon" active={view === "horizon"} onPress={() => setView("horizon")} />
       </View>
 
-      {view === "courses" ? <CoursesView state={courses} /> : <CalendarView state={calendar} />}
+      {view === "courses" ? <CoursesView state={courses} /> : null}
+      {view === "week" ? <ThisWeekSection userId={session?.user.id} state={thisWeek} /> : null}
+      {view === "horizon" ? <CalendarView state={calendar} /> : null}
     </TabScreenScrollView>
+  );
+}
+
+function ThisWeekSection({ userId, state }: { userId: string | undefined; state: ReturnType<typeof useThisWeekData> }) {
+  if (state.status === "loading") {
+    return (
+      <View style={{ gap: space[4] }}>
+        <Skeleton height={32} width={200} />
+        <Skeleton height={80} radius="lg" />
+        <Skeleton height={64} radius="lg" />
+      </View>
+    );
+  }
+  if (state.status === "error") {
+    return (
+      <View style={styles.errorBox}>
+        <Text style={textStyle("label", color.riskCritical)}>Couldn&apos;t load this week&apos;s plan</Text>
+        <Text style={textStyle("body", color.inkMuted)}>{state.error}</Text>
+        <Button variant="secondary" onPress={state.refetch}>
+          Try again
+        </Button>
+      </View>
+    );
+  }
+  if (!userId) return null;
+
+  return (
+    <ThisWeekView
+      userId={userId}
+      today={state.data.today}
+      timezone={state.data.timezone}
+      plan={state.data.plan}
+      onGenerated={state.refetch}
+    />
   );
 }
 

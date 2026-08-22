@@ -4,14 +4,16 @@ import {
   computeRiskAssessment,
   getOwnProfile,
   getUserLocalToday,
+  getWeeklyPlan,
   listCourses,
   listDeliverables,
   loadCourseGradeProjections,
   type Course,
   type Deliverable,
   type DeliverableRisk,
+  type WeeklyPlanView,
 } from "@collegeos/api";
-import { addDays, type DayCapacity } from "@collegeos/core";
+import { addDays, startOfWeek, type DayCapacity, type LocalDate } from "@collegeos/core";
 import { loadBackplanChains, type BackplanChain } from "@/lib/loadBackplanChains";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -86,4 +88,35 @@ export async function loadCalendarHorizon(): Promise<CalendarLoadResult> {
     ok: true,
     data: { today, obligations, courses: Object.fromEntries(courses.map((c) => [c.id, c])), capacity: capacityResult.data },
   };
+}
+
+export interface ThisWeekData {
+  today: string;
+  weekStartDate: LocalDate;
+  timezone: string;
+  /** Null means no plan has been generated for this week yet -- the empty state's trigger,
+   *  never an error. */
+  plan: WeeklyPlanView | null;
+}
+
+export type ThisWeekLoadResult = { ok: true; data: ThisWeekData } | { ok: false; error: string };
+
+export async function loadThisWeekView(): Promise<ThisWeekLoadResult> {
+  const client = await getServerSupabaseClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const profileResult = await getOwnProfile(client);
+  if (!profileResult.ok) return { ok: false, error: profileResult.error.message };
+  const profile = profileResult.data;
+
+  const today = getUserLocalToday(profile.timezone, new Date());
+  const weekStartDate = startOfWeek(today);
+
+  const planResult = await getWeeklyPlan(client, user.id, weekStartDate, today);
+  if (!planResult.ok) return { ok: false, error: planResult.error.message };
+
+  return { ok: true, data: { today, weekStartDate, timezone: profile.timezone, plan: planResult.data } };
 }
