@@ -1,4 +1,4 @@
-import { color, space } from "@collegeos/design/native";
+import { color, radius, shadow, space } from "@collegeos/design/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,8 +9,9 @@ import { EditCourseModal } from "../../components/courses/EditCourseModal";
 import { GradeBoundariesSection } from "../../components/courses/GradeBoundariesSection";
 import { GradeCategoriesSection } from "../../components/courses/GradeCategoriesSection";
 import { ScenarioPlanner } from "../../components/courses/ScenarioPlanner";
-import { Button, Metric, NavLink, Panel, RiskPill, Skeleton } from "../../components/ui";
+import { Aurora, Button, GlassSurface, Metric, NavLink, Panel, RiskPill, Skeleton } from "../../components/ui";
 import { textStyle } from "../../design/typography";
+import { tintWithAlpha } from "../../lib/colorAlpha";
 import { useAuthSession } from "../../lib/useAuthSession";
 import { type CourseDetailData, useCourseDetailData } from "../../lib/useCourseDetailData";
 
@@ -29,12 +30,17 @@ export default function CourseDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const courseId = Number(id);
   const result = useCourseDetailData(courseId);
+  // §6.1 -- /courses/[id]'s band is this one course's own CourseRiskSummary.result.band,
+  // not deriveDayBand (that's the list view's -- a different question, a different source).
+  const dayBand = result.status === "ready" ? (result.data.courseRisk?.result.band ?? null) : null;
 
   return (
-    <ScrollView
-      style={styles.flex}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}
-    >
+    <View style={styles.screen}>
+      <Aurora band={dayBand} />
+      <ScrollView
+        style={styles.flex}
+        contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}
+      >
       <NavLink label="Courses" direction="back" onPress={() => router.back()} />
 
       {!Number.isInteger(courseId) ? <Text style={textStyle("body", color.inkMuted)}>Not a valid course.</Text> : null}
@@ -60,7 +66,8 @@ export default function CourseDetailScreen() {
       {Number.isInteger(courseId) && result.status === "ready" && session?.user.id ? (
         <CourseDetailReady userId={session.user.id} courseId={courseId} data={result.data} onChanged={result.refetch} />
       ) : null}
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -115,11 +122,13 @@ function CourseDetailReady({
       </View>
 
       {weightSumIssue ? (
-        <View style={styles.warningBox}>
-          <Text style={textStyle("bodyS", color.riskHigh)}>
-            {weightSumIssue.message} — category weights are never silently normalized, so this course&apos;s grade math is provisional until
-            the weights add up to 100.
-          </Text>
+        <View style={styles.warningShadow}>
+          <GlassSurface tier="base" style={styles.warningClip} contentStyle={[styles.warningContent, { backgroundColor: tintWithAlpha(color.riskHigh, 0.07) }]}>
+            <Text style={textStyle("bodyS", color.riskHigh)}>
+              {weightSumIssue.message} — category weights are never silently normalized, so this course&apos;s grade math is provisional until
+              the weights add up to 100.
+            </Text>
+          </GlassSurface>
         </View>
       ) : null}
 
@@ -215,9 +224,13 @@ function PolicyRow({ label, value }: { label: string; value: string | null }) {
 }
 
 const styles = StyleSheet.create({
-  flex: {
+  screen: {
     flex: 1,
     backgroundColor: color.ground,
+  },
+  flex: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
   content: {
     paddingHorizontal: space[5],
@@ -246,11 +259,14 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: space[7],
   },
-  warningBox: {
-    borderRadius: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: color.riskHigh,
-    backgroundColor: color.riskHighWash,
+  warningShadow: {
+    borderRadius: radius.lg,
+    ...shadow.glass,
+  },
+  warningClip: {
+    borderRadius: radius.lg,
+  },
+  warningContent: {
     padding: space[4],
   },
   policyPanel: {

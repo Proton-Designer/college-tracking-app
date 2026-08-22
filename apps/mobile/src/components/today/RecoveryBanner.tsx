@@ -4,6 +4,7 @@ import { color, radius, shadow, space } from "@collegeos/design/native";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { textStyle } from "../../design/typography";
+import { tintWithAlpha } from "../../lib/colorAlpha";
 import { GlassSurface } from "../ui";
 
 const EVENT_ID_PREFIX = "event-";
@@ -44,10 +45,6 @@ function itemLabel(item: MvdCandidateItem, tasksById: Map<number, Task>, eventsB
  *  a separate absolutely-positioned overlay), so it sits behind its own children the normal
  *  way -- no extra position/zIndex bookkeeping needed, per the stacking lesson from
  *  FOLLOWUPS/§2.2. */
-function tintWithAlpha(hex: string, alpha: number): string {
-  const a = Math.round(alpha * 255).toString(16).padStart(2, "0");
-  return `${hex}${a}`;
-}
 
 export function RecoveryBanner({
   recoveryMode,
