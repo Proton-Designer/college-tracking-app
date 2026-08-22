@@ -1,4 +1,5 @@
-import { color, duration, radius, shadow, space, spring } from "@collegeos/design/native";
+import { BlurView } from "expo-blur";
+import { color, duration, glass, glassEdge, radius, shadow, space, spring } from "@collegeos/design/native";
 import { useEffect, type ReactNode } from "react";
 import { Modal as RNModal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring, withTiming } from "react-native-reanimated";
@@ -17,10 +18,12 @@ export interface ModalProps {
   dismissable?: boolean | undefined;
 }
 
-/** A bottom sheet, not a centered dialog -- DESIGN_SYSTEM §5 defines a dedicated "sheet"
- *  spring separate from "standard," which only makes sense for something that slides up
- *  from an edge. The one documented "overlay" shadow (the only shadow this system allows on
- *  a genuinely floating element) goes here. */
+/** A bottom sheet, not a centered dialog -- the design system defines a dedicated "sheet"
+ *  spring separate from "standard," which only makes sense for something that slides up from
+ *  an edge. §2/§5: a sheet is `glass.raised` at `radius.xl` with `shadow.lifted` -- the same
+ *  tier and corner radius as the island, since both are floating glass on an edge.
+ *  Android renders `glass.raised.fill` as a solid fill here, never a blur, unless
+ *  `blurTarget` is wired -- see FOLLOWUPS G1. */
 export function Modal({ visible, onClose, title, children, footer, dismissable = true }: ModalProps) {
   if (!visible) return null;
   return (
@@ -64,18 +67,22 @@ function ModalContent({
           accessibilityRole="button"
         />
       </Animated.View>
-      <Animated.View
-        style={[styles.sheet, shadow.overlay, { paddingBottom: insets.bottom + space[5] }, sheetStyle]}
-      >
-        {title ? (
-          <Text accessibilityRole="header" style={[textStyle("title", color.ink), styles.title]}>
-            {title}
-          </Text>
-        ) : null}
-        <ScrollView style={styles.body} keyboardShouldPersistTaps="handled">
-          {children}
-        </ScrollView>
-        {footer ? <View style={styles.footer}>{footer}</View> : null}
+      <Animated.View style={[styles.sheetShadow, sheetStyle]}>
+        <View style={[styles.sheetClip, glassEdge, styles.sheetClipBorder]}>
+          <BlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: glass.raised.fill }]} />
+          <View style={[styles.sheetInner, { paddingBottom: insets.bottom + space[5] }]}>
+            {title ? (
+              <Text accessibilityRole="header" style={[textStyle("title", color.ink), styles.title]}>
+                {title}
+              </Text>
+            ) : null}
+            <ScrollView style={styles.body} keyboardShouldPersistTaps="handled">
+              {children}
+            </ScrollView>
+            {footer ? <View style={styles.footer}>{footer}</View> : null}
+          </View>
+        </View>
       </Animated.View>
     </View>
   );
@@ -87,15 +94,25 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
   },
   backdrop: {
-    backgroundColor: "rgba(22, 24, 29, 0.4)",
+    backgroundColor: "rgba(14,18,32,0.4)",
   },
-  sheet: {
-    backgroundColor: color.surface,
-    borderTopLeftRadius: radius.lg,
-    borderTopRightRadius: radius.lg,
+  sheetShadow: {
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    ...shadow.lifted,
+  },
+  sheetClip: {
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    overflow: "hidden",
+    maxHeight: "85%",
+  },
+  sheetClipBorder: {
+    borderBottomWidth: 0,
+  },
+  sheetInner: {
     paddingHorizontal: space[5],
     paddingTop: space[5],
-    maxHeight: "85%",
   },
   title: {
     marginBottom: space[4],

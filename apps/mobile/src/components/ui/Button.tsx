@@ -1,6 +1,7 @@
-import { color, radius, space, spring } from "@collegeos/design/native";
+import { BlurView } from "expo-blur";
+import { color, glass, glassEdge, radius, space, spring } from "@collegeos/design/native";
 import { useState, type ReactNode } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
 import { useReducedMotion } from "../../lib/useReducedMotion";
 import { textStyle } from "../../design/typography";
@@ -17,9 +18,12 @@ export interface ButtonProps {
   testID?: string;
 }
 
-const VARIANT_BG: Record<ButtonVariant, string> = {
+/** Only `secondary` is glass (§2's `base` tier -- a chip sitting on the ground). `primary`/
+ *  `destructive` stay solid, saturated fills -- the one thing on a screen that should look
+ *  unambiguously like a decision, not a translucent surface; `ghost` stays fully transparent.
+ *  This is a deliberate per-variant call, not every variant inheriting the same glass token. */
+const VARIANT_BG: Record<Exclude<ButtonVariant, "secondary">, string> = {
   primary: color.accent,
-  secondary: color.surface,
   ghost: "transparent",
   destructive: color.riskCritical,
 };
@@ -62,6 +66,8 @@ export function Button({
     scale.value = reducedMotion ? 1 : withSpring(1, spring.standard);
   }
 
+  const isGlass = variant === "secondary";
+
   return (
     <Animated.View style={pressStyle}>
       <Pressable
@@ -76,18 +82,20 @@ export function Button({
         onBlur={() => setFocused(false)}
         style={({ pressed }) => [
           styles.base,
-          {
-            backgroundColor: VARIANT_BG[variant],
-            borderWidth: variant === "secondary" ? StyleSheet.hairlineWidth : 0,
-            borderColor: color.border,
-            opacity: disabled && !loading ? 0.4 : pressed ? 0.85 : 1,
-          },
+          isGlass ? glassEdge : { backgroundColor: VARIANT_BG[variant] },
+          { opacity: disabled && !loading ? 0.4 : pressed ? 0.85 : 1 },
           focused && !isInactive ? styles.focusRing : null,
           style,
         ]}
       >
+        {isGlass ? (
+          <>
+            <BlurView intensity={60} tint="light" style={StyleSheet.absoluteFill} />
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: glass.base.fill }]} />
+          </>
+        ) : null}
         {loading ? <ActivityIndicator size="small" color={VARIANT_TEXT_COLOR[variant]} /> : null}
-        <Text style={[textStyle("body", VARIANT_TEXT_COLOR[variant]), styles.label]}>{children}</Text>
+        <Text style={textStyle("body", VARIANT_TEXT_COLOR[variant])}>{children}</Text>
       </Pressable>
     </Animated.View>
   );
@@ -103,9 +111,7 @@ const styles = StyleSheet.create({
     minWidth: 44,
     paddingHorizontal: space[5],
     borderRadius: radius.md,
-  },
-  label: {
-    fontWeight: "500",
+    overflow: "hidden",
   },
   focusRing: {
     outlineWidth: 2,
