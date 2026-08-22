@@ -221,6 +221,47 @@ Two design requirements, learned from B1:
 
 ---
 
+## 🔴 V1 — Night-review voice input was specified in the brief and never built
+
+Found auditing `docs/context/SOURCE_BRIEF.txt` against the product (the sixth audit of this kind;
+every one has found something).
+
+The brief's night-review mockup (lines ~1990–2008) marks **all three fields** as `[voice/text]`:
+
+```
+What are you proud of?      [voice/text]
+What went wrong?            [voice/text]
+Anything important today?   [voice/text]
+```
+
+followed by: *"Voice input may be extremely valuable here because speaking for sixty seconds is much
+easier than writing a long journal every evening."*
+
+Our night review is **three text-only textareas** — and the field names match the brief almost word
+for word, so the screen was clearly built from this mockup and voice was simply dropped.
+
+**Why it matters more than a nice-to-have.** The brief's own thesis is that *"continuous
+self-reporting creates burden and adherence problems, which argues for a system where passive data
+is automatic and manual check-ins are extremely short."* Voice is the stated mitigation for the one
+remaining high-burden manual ritual in the entire product. A journal nobody fills in produces no
+friction logs, no calibration actuals, and no input for the nightly analysis — the Reflect step goes
+quiet and the loop opens. This is the same class as **R2** (the review being a journal rather than an
+instrument) and they should be designed together.
+
+**Feasibility — stated honestly, because the platforms differ sharply:**
+- **Web:** the built-in `SpeechRecognition` / `webkitSpeechRecognition` API. No dependency, no key,
+  no service. Chrome and Safari support it; Firefox does not, so it must degrade to text rather than
+  disappear.
+- **Mobile:** harder. `expo-speech-recognition` is a config plugin requiring a **custom dev build**,
+  which breaks the Expo Go managed workflow this project runs on. Needs a real decision — Lead's
+  call, not an engineer's — between accepting a dev-client build, finding a managed-workflow route,
+  or shipping voice on web only and documenting the divergence.
+
+**Do not half-build it.** A mic button that silently fails, or that works on one platform while the
+other pretends the feature doesn't exist, is worse than text-only.
+
+---
+
 ## Smaller items from the 2026-08-22 live review
 
 | # | Item | Notes |
