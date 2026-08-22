@@ -1,6 +1,7 @@
 import type { Deliverable, GradeCategoryRow, GradeItemRow } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
-import { StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { textStyle } from "../../design/typography";
 import { daysRemainingLabel } from "../../lib/dates";
 import type { BackplanChain as BackplanChainData } from "../../lib/loadBackplanChains";
@@ -33,6 +34,8 @@ export function AssignmentsTable({
   backplanChains: Map<number, BackplanChainData>;
   today: string;
 }) {
+  const router = useRouter();
+
   if (deliverables.length === 0) {
     return <Text style={textStyle("bodyS", color.inkFaint)}>Nothing recorded for this course yet.</Text>;
   }
@@ -49,7 +52,11 @@ export function AssignmentsTable({
         const points = pointsLabel(item);
 
         return (
-          <View key={d.id} style={[styles.row, i === deliverables.length - 1 ? styles.rowLast : styles.rowBorder]}>
+          <Pressable
+            key={d.id}
+            onPress={() => router.push(`/deliverables/${d.id}`)}
+            style={({ pressed }) => [styles.row, i === deliverables.length - 1 ? styles.rowLast : styles.rowBorder, { opacity: pressed ? 0.6 : 1 }]}
+          >
             <Text style={textStyle("bodyS", color.ink)}>{d.title}</Text>
             <Text style={textStyle("caption", color.inkFaint)}>
               {typeLabel(d.type)} · {daysRemainingLabel(today, d.local_due_date)} · {category?.name ?? "—"}
@@ -57,7 +64,7 @@ export function AssignmentsTable({
             </Text>
             <Text style={textStyle("caption", color.inkFaint)}>{d.status}</Text>
             <BackplanChain chain={chain} />
-          </View>
+          </Pressable>
         );
       })}
     </View>
