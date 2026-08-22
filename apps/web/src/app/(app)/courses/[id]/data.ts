@@ -5,6 +5,7 @@ import {
   getOwnProfile,
   getUserLocalToday,
   listDeliverables,
+  listCourseOfficeHours,
   listGradeBoundaries,
   listGradeCategories,
   listGradeItems,
@@ -13,6 +14,7 @@ import {
   type CourseRiskSummary,
   type Deliverable,
   type DeliverableRisk,
+  type CourseOfficeHourRow,
   type GradeBoundaryRow,
   type GradeCategoryRow,
   type GradeItemRow,
@@ -32,6 +34,8 @@ export interface CourseDetailData {
   categories: GradeCategoryRow[];
   gradeItems: GradeItemRow[];
   gradeBoundaries: GradeBoundaryRow[];
+  /** U5. Reference data: when the professor is available, per course. */
+  officeHours: CourseOfficeHourRow[];
   deliverables: Deliverable[];
   backplanChains: Map<number, BackplanChain>;
 }
@@ -67,12 +71,13 @@ export async function loadCourseDetail(courseId: number): Promise<CourseDetailLo
     },
   ];
 
-  const [risk, categoriesResult, gradeItemsResult, gradeBoundariesResult, deliverablesResult] = await Promise.all([
+  const [risk, categoriesResult, gradeItemsResult, gradeBoundariesResult, deliverablesResult, officeHoursResult] = await Promise.all([
     computeRiskAssessment(client, user.id, today, courseFacts, gradeProjections, profile.sleep_baseline_hours, profile.timezone),
     listGradeCategories(client, courseId),
     listGradeItems(client, courseId),
     listGradeBoundaries(client, courseId),
     listDeliverables(client, courseId),
+    listCourseOfficeHours(client, courseId),
   ]);
 
   if (!categoriesResult.ok) return { ok: false, error: categoriesResult.error.message };
@@ -93,6 +98,10 @@ export async function loadCourseDetail(courseId: number): Promise<CourseDetailLo
       categories: categoriesResult.data,
       gradeItems: gradeItemsResult.data,
       gradeBoundaries: gradeBoundariesResult.data,
+      // U5: reference data, not a gate. A failed read degrades to "no office hours listed"
+      // rather than taking down course detail -- knowing when a professor is available is
+      // useful, and its absence is never a reason to hide a course's grades and risk.
+      officeHours: officeHoursResult.ok ? officeHoursResult.data : [],
       deliverables: deliverablesResult.data,
       backplanChains,
     },

@@ -167,6 +167,8 @@ export type {
 export { logDecision, scoreDecision, getDecision, listDecisions } from "./data/decisionJournal";
 export type { DecisionJournalRow, LogDecisionInput, ScoreDecisionInput } from "./data/decisionJournal";
 export { createSemesterLesson, listSemesterLessons, listSemesterLessonsForTerm } from "./data/semesterLessons";
+export { listCourseOfficeHours, createOfficeHour, deleteOfficeHour } from "./data/officeHours";
+export type { CourseOfficeHourRow, CreateOfficeHourInput } from "./data/officeHours";
 export type { SemesterLessonRow, CreateSemesterLessonInput } from "./data/semesterLessons";
 export type { DeliverableBackplanRow, BackplanMilestoneRow } from "./data/backplans";
 

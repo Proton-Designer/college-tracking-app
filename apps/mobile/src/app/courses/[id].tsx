@@ -75,7 +75,7 @@ function CourseDetailReady({
   data: CourseDetailData;
   onChanged: () => void;
 }) {
-  const { course, gradeResult, courseRisk, deliverableRisks, today, categories, gradeItems, gradeBoundaries, deliverables, backplanChains } = data;
+  const { course, gradeResult, courseRisk, deliverableRisks, today, categories, gradeItems, gradeBoundaries, deliverables, backplanChains, officeHours } = data;
   const weightSumIssue = gradeResult?.issues.find((i) => i.kind === "weightSumWarning");
   const categoryNameById = new Map(categories.map((c) => [String(c.id), c.name]));
 
@@ -155,8 +155,45 @@ function CourseDetailReady({
           <GradeBoundariesSection userId={userId} courseId={courseId} boundaries={gradeBoundaries} onChanged={onChanged} />
         </Panel>
       </Section>
+
+      {/* U5, mirroring web. `course_office_hours` carried real data since the academic schema
+          and nothing ever read it. SCREEN_SPEC §4's contextual surfacing (when a topic is
+          repeatedly flagged confusing) is deliberately NOT built -- "repeatedly" needs a real
+          threshold and inventing one would be the fabricated-constant failure this build has
+          spent its time removing. */}
+      <Section title="Office hours">
+        {officeHours.length === 0 ? (
+          <Text style={textStyle("bodyS", color.inkFaint)}>None recorded for this course.</Text>
+        ) : (
+          <Panel style={styles.policyPanel}>
+            {officeHours.map((oh) => (
+              <View key={oh.id} style={styles.officeHourRow}>
+                <Text style={textStyle("body", color.ink)}>
+                  {DAY_NAMES[oh.day_of_week] ?? `Day ${oh.day_of_week}`}{" "}
+                  <Text style={textStyle("bodyS", color.inkMuted)}>
+                    {formatClock(oh.start_time)}–{formatClock(oh.end_time)}
+                  </Text>
+                </Text>
+                {oh.location ? <Text style={textStyle("caption", color.inkFaint)}>{oh.location}</Text> : null}
+              </View>
+            ))}
+          </Panel>
+        )}
+      </Section>
     </View>
   );
+}
+
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** `HH:MM:SS` from a Postgres `time` column into `2:00 PM`. No timezone conversion, ever:
+ *  office hours are a recurring campus wall-clock slot, not an instant. */
+function formatClock(value: string): string {
+  const [h, m] = value.split(":");
+  const hour = Number(h);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const display = hour % 12 === 0 ? 12 : hour % 12;
+  return `${display}:${m} ${suffix}`;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -223,5 +260,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: space[4],
+  },
+  officeHourRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    justifyContent: "space-between",
+    gap: space[3],
   },
 });

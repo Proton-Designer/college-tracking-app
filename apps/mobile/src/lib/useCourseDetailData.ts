@@ -4,6 +4,7 @@ import {
   getOwnProfile,
   getUserLocalToday,
   listDeliverables,
+  listCourseOfficeHours,
   listGradeBoundaries,
   listGradeCategories,
   listGradeItems,
@@ -12,6 +13,7 @@ import {
   type CourseRiskSummary,
   type Deliverable,
   type DeliverableRisk,
+  type CourseOfficeHourRow,
   type GradeBoundaryRow,
   type GradeCategoryRow,
   type GradeItemRow,
@@ -31,6 +33,8 @@ export interface CourseDetailData {
   categories: GradeCategoryRow[];
   gradeItems: GradeItemRow[];
   gradeBoundaries: GradeBoundaryRow[];
+  /** U5. Reference data: when the professor is available. Mirrors web. */
+  officeHours: CourseOfficeHourRow[];
   deliverables: Deliverable[];
   backplanChains: Map<number, BackplanChain>;
 }
@@ -89,7 +93,8 @@ export function useCourseDetailData(courseId: number) {
             listGradeItems(client, courseId),
             listGradeBoundaries(client, courseId),
             listDeliverables(client, courseId),
-          ]).then(([risk, categoriesResult, gradeItemsResult, gradeBoundariesResult, deliverablesResult]) => {
+            listCourseOfficeHours(client, courseId),
+          ]).then(([risk, categoriesResult, gradeItemsResult, gradeBoundariesResult, deliverablesResult, officeHoursResult]) => {
             if (cancelled) return;
             if (!categoriesResult.ok) {
               setFetchState({ status: "error", error: categoriesResult.error.message });
@@ -122,6 +127,9 @@ export function useCourseDetailData(courseId: number) {
                   categories: categoriesResult.data,
                   gradeItems: gradeItemsResult.data,
                   gradeBoundaries: gradeBoundariesResult.data,
+                  // Reference data, not a gate: a failed read degrades to "none recorded"
+                  // rather than taking down course detail.
+                  officeHours: officeHoursResult.ok ? officeHoursResult.data : [],
                   deliverables: deliverablesResult.data,
                   backplanChains,
                 },

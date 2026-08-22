@@ -40,7 +40,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     );
   }
 
-  const { course, gradeResult, courseRisk, deliverableRisks, today, categories, gradeItems, gradeBoundaries, deliverables, backplanChains } =
+  const { course, gradeResult, courseRisk, deliverableRisks, today, categories, gradeItems, gradeBoundaries, deliverables, backplanChains, officeHours } =
     result.data;
   const weightSumIssue = gradeResult?.issues.find((i) => i.kind === "weightSumWarning");
   const categoryNameById = new Map(categories.map((c) => [String(c.id), c.name]));
@@ -133,8 +133,48 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           <GradeBoundariesSection courseId={courseId} boundaries={gradeBoundaries} />
         </Panel>
       </section>
+
+      {/* U5. `course_office_hours` has carried real data since the academic schema and
+          nothing in the repo ever read it. SCREEN_SPEC §4 additionally wants these surfaced
+          *contextually* when a topic is repeatedly flagged confusing -- that part is not
+          built, because "repeatedly" needs a real threshold and inventing one would be the
+          fabricated-constant failure this build spent its time removing. Shown as reference
+          data, which is honest and useful on its own. */}
+      <section className="flex flex-col gap-3">
+        <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Office hours</h2>
+        {officeHours.length === 0 ? (
+          <p className="text-body-s text-ink-faint">None recorded for this course.</p>
+        ) : (
+          <Panel className="flex flex-col gap-2">
+            {officeHours.map((oh) => (
+              <div key={oh.id} className="flex items-baseline justify-between gap-4">
+                <span className="text-body text-ink">
+                  {DAY_NAMES[oh.day_of_week] ?? `Day ${oh.day_of_week}`}{" "}
+                  <span className="font-mono text-body-s tabular-nums text-ink-muted">
+                    {formatClock(oh.start_time)}–{formatClock(oh.end_time)}
+                  </span>
+                </span>
+                {oh.location ? <span className="font-mono text-caption text-ink-faint">{oh.location}</span> : null}
+              </div>
+            ))}
+          </Panel>
+        )}
+      </section>
     </main>
   );
+}
+
+const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+/** `HH:MM:SS` from a Postgres `time` column into `2:00 PM`. No timezone conversion, ever:
+ *  office hours are a recurring campus wall-clock slot, not an instant, so treating them as
+ *  one would drift them across DST. */
+function formatClock(value: string): string {
+  const [h, m] = value.split(":");
+  const hour = Number(h);
+  const suffix = hour >= 12 ? "PM" : "AM";
+  const display = hour % 12 === 0 ? 12 : hour % 12;
+  return `${display}:${m} ${suffix}`;
 }
 
 function PolicyRow({ label, value }: { label: string; value: string | null }) {
