@@ -27,6 +27,22 @@ const VALID_ANALYSIS = {
   planning_errors: [],
   behavior_patterns: [],
   academic_risks: [],
+  // The seven lenses (LLM_LAYER_SPEC.md §2, dailyAnalysisSchema.ts's LensesSchema) --
+  // this fixture predated `lenses` being added to the schema and safeParse silently
+  // rejected it, which both "a valid model response" (expecting usedModel: true) and
+  // "privacy" (expecting exactly one llm_usage_log row) depend on to reach the model
+  // path at all. recovery_coach is "" since these throwaway users are never in
+  // Recovery Mode -- runNightlyAnalysis.ts would force it to "" anyway, but it must
+  // still be a valid string for safeParse to succeed in the first place.
+  lenses: {
+    executive_coach: "Locked in on the one MIT and finished it -- keep that focus tomorrow.",
+    academic_strategist: "No deep-work sessions logged; schedule one before the next deadline.",
+    behavior_analyst: "Completed the planned MIT with no reported friction.",
+    skeptic: "One data point isn't a trend yet -- watch for repeat slippage before drawing conclusions.",
+    systems_engineer: "No session data limits what tomorrow's report can assess.",
+    motivator: "One for one today. Log a session tomorrow and you'll have a real pattern to work with.",
+    recovery_coach: "",
+  },
   tomorrow_changes: [{ description: "Log a focus session tomorrow.", rationale: "No session data limits what tomorrow's report can assess." }],
   kill_list_intervention: null,
   data_gaps: [],
