@@ -25,18 +25,45 @@ export type { SignInInput, SignUpInput } from "./auth/auth";
 export type { DataError, DataErrorCode, DataResult } from "./data/types";
 export { getOwnProfile, updateOwnProfile } from "./data/profiles";
 export type { Profile, ProfileUpdate } from "./data/profiles";
-export { createCourse, getCourse, listCourses } from "./data/courses";
-export type { Course, CourseInsert } from "./data/courses";
-export { createTask, listOverdueTasks, listTasksForDate, updateTaskStatus } from "./data/tasks";
-export type { Task, TaskInsert, TaskStatus } from "./data/tasks";
+export { createCourse, getCourse, listCourses, updateCourse } from "./data/courses";
+export type { Course, CourseInsert, UpdateCourseInput } from "./data/courses";
+export { createTask, deleteTask, listOverdueTasks, listTasksForDate, updateTask, updateTaskStatus } from "./data/tasks";
+export type { Task, TaskInsert, TaskStatus, UpdateTaskInput } from "./data/tasks";
 export { getCheckinForDate, upsertCheckin } from "./data/dailyCheckins";
 export type { DailyCheckin, DailyCheckinInsert } from "./data/dailyCheckins";
 export { getReviewForDate, upsertReview } from "./data/dailyReviews";
 export type { DailyReview, DailyReviewInsert } from "./data/dailyReviews";
-export { listGradeCategories, listGradeItems, listGradeBoundaries } from "./data/gradeStructure";
-export type { GradeCategoryRow, GradeItemRow, GradeBoundaryRow } from "./data/gradeStructure";
+export {
+  listGradeCategories,
+  listGradeItems,
+  listGradeBoundaries,
+  createGradeCategory,
+  updateGradeCategory,
+  deleteGradeCategory,
+  upsertGradeBoundary,
+  deleteGradeBoundary,
+} from "./data/gradeStructure";
+export type {
+  GradeCategoryRow,
+  GradeItemRow,
+  GradeBoundaryRow,
+  CreateGradeCategoryInput,
+  UpdateGradeCategoryInput,
+  UpsertGradeBoundaryInput,
+} from "./data/gradeStructure";
 export { listDeliverables, createDeliverable, updateDeliverable, deleteDeliverable } from "./data/deliverables";
 export type { Deliverable, DeliverableType, DeliverableStatus, CreateDeliverableInput, UpdateDeliverableInput } from "./data/deliverables";
+export {
+  listSyllabusExtractions,
+  triggerSyllabusExtraction,
+  confirmSyllabusExtraction,
+} from "./data/syllabusExtractions";
+export type {
+  SyllabusExtractionRow,
+  TriggerSyllabusExtractionResult,
+  ConfirmSyllabusExtractionInput,
+  ConfirmSyllabusExtractionResult,
+} from "./data/syllabusExtractions";
 export { uploadSyllabus } from "./data/syllabusUploads";
 export type { SyllabusUpload } from "./data/syllabusUploads";
 
@@ -158,8 +185,8 @@ export {
   respondToStaleTaskPrompt,
 } from "./day/interventionEvaluation";
 
-export { connectBrightspaceFeed, disconnectBrightspaceFeed, getBrightspaceFeedStatus, listPendingIcsEvents } from "./data/brightspaceFeeds";
-export type { BrightspaceFeedRow, IcsEventExtractionRow } from "./data/brightspaceFeeds";
+export { connectBrightspaceFeed, disconnectBrightspaceFeed, getBrightspaceFeedStatus, listPendingIcsEvents, confirmIcsEvent } from "./data/brightspaceFeeds";
+export type { BrightspaceFeedRow, IcsEventExtractionRow, ConfirmIcsEventInput, ConfirmIcsEventResult } from "./data/brightspaceFeeds";
 
 export { listIntegrationStatuses, disconnectIntegration } from "./data/integrations";
 export type { IntegrationStatus, OAuthProvider } from "./data/integrations";

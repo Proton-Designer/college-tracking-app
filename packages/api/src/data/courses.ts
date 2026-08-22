@@ -34,3 +34,53 @@ export async function createCourse(
   if (error) return dataErr(mapDataError(error));
   return dataOk(data);
 }
+
+export interface UpdateCourseInput {
+  code?: string;
+  name?: string;
+  professorName?: string | null;
+  professorContact?: string | null;
+  term?: string;
+  color?: string | null;
+  difficultyRating?: number | null;
+  confidenceRating?: number | null;
+  targetGradePct?: number | null;
+  latePolicy?: string | null;
+  attendancePolicy?: string | null;
+  allowedAbsences?: number | null;
+  /** Set to archive (a real timestamp), or null to un-archive. Undefined/omitted leaves
+   *  the archive state untouched -- same set/clear/leave-alone convention used
+   *  throughout this codebase (MitTimebox, killHabits.ts's UpdateKillHabitInput). */
+  archivedAt?: string | null;
+}
+
+export async function updateCourse(
+  client: TypedSupabaseClient,
+  userId: string,
+  courseId: number,
+  input: UpdateCourseInput,
+): Promise<DataResult<Course>> {
+  const { data, error } = await client
+    .from('courses')
+    .update({
+      ...(input.code !== undefined ? { code: input.code } : {}),
+      ...(input.name !== undefined ? { name: input.name } : {}),
+      ...(input.professorName !== undefined ? { professor_name: input.professorName } : {}),
+      ...(input.professorContact !== undefined ? { professor_contact: input.professorContact } : {}),
+      ...(input.term !== undefined ? { term: input.term } : {}),
+      ...(input.color !== undefined ? { color: input.color } : {}),
+      ...(input.difficultyRating !== undefined ? { difficulty_rating: input.difficultyRating } : {}),
+      ...(input.confidenceRating !== undefined ? { confidence_rating: input.confidenceRating } : {}),
+      ...(input.targetGradePct !== undefined ? { target_grade_pct: input.targetGradePct } : {}),
+      ...(input.latePolicy !== undefined ? { late_policy: input.latePolicy } : {}),
+      ...(input.attendancePolicy !== undefined ? { attendance_policy: input.attendancePolicy } : {}),
+      ...(input.allowedAbsences !== undefined ? { allowed_absences: input.allowedAbsences } : {}),
+      ...(input.archivedAt !== undefined ? { archived_at: input.archivedAt } : {}),
+    })
+    .eq('id', courseId)
+    .eq('user_id', userId)
+    .select('*')
+    .single();
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(data);
+}

@@ -41,3 +41,49 @@ export async function listPendingIcsEvents(client: TypedSupabaseClient): Promise
   if (error) return dataErr(mapDataError(error));
   return dataOk(data);
 }
+
+/** Every Edge Function in this codebase wraps its body in {ok, data} or {ok, error}
+ *  (supabase/functions/_shared/http.ts's apiOk/apiErr) -- client.functions.invoke's own
+ *  `data` is that whole envelope, not the payload directly (found live in
+ *  accountManagement.ts; same fix here). */
+function unwrapEnvelope<T>(body: unknown): { ok: true; data: T } | { ok: false; error: string } {
+  if (body != null && typeof body === 'object' && 'ok' in body) {
+    return body as { ok: true; data: T } | { ok: false; error: string };
+  }
+  return { ok: false, error: 'Malformed response from server.' };
+}
+
+export interface ConfirmIcsEventInput {
+  extractionId: number;
+  decision: 'confirmed' | 'rejected';
+  /** Not knowable from the ICS data alone (a lecture and an assignment-due entry look
+   *  the same to a parser) -- an explicit user decision at confirm time, defaulting to
+   *  false server-side if omitted. */
+  isClassMeeting?: boolean;
+  courseId?: number;
+}
+
+export type ConfirmIcsEventResult =
+  | { action: 'rejected' }
+  | { action: 'promoted'; calendarEventId: number };
+
+/** The ONLY path from a staged ics_event_extractions row to a real calendar_events
+ *  write -- brightspace-confirm Edge Function, never a direct client write. RLS lets a
+ *  user's own client write calendar_events directly, so a client-side confirmation
+ *  check would be advisory only; this is the one path that can't be walked around
+ *  (supabase/functions/_shared/brightspace/confirm.ts's own header comment). */
+export async function confirmIcsEvent(client: TypedSupabaseClient, input: ConfirmIcsEventInput): Promise<DataResult<ConfirmIcsEventResult>> {
+  const { data, error } = await client.functions.invoke('brightspace-confirm', {
+    method: 'POST',
+    body: {
+      extractionId: input.extractionId,
+      decision: input.decision,
+      ...(input.isClassMeeting != null ? { isClassMeeting: input.isClassMeeting } : {}),
+      ...(input.courseId != null ? { courseId: input.courseId } : {}),
+    },
+  });
+  if (error) return dataErr({ code: 'network_error', message: error.message ?? 'Could not confirm this event. Please try again.' });
+  const envelope = unwrapEnvelope<ConfirmIcsEventResult>(data);
+  if (!envelope.ok) return dataErr({ code: 'unknown', message: envelope.error });
+  return dataOk(envelope.data);
+}
