@@ -219,32 +219,33 @@ export default function DesignPreviewPage() {
 
       <Section
         title="Color"
-        note="Foundation + risk scale. Ratios below are computed (WCAG relative luminance), not estimated — two fail and are called out rather than hidden."
+        note="Foundation + risk scale. Ratios are computed against the surface each color actually renders on — a color's own wash for a pill/badge, or glass-sunken over the lightest aurora stop (#FFE4EE, §7's corrected worst-real-surface) for general text on glass. Not estimated, not measured against plain white."
       >
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
           <Swatch name="ground" varName="--color-ground" hex={color.ground} />
           <Swatch name="surface" varName="--color-surface" hex={color.surface} />
           <Swatch name="surface-sunken" varName="--color-surface-sunken" hex={color.surfaceSunken} />
-          <Swatch name="ink" varName="--color-ink" hex={color.ink} on="on ground" ratio="17.25" level="AAA" />
-          <Swatch name="ink-muted" varName="--color-ink-muted" hex={color.inkMuted} on="on ground" ratio="5.69" level="AA" />
-          <Swatch name="ink-faint" varName="--color-ink-faint" hex={color.inkFaint} on="on ground" ratio="2.77" level="FAIL (decorative/precision use only, never body text)" />
+          <Swatch name="ink" varName="--color-ink" hex={color.ink} on="on worst glass surface" ratio="15.62" level="AAA" />
+          <Swatch name="ink-muted" varName="--color-ink-muted" hex={color.inkMuted} on="on worst glass surface" ratio="5.15" level="AA" />
+          <Swatch name="ink-faint" varName="--color-ink-faint" hex={color.inkFaint} on="on worst glass surface" ratio="3.00" level="FAIL at body size — by design, see §3: only large text (≥24px), a non-text ghost lane, or disabled. Never body copy." />
           <Swatch name="hairline" varName="--color-hairline" hex={color.hairline} />
           <Swatch name="border" varName="--color-border" hex={color.border} on="on ground" ratio="1.54" level="FAIL as a visible divider on bare ground — fine as a border inside a white/glass surface" />
-          <Swatch name="accent" varName="--color-accent" hex={color.accent} on="on ground" ratio="5.15" level="AA" />
+          <Swatch name="accent" varName="--color-accent" hex={color.accent} on="on worst glass surface" ratio="4.67" level="AA" />
           <Swatch name="accent-hover" varName="--color-accent-hover" hex={color.accentHover} />
           <Swatch name="accent-wash" varName="--color-accent-wash" hex={color.accentWash} />
         </div>
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
-          <Swatch name="risk-low" varName="--color-risk-low" hex={color.riskLow} on="on white" ratio="5.25" level="AA" />
-          <Swatch name="risk-moderate" varName="--color-risk-moderate" hex={color.riskModerate} on="on white" ratio="3.73" level="FAIL" />
-          <Swatch name="risk-high" varName="--color-risk-high" hex={color.riskHigh} on="on white" ratio="3.87" level="FAIL" />
-          <Swatch name="risk-critical" varName="--color-risk-critical" hex={color.riskCritical} on="on white" ratio="5.63" level="AA" />
+          <Swatch name="risk-low" varName="--color-risk-low" hex={color.riskLow} on="on its own wash" ratio="4.79" level="AA" />
+          <Swatch name="risk-moderate" varName="--color-risk-moderate" hex={color.riskModerate} on="on its own wash" ratio="4.79" level="AA" />
+          <Swatch name="risk-high" varName="--color-risk-high" hex={color.riskHigh} on="on its own wash" ratio="4.76" level="AA" />
+          <Swatch name="risk-critical" varName="--color-risk-critical" hex={color.riskCritical} on="on its own wash" ratio="4.84" level="AA" />
         </div>
-        <p className="max-w-prose text-body-s text-risk-critical">
-          Flagging, not fixing silently: risk-moderate and risk-high both fall under 4.5:1 on white
-          at normal text sizes (3.73 and 3.87). They clear the 3:1 large-text/non-text threshold, so
-          RiskPill/Badge — which render at 11px uppercase — are the exact case this doesn&apos;t
-          cover. Reporting to the Lead rather than hand-darkening a ratified hex.
+        <p className="max-w-prose text-body-s text-ink-muted">
+          Fixed in <code>095951a</code>: risk-moderate and risk-high were re-measured against the
+          surface they actually render on (their own wash, at RiskPill/Badge&apos;s real 11px
+          uppercase) rather than white, which made the original failure look like a near-miss
+          (3.73 / 3.87) when it was worse in situ (3.31 / 3.41). Both now clear AA at their real
+          hex values (#8E6208, #AC4F19) — measured here, not eyeballed.
         </p>
         <p className="text-body-s text-ink-muted">Aurora stops (atmosphere only — never a component fill):</p>
         <div className="grid grid-cols-2 gap-6 sm:grid-cols-4">
