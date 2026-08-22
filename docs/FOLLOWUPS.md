@@ -43,7 +43,7 @@ Five features have working, tested backends that **no screen reaches**. Same fam
 | # | Feature | Why it matters | Where it belongs |
 |---|---|---|---|
 | 🔴 U1 | **Interventions never displayed** | L9 records every intended intervention with its trigger and outcome, and nothing shows them. **"Intervene" is a step of the product's core loop** — Observe → Plan → Execute → Detect deviation → *Intervene* → Reflect. Right now that step is invisible, so the loop is open. | Today (inline), plus a history surface |
-| 🔴 U2 | **No way to set `planned_start_at`** | A2 added the column so start delay could be measured. Nothing writes it, so **start delay is permanently `null`** and the planning-vs-execution engine never sees the metric the brief names explicitly ("planned start 4:00 / actual start 5:07"). | Morning check-in — Top 3 optionally timeboxable |
+| ~~🔴 U2~~ | ~~No way to set `planned_start_at`~~ | **Resolved — and this entry was stale.** The write path shipped in `8a852ba` (backend: optional per-MIT timebox in `submitMorningCheckin`) and `cf4bb70` (UI, both platforms), both ancestors of HEAD. `submitCheckin.ts` writes `planned_start_at`/`planned_location`; web `CheckinForm.tsx` and mobile `CheckinFlow.tsx` both carry optional per-MIT timebox fields defaulting to unset. **Caught by Atlas checking before building, and independently by the Lead's reachability audit — a stale FOLLOWUPS row nearly cost a rebuild of working code.** Standing lesson: this document is a claim, not evidence; re-verify a row against HEAD before acting on it. Still open (separate, smaller): mobile uses validated free-text `HH:MM` rather than a native picker. | Morning check-in |
 | 🟡 U3 | **Proof-of-work unreachable** | L6 built submission + a server-side completion gate. No UI sets `requires_proof_of_work` or submits evidence, so an entire brief feature is dead. | Task detail / completion flow |
 | ~~🟡 U4~~ | ~~`max_escalation_level` unsettable~~ | **Resolved.** Settings' kill-habit editor now lets a user set the ceiling per habit, all 5 levels selectable. Verified live via psql that the write reaches the DB. Found while building it: L2-L4 currently produce the same in-app-message-only behavior as L0/L1 (see F4/F5) — the picker labels this explicitly rather than implying real enforcement exists. | Settings — kill-habit definitions |
 | 🟢 U5 | **Office hours never surfaced** | SCREEN_SPEC §4 wants them surfaced contextually when a topic is repeatedly flagged confusing — the brief's "better intervention than explaining the concept a tenth time". | Course detail |
@@ -59,6 +59,50 @@ on course detail. Grep for a column name finds absence of that *string*, not abs
 report — both engineers built exactly what was assigned. This is the *third* scope gap caught by
 audit rather than by review (after the night review and A2 timeboxing). Layer completion must be
 audited against the plan and the schema, not inferred from assignments.
+
+---
+
+## 🔴🔴 E-SERIES — THE PRODUCT HAS NO DATA-ENTRY PATH (Lead audit, 2026-08-22)
+
+> **This is the most serious gap found in the entire build, and it outranks every U-item.**
+> Found by a reachability audit: every exported `packages/api` function checked for a caller in the
+> real request path. Verified, not suspected.
+>
+> **A real user signs up and the app is permanently empty.** Risk scores, grade projection,
+> backplans, MITs, weekly planning — the entire engine derives from courses, assignments, and tasks
+> that *the user has no way to enter.*
+>
+> **Why it never surfaced:** every verification we ran passed because it ran against the **seeded
+> demo account**. We were always reading a semester that had been inserted with SQL. Cold-start was
+> tested for *empty states rendering honestly* — which they do — but never for "can this user
+> actually put data in?" The empty state on web Courses reads *"No courses yet. Add one, or upload a
+> syllabus to get started."* **Neither action exists.** It is an empty state advertising two buttons
+> that were never built.
+>
+> This is also the brief's PRIMARY onboarding flow, and the surface where CLAUDE.md's third law
+> ("extracted academic deadlines *always* require explicit user confirmation before they are
+> persisted as real") is supposed to be enforced. That law currently has no UI to live in.
+
+| # | Item | Evidence | Where it belongs |
+|---|---|---|---|
+| 🔴 E1 | **No course creation/edit UI** | `createCourse` has zero callers outside the barrel export. | `/courses` — create, edit, archive, incl. weight categories + grade boundaries (the grade engine needs them) |
+| 🔴 E2 | **No task/assignment creation UI** | `createTask` has zero callers outside the barrel. | Course detail + Today; due date, weight, category, estimated minutes |
+| 🔴 E3 | **No syllabus upload UI, and `syllabus-extract` has no caller anywhere in the repo** | `uploadSyllabus` zero callers; grep for `syllabus-extract` across `apps/`, `packages/`, `supabase/` returns nothing. | Course detail / onboarding — upload → extract → **explicit confirm** |
+| 🔴 E4 | **Imported deadlines can never be confirmed** | `listPendingIcsEvents` has zero callers, so Brightspace ICS events sync into a pending state with no surface to confirm them. The integration cannot complete its loop. | Course detail or a dedicated confirmation surface |
+| 🟡 E5 | **Backplans are never generated from the UI** | `generateAndPersistBackplan` has no app caller — backplans exist only if seeded. `BackplanChain` renders them but nothing creates them. | Course/assignment detail |
+
+**Also noted:** neither app invokes a single edge function via `functions.invoke`. The only
+app-reachable edge function is `account-delete`, via a server action. `nightly-analysis`,
+`weekly-synthesis`, `whoop-webhook`, `whoop-oauth-callback` and `rescuetime-sync` having no client
+caller is **correct** (cron- and provider-invoked). `syllabus-extract` having none is **not**.
+
+**Process note — the fourth scope gap caught by audit rather than by review.** After the night
+review (A1), timeboxing (A2), and U1–U8, this one was invisible for a different reason than the
+others: it isn't a missing screen on a spec, it's a missing *verb* across the whole product. Nothing
+in `SCREEN_SPEC` was violated, every assignment was built as written, and every test passed. The
+lesson is that "all screens render correctly" and "a user can actually use this" are different
+claims, and only the first one was ever tested. **A demo seed is a rendering fixture, not proof of
+a usable product.**
 
 ---
 
