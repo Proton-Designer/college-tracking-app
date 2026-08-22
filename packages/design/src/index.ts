@@ -1,9 +1,13 @@
 export {
+  aurora,
+  auroraForRisk,
   border,
   color,
   contentWidth,
   elevation,
   fontFamily,
+  glass,
+  island,
   motion,
   radius,
   riskBandColor,

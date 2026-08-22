@@ -1,35 +1,100 @@
 /**
- * CollegeOS design tokens — "Instrument".
+ * CollegeOS design tokens — "Aurora" (v2).
  *
- * Source of truth: docs/DESIGN_SYSTEM.md, ratified by the Lead. Every value here is transcribed
- * from that document verbatim; do not hand-tune a value here without updating the doc (or vice
- * versa) — they must never drift apart.
+ * Source of truth: docs/DESIGN_LANGUAGE_V2.md, ratified by the Lead 2026-08-22. Every value here
+ * is transcribed from that document verbatim; do not hand-tune a value here without updating the
+ * doc (or vice versa) — they must never drift apart.
+ *
+ * v2 replaces the "Instrument" surface (cream ground, serif display, hairline boxes, 3/5/8 radii)
+ * with a cool iridescent glass field. **Key names are deliberately preserved** so every existing
+ * consumer keeps compiling: the values changed, the vocabulary did not. New vocabulary (glass,
+ * aurora, island) is additive.
  *
  * Pure TS. No React, no DOM, no React Native imports — this file must be importable from a Node
  * script, a Tailwind config, or a native app equally.
  */
 
 export const color = {
-  ground: "#FAFAF8",
+  /** Cool near-white. v1's warm #FAFAF8 is gone — see DESIGN_LANGUAGE_V2 §1. */
+  ground: "#F4F6FB",
   surface: "#FFFFFF",
-  surfaceSunken: "#F2F2EF",
-  ink: "#16181D",
-  inkMuted: "#5C6270",
-  inkFaint: "#8A8E85",
-  hairline: "#E3E4E0",
-  border: "#7D8178",
-  accent: "#0B5D66",
-  accentHover: "#094A52",
-  accentWash: "#E8F1F1",
+  surfaceSunken: "#EDF0F7",
+  /** Near-black with a blue cast. Never pure #000. */
+  ink: "#0E1220",
+  inkMuted: "#5A6178",
+  inkFaint: "#8E95A8",
+  hairline: "#E1E6F0",
+  border: "#C2C9D8",
+  /**
+   * Indigo. Deliberately NOT #007AFF — Apple's blue would make this a straight copy of the
+   * reference. This hue sits inside the aurora's periwinkle→lilac range while staying its own.
+   */
+  accent: "#3A56F0",
+  accentHover: "#2B41C4",
+  accentWash: "#EBEEFE",
 
-  riskLow: "#3F7D5C",
-  riskLowWash: "#EDF4F0",
-  riskModerate: "#8A6516",
-  riskModerateWash: "#F7F1E3",
-  riskHigh: "#B4501A",
-  riskHighWash: "#FBEEE6",
-  riskCritical: "#A8231F",
-  riskCriticalWash: "#FAEBEA",
+  riskLow: "#1F7A5C",
+  riskLowWash: "#E9F4F0",
+  riskModerate: "#B07A0A",
+  riskModerateWash: "#F8F1E2",
+  riskHigh: "#D2601F",
+  riskHighWash: "#FCEEE6",
+  riskCritical: "#C42B2B",
+  riskCriticalWash: "#FBEAEA",
+} as const;
+
+/**
+ * The ambient field's four stops (§1). These are NEVER component fills — only atmosphere.
+ * Which stops are mixed is derived from a real computed RiskBand; see `auroraForRisk`.
+ */
+export const aurora = {
+  periwinkle: "#BCD2FF",
+  lilac: "#D7C6FF",
+  mint: "#BFF0E2",
+  blush: "#FFD3E4",
+} as const;
+
+/** The floating dock (§5). */
+export const island = {
+  fill: "#0B0E14",
+  /** Alpha applied over a 32px blur. The dock is glass, not a black rectangle. */
+  fillAlpha: 0.88,
+  ink: "#FFFFFF",
+  inkDim: "rgba(255,255,255,0.55)",
+  /** Distance from the safe-area inset to the bottom of the dock. */
+  offset: 20,
+  /** Bottom padding every scroll container must reserve so content is never trapped under it. */
+  contentInset: 88,
+} as const;
+
+/**
+ * Three glass tiers — §2. Only these three exist; a fourth is someone inventing a value.
+ *
+ * `fallback` is MANDATORY, not optional: backdrop-filter fails on older Android WebViews and under
+ * reduced-transparency settings. Glass that degrades to an unreadable surface is a bug.
+ */
+export const glass = {
+  base: {
+    fill: "rgba(255,255,255,0.62)",
+    fallback: "rgba(255,255,255,0.92)",
+    blur: 24,
+    saturate: 1.8,
+  },
+  raised: {
+    fill: "rgba(255,255,255,0.78)",
+    fallback: "rgba(255,255,255,0.96)",
+    blur: 32,
+    saturate: 1.8,
+  },
+  sunken: {
+    fill: "rgba(255,255,255,0.38)",
+    fallback: "rgba(255,255,255,0.86)",
+    blur: 16,
+    saturate: 1.4,
+  },
+  /** The two edges that separate real glass from a translucent rectangle (§2). */
+  edgeHighlight: "rgba(255,255,255,0.85)",
+  edgeHairline: "rgba(14,18,32,0.06)",
 } as const;
 
 /** Ordered low → critical. Drives RiskPill/Badge and anywhere a risk band is enumerated. */
@@ -43,10 +108,38 @@ export const riskBandColor: Record<RiskBand, { fg: string; wash: string }> = {
   critical: { fg: color.riskCritical, wash: color.riskCriticalWash },
 };
 
+/**
+ * §6 — the aurora's stop pair for a given computed risk band.
+ *
+ * `null` is a first-class value and the rule that keeps this honest: **an account with no computed
+ * risk gets no atmosphere at all**, just flat `ground`. The aurora is an instrument reading, not
+ * decoration applied for mood. Never call this with a fabricated band to make a screen look alive.
+ */
+export function auroraForRisk(band: RiskBand | null): readonly [string, string] | null {
+  if (band === null) return null;
+  switch (band) {
+    case "low":
+      return [aurora.mint, aurora.periwinkle] as const;
+    case "moderate":
+      return [aurora.periwinkle, aurora.lilac] as const;
+    case "high":
+      return [aurora.lilac, aurora.blush] as const;
+    case "critical":
+      return [aurora.blush, aurora.lilac] as const;
+  }
+}
+
 export const fontFamily = {
-  serif: "IBM Plex Serif",
-  sans: "IBM Plex Sans",
-  mono: "IBM Plex Mono",
+  /** Display + UI. A grotesque with real character; holds at 52px, stays quiet at 15px. */
+  sans: "Instrument Sans",
+  /** Data + eyebrows. Measurement deserves a machine face. */
+  mono: "Geist Mono",
+  /**
+   * @deprecated v2 removes the serif display face entirely (§3) — it was the loudest part of the
+   * rejected v1 look. The key is retained ONLY so a straggler renders as Instrument Sans instead
+   * of falling back to Georgia. Remove every usage; this key goes when the last one does.
+   */
+  serif: "Instrument Sans",
 } as const;
 
 interface TypeStep {
@@ -58,7 +151,7 @@ interface TypeStep {
   uppercase?: true;
 }
 
-/** Sizes/line-heights in px (native consumers convert 1:1 to dp). */
+/** Sizes/line-heights in px (native consumers convert 1:1 to dp). §3. */
 export const type: Record<
   | "displayXl"
   | "displayL"
@@ -73,27 +166,28 @@ export const type: Record<
   | "caption",
   TypeStep
 > = {
-  displayXl: { fontSize: 56, lineHeight: 60, fontFamily: fontFamily.serif, fontWeight: 600, tracking: -0.02 },
-  displayL: { fontSize: 40, lineHeight: 44, fontFamily: fontFamily.serif, fontWeight: 600, tracking: -0.02 },
-  displayM: { fontSize: 28, lineHeight: 34, fontFamily: fontFamily.serif, fontWeight: 600, tracking: -0.01 },
-  title: { fontSize: 20, lineHeight: 28, fontFamily: fontFamily.sans, fontWeight: 600, tracking: -0.01 },
+  displayXl: { fontSize: 52, lineHeight: 54, fontFamily: fontFamily.sans, fontWeight: 600, tracking: -0.03 },
+  displayL: { fontSize: 38, lineHeight: 42, fontFamily: fontFamily.sans, fontWeight: 600, tracking: -0.025 },
+  displayM: { fontSize: 28, lineHeight: 34, fontFamily: fontFamily.sans, fontWeight: 600, tracking: -0.02 },
+  title: { fontSize: 19, lineHeight: 26, fontFamily: fontFamily.sans, fontWeight: 600, tracking: -0.015 },
   bodyL: { fontSize: 17, lineHeight: 26, fontFamily: fontFamily.sans, fontWeight: 400, tracking: 0 },
   body: { fontSize: 15, lineHeight: 22, fontFamily: fontFamily.sans, fontWeight: 400, tracking: 0 },
   bodyS: { fontSize: 13, lineHeight: 19, fontFamily: fontFamily.sans, fontWeight: 400, tracking: 0 },
+  /** The eyebrow. Mono, uppercase, open tracking. */
   label: {
     fontSize: 11,
     lineHeight: 14,
     fontFamily: fontFamily.mono,
     fontWeight: 500,
-    tracking: 0.1,
+    tracking: 0.08,
     uppercase: true,
   },
-  metricXl: { fontSize: 44, lineHeight: 48, fontFamily: fontFamily.mono, fontWeight: 500, tracking: -0.01 },
+  metricXl: { fontSize: 46, lineHeight: 48, fontFamily: fontFamily.mono, fontWeight: 500, tracking: -0.02 },
   metric: { fontSize: 22, lineHeight: 26, fontFamily: fontFamily.mono, fontWeight: 500, tracking: 0 },
   caption: { fontSize: 12, lineHeight: 16, fontFamily: fontFamily.mono, fontWeight: 400, tracking: 0.02 },
 };
 
-/** 4px base grid, exactly the scale in §4 — do not interpolate new steps. */
+/** 4px base grid — unchanged from v1. The spacing scale was never the problem. */
 export const space = {
   0: 0,
   1: 2,
@@ -109,10 +203,15 @@ export const space = {
   11: 80,
 } as const;
 
+/**
+ * §4 — wholesale replaced. v1's 3/5/8 is precisely what made the old UI read as barebones.
+ * `xl` is new (modals, sheets, the island).
+ */
 export const radius = {
-  sm: 3,
-  md: 5,
-  lg: 8,
+  sm: 10,
+  md: 14,
+  lg: 20,
+  xl: 28,
   pill: 999,
 } as const;
 
@@ -120,13 +219,26 @@ export const border = {
   hairlineWidth: 1,
 } as const;
 
-/** Only these two shadows exist in the whole system — cards/panels/rows get none. */
+/**
+ * §4. v1's rule that "cards get no shadow" is REVERSED: glass without elevation reads as a flat
+ * translucent box, and `glass` is what makes a panel float.
+ */
 export const elevation = {
+  glass: {
+    web: "0 1px 1px rgba(14,18,32,.03), 0 8px 24px rgba(14,18,32,.06)",
+  },
+  lifted: {
+    web: "0 2px 4px rgba(14,18,32,.04), 0 18px 48px rgba(14,18,32,.10)",
+  },
+  islandDock: {
+    web: "0 8px 24px rgba(11,14,20,.28), 0 24px 64px rgba(11,14,20,.22)",
+  },
+  /** @deprecated v1 names, retained so existing consumers compile. Map to `glass`/`lifted`. */
   overlay: {
-    web: "0 1px 2px rgba(22,24,29,.04), 0 8px 24px rgba(22,24,29,.08)",
+    web: "0 2px 4px rgba(14,18,32,.04), 0 18px 48px rgba(14,18,32,.10)",
   },
   popover: {
-    web: "0 1px 2px rgba(22,24,29,.06), 0 4px 12px rgba(22,24,29,.10)",
+    web: "0 1px 1px rgba(14,18,32,.03), 0 8px 24px rgba(14,18,32,.06)",
   },
 } as const;
 
@@ -154,14 +266,15 @@ export const motion = {
 } as const;
 
 /**
- * Not specified numerically in DESIGN_SYSTEM.md §4 — inferred to support layering (dropdowns,
- * overlays, toasts) consistently across both apps. Flagged to the Lead; revise here (and only
- * here) if a canonical scale is ratified later.
+ * Not specified numerically in the design docs — inferred to support layering (dropdowns,
+ * overlays, toasts) consistently across both apps. `island` sits above sticky content but below
+ * modals: a modal must be able to cover the dock.
  */
 export const zIndex = {
   base: 0,
   dropdown: 100,
   sticky: 200,
+  island: 250,
   overlay: 300,
   modal: 400,
   toast: 500,
