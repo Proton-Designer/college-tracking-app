@@ -196,11 +196,18 @@ export default async function TodayPage({
       <Aurora band={dayBand} />
       <TodayHeader today={dayView.today} health={dayView.todayHealth} sleepBaselineHours={dayView.profile.sleep_baseline_hours} />
 
-      {/* §8 — the one thing this screen exists to tell the user, at displayL+. Only a normal
-          day has a stable "what do I do now" reading; Recovery/Unplanned lead with their own
-          narrower message instead of this one. Reads the exact same live state ConnectedMitList
-          renders below (MitFocusProvider), so the two can never name a different task or count. */}
-      {mode === "normal" ? <TodayFocusHeadline /> : null}
+      {/* §8 — the one thing this screen exists to tell the user, at displayL+, in the header
+          where a lead statement actually leads (not two-thirds down the page inside a card --
+          RecoveryBanner's own "Recovery mode active" label is detail now, not the lead).
+          Cross-platform match: mobile's recovery header states "Recovery day" the same way. */}
+      {mode === "normal" ? (
+        <TodayFocusHeadline />
+      ) : mode === "recovery" ? (
+        <div className="flex flex-col gap-1">
+          <p className="font-mono text-label uppercase tracking-[0.1em] text-ink-faint">Today&apos;s focus</p>
+          <h1 className="font-sans text-display-l font-semibold tracking-[-0.025em] text-ink">Recovery day</h1>
+        </div>
+      ) : null}
 
       <DayTrace
         today={dayView.today}

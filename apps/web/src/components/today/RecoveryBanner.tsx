@@ -48,19 +48,15 @@ export function RecoveryBanner({
   const tasksById = new Map(todayTasks.map((t) => [t.id, t]));
   const eventsById = new Map(calendarEvents.map((e) => [e.id, e]));
   const activeSignals = recoveryMode.signals.filter((s) => s.active);
-  // §8: the one thing a Recovery day exists to say is the same "what do I do now" as a normal
-  // day, just answered from the minimum-viable-day plan instead of the ranked suggestions --
-  // the first kept item, which the "Kept today" list right below also names first. This is the
-  // mode a struggling user lands in, so a buried lead hurts the most here of anywhere on /today.
-  const firstKept = mvdPlan?.kept[0] ? itemLabel(mvdPlan.kept[0], tasksById, eventsById) : null;
 
   return (
     <div className="rounded-lg border border-risk-high bg-risk-high-wash p-5">
-      <p className="font-mono text-label uppercase tracking-[0.1em] text-risk-high">Recovery mode</p>
-      <h1 className="mt-1 font-sans text-display-l font-semibold tracking-[-0.025em] text-ink">
-        {firstKept ?? "Today is scaled down to the minimum"}
-      </h1>
-      <p className="mt-2 text-body text-ink-muted">
+      {/* §8's lead statement moved to the page header (TodayPage, next to the normal-mode
+       *  headline) -- it wasn't leading two-thirds down the page inside this card. This label
+       *  stays as the card's own status marker; the detail (why, what's kept, what's rolled
+       *  forward) is still this component's job. */}
+      <p className="font-mono text-label uppercase tracking-[0.1em] text-risk-high">Recovery mode active</p>
+      <p className="mt-2 text-body text-ink">
         Today is scaled down to the minimum viable day. Nothing that doesn&apos;t fit is dropped —
         it&apos;s rolled forward, and you can see exactly what.
       </p>
