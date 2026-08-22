@@ -15,7 +15,7 @@ import { useCallback, useEffect, useState } from "react";
 import { getMobileSupabaseClient } from "./supabase/client";
 import { useAuthSession } from "./useAuthSession";
 
-export type TodayMode = "unplanned" | "recovery" | "normal";
+export type TodayMode = "onboarding" | "unplanned" | "recovery" | "normal";
 
 export interface TodayData {
   dayView: DayView;
@@ -37,9 +37,13 @@ export type FetchState =
   | { status: "ready"; data: TodayData };
 
 /** Mode is decided here, once, from the engine's own outputs — mirrors
- *  apps/web/src/app/today/data.ts's decideMode exactly. Recovery outranks unplanned
- *  because a triggered Recovery Mode is the more urgent fact even with no check-in yet. */
-function decideMode(dayView: DayView): TodayMode {
+ *  apps/web/src/app/(app)/today/data.ts's decideMode exactly. E0_ONBOARDING_SPEC.md:
+ *  "does this user have at least one course?" is a real data check, never a has_onboarded
+ *  flag, checked first -- the daily ritual (and Recovery Mode) both presuppose a semester
+ *  exists. Recovery outranks unplanned because a triggered Recovery Mode is the more
+ *  urgent fact even with no check-in yet. */
+function decideMode(dayView: DayView, courseCount: number): TodayMode {
+  if (courseCount === 0) return "onboarding";
   if (dayView.recoveryMode.triggered) return "recovery";
   if (dayView.todayCheckin == null) return "unplanned";
   return "normal";
@@ -108,7 +112,7 @@ export function useTodayData(asOfIso?: string) {
         data: {
           dayView: dayViewResult.data,
           courses: Object.fromEntries(coursesResult.data.map((c) => [c.id, c])),
-          mode: decideMode(dayViewResult.data),
+          mode: decideMode(dayViewResult.data, coursesResult.data.length),
           killHabits: killHabitsResult.data,
           activeFocusSession: activeFocusSessionResult.data,
           interventions: [],

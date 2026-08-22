@@ -1,4 +1,5 @@
 import {
+  createTask,
   logKillEvent,
   startFocusSession,
   submitMorningCheckin,
@@ -7,7 +8,39 @@ import {
   type SubmitMorningCheckinInput,
   type TaskStatus,
 } from "@collegeos/api";
+import type { LocalDate } from "@collegeos/core";
 import { getMobileSupabaseClient } from "./supabase/client";
+
+export interface AddTaskResult {
+  ok: boolean;
+  error?: string;
+}
+
+export interface AddTaskInput {
+  title: string;
+  category: string;
+  plannedDate: LocalDate;
+  courseId?: number;
+  estimatedMinutes?: number;
+}
+
+/** E0/U6: Today's own quick-add -- the only entry point for a task that isn't scoped to
+ *  a deliverable already. courseId is optional -- a personal task (gym, errand) is real
+ *  and plannable without belonging to any course. Mirrors apps/web/src/app/(app)/today/
+ *  actions.ts's addTaskAction; no server-action layer on mobile. */
+export async function addTaskAction(userId: string, input: AddTaskInput): Promise<AddTaskResult> {
+  const client = getMobileSupabaseClient();
+  const result = await createTask(client, {
+    user_id: userId,
+    title: input.title,
+    category: input.category,
+    planned_date: input.plannedDate,
+    ...(input.courseId != null ? { course_id: input.courseId } : {}),
+    ...(input.estimatedMinutes != null ? { estimated_minutes: input.estimatedMinutes } : {}),
+  });
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true };
+}
 
 export interface ToggleTaskResult {
   ok: boolean;

@@ -2,7 +2,7 @@ import type { Course, DayView, InterventionRow, KillHabitRow, TaskSessionRow } f
 import { signOut } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Button, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { CheckinFlow } from "../../components/today/CheckinFlow";
@@ -13,12 +13,14 @@ import { type FocusBlock, FocusLauncher } from "../../components/today/FocusLaun
 import { TodayHeader } from "../../components/today/Header";
 import { KillListSection } from "../../components/today/KillListSection";
 import { type MitItem, MitList } from "../../components/today/MitList";
+import { OnboardingGate } from "../../components/today/OnboardingGate";
+import { QuickAddTaskModal } from "../../components/today/QuickAddTaskModal";
 import { RecoveryBanner } from "../../components/today/RecoveryBanner";
 import { WorkloadBand } from "../../components/today/WorkloadBand";
 import { textStyle } from "../../design/typography";
 import { getMobileSupabaseClient } from "../../lib/supabase/client";
 import { useAuthSession } from "../../lib/useAuthSession";
-import { useTodayData } from "../../lib/useTodayData";
+import { type TodayMode, useTodayData } from "../../lib/useTodayData";
 
 function buildMitItems(dayView: DayView, courses: Record<number, Course>): MitItem[] {
   const tasksById = new Map(dayView.todayTasks.map((t) => [t.id, t]));
@@ -173,7 +175,7 @@ function TodayReady({
   data: {
     dayView: DayView;
     courses: Record<number, Course>;
-    mode: "unplanned" | "recovery" | "normal";
+    mode: TodayMode;
     killHabits: KillHabitRow[];
     activeFocusSession: TaskSessionRow | null;
     interventions: InterventionRow[];
@@ -191,6 +193,15 @@ function TodayReady({
   const recoveryMitItems = buildRecoveryMitItems(dayView, courses);
   const recoveryFocusBlock = buildRecoveryFocusBlock(dayView, courses);
 
+  if (mode === "onboarding") {
+    return (
+      <View style={styles.sectionGap}>
+        <TodayHeader today={dayView.today} health={dayView.todayHealth} sleepBaselineHours={dayView.profile.sleep_baseline_hours} />
+        <OnboardingGate onCreated={onInterventionChanged} />
+      </View>
+    );
+  }
+
   const normalBody = (
     <View style={styles.sectionGap}>
       {!hasAnyData ? (
@@ -198,7 +209,7 @@ function TodayReady({
           Nothing set up yet — this is what Today will look like once a course or task exists.
         </Text>
       ) : null}
-      <Section title="Top 3">
+      <Section title="Top 3" action={<QuickAddTaskModal userId={userId} today={dayView.today} courses={courses} onAdded={onInterventionChanged} />}>
         <MitList items={mitItems} />
       </Section>
       <Section title="Workload">
@@ -271,10 +282,13 @@ function TodayReady({
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
   return (
     <View style={styles.section}>
-      <Text style={textStyle("label", color.inkMuted)}>{title}</Text>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={textStyle("label", color.inkMuted)}>{title}</Text>
+        {action ?? null}
+      </View>
       {children}
     </View>
   );
@@ -326,5 +340,10 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: space[3],
+  },
+  sectionHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
 });
