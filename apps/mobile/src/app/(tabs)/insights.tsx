@@ -1,5 +1,5 @@
 import { color, space } from "@collegeos/design/native";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { DecisionJournal } from "../../components/insights/DecisionJournal";
 import { ActiveExperiments } from "../../components/insights/ActiveExperiments";
 import { BounceBackSection } from "../../components/insights/BounceBackSection";
@@ -83,11 +83,28 @@ export default function InsightsScreen() {
   );
 }
 
+/** Matches web's Insights composition (L13.1): a hairline above each heading gives the
+ *  screen rhythm instead of leaving seven sections as one undifferentiated scroll. The
+ *  "layered hairlines, not shadows" rule from docs/L13_DESIGN_PASS.md.
+ *
+ *  Web additionally pairs the four analytical readouts into two columns at >=1280px. That
+ *  deliberately does NOT port: a phone has one column, and forcing a side-by-side here
+ *  would shrink measured values below legibility. Same information, same order, same
+ *  rhythm -- different layout, which is exactly the divergence SCREEN_SPEC allows. */
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <View style={{ gap: space[3] }}>
+    <View style={styles.section}>
       <Text style={textStyle("label", color.inkMuted)}>{title}</Text>
       {children}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  section: {
+    gap: space[3],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: color.hairline,
+    paddingTop: space[5],
+  },
+});
