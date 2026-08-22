@@ -257,8 +257,32 @@ instrument) and they should be designed together.
   call, not an engineer's — between accepting a dev-client build, finding a managed-workflow route,
   or shipping voice on web only and documenting the divergence.
 
+**LEAD RULING (2026-08-22) — build web voice; mobile already has it for free.**
+
+The asymmetry above dissolves once you notice what mobile already provides: **every iOS and Android
+soft keyboard ships a dictation key.** Any `TextInput` on mobile is *already* a voice-input field,
+provided by the OS, with no dependency, no dev build, and better accuracy than anything we'd wire up.
+The brief's actual requirement — *"speaking for sixty seconds is much easier than writing"* — is
+already met on mobile today.
+
+Browsers give no such affordance inside a `<textarea>`, which is exactly why web needs an explicit
+control and mobile does not.
+
+So:
+- **Web:** an explicit mic control on each of the three fields using the built-in
+  `SpeechRecognition` API. No dependency. Must **degrade to text-only where unsupported** (Firefox)
+  rather than render a dead button.
+- **Mobile:** no mic UI. Instead, **verify that nothing suppresses keyboard dictation** on those
+  fields — no `keyboardType` or `textContentType` that hides the mic key, no custom input accessory
+  that covers it. Then say so in the UI copy if useful.
+- **No custom dev build.** Breaking the Expo Go managed workflow to duplicate a capability the OS
+  already provides would be a bad trade, and it would slow every future on-device verification.
+
+This is allowed divergence under `SCREEN_SPEC`: the *capability* is identical on both platforms, the
+*idiom* differs because the platforms differ. It is not a feature gap and must not be recorded as one.
+
 **Do not half-build it.** A mic button that silently fails, or that works on one platform while the
-other pretends the feature doesn't exist, is worse than text-only.
+other pretends the capability doesn't exist, is worse than text-only.
 
 ---
 
