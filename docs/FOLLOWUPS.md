@@ -369,7 +369,7 @@ other pretends the capability doesn't exist, is worse than text-only.
 
 ---
 
-## 🔴 B7 — The web session drops, `auth.getUser()` fails with a bare 400
+## 🟢 B7 — Web session drops in the automation harness (**not a product defect on current evidence**)
 
 **Status: recurring, reproduced only incidentally, mechanism unknown, now instrumented.** Filed
 honestly rather than as a diagnosis.
@@ -395,6 +395,36 @@ were not the cause, despite the correlation that first suggested it.
 **What the evidence says.** `code` is `undefined` on a 400. A `refresh_token_not_found` carries a
 real code, so this is a **different error class** — which is the most useful fact we have. The
 message is now logged outside production; it had not reproduced again as of filing.
+
+**RESOLVED-ENOUGH, 2026-08-22 — the message arrived and it changes the reading.**
+
+```
+[proxy] auth.getUser() failed on /insights: code=unknown status=400 message="Auth session missing!"
+```
+
+*"Auth session missing!"* is what `supabase-js` returns when it finds **no session in the cookie
+store at all**. It is not a rejected token, not an expired one, and not a server-side refusal — the
+400 is simply how the client reports "there is nothing here to check." So the evidence points back
+to the cookie being **absent**, which was my *original* reading before I over-corrected on the
+strength of an error appearing at all.
+
+Two further facts settle it:
+- **The app's own session-persistence E2E test passes** — `session.spec.ts`, *"a signed-in session
+  survives a hard reload and stays off auth routes"*, run directly: **2 passed**. That test exercises
+  exactly the behaviour B7 alleged was broken.
+- The session survived **eight rapid `fetch()` calls** in a row every time, and only ever vanished
+  across a Playwright-MCP `browser_navigate`.
+
+**Current conclusion: an artifact of the MCP browser context, not a defect in CollegeOS.** Filed
+green and closed pending contrary evidence. If a real user ever reports being signed out, reopen
+this — the instrumentation is in place and will now say what happened.
+
+**Lesson worth more than the bug.** I got this wrong twice in opposite directions: first concluding
+"no auth failure" from an empty log (which was empty *because the error was being discarded* —
+circular), then concluding "real auth failure" the moment an error appeared (without asking what the
+error *meant*). An error existing and an error mattering are different claims. The instrumentation
+was still worth adding: it cost two lines and converted an unfalsifiable hunch into a closed
+question.
 
 **Do not "fix" `proxy.ts` or the cookie adapter speculatively.** Both are correct per the
 `@supabase/ssr` contract, and the Server-Component `setAll` swallow is intentional and documented.
