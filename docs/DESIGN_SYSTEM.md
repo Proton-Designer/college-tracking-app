@@ -1,7 +1,16 @@
-# CollegeOS Design System — **"Instrument"**
+# CollegeOS Design System — **"Instrument"** (v1, superseded)
 
-> Ratified by the Lead. This is the visual contract. `packages/design` implements it; both apps
-> consume it. Contrast ratios below are computed, not estimated.
+> ## ⚠️ SUPERSEDED — read `docs/DESIGN_LANGUAGE_V2.md` instead
+>
+> **The visual authority is now `docs/DESIGN_LANGUAGE_V2.md` ("Aurora"), ratified 2026-08-22.**
+> v1's surface — cream ground, IBM Plex Serif display, hairline boxes, 3/5/8 radii, text-only
+> tab bar — was rejected by the user as *"primal and barebones."*
+>
+> This file is kept because its **structural** rules survived the revamp and are still binding:
+> the thesis in §1, the "never fabricate a value" rule, the empty-state discipline, the
+> platform-parity rule (behaviour and information may not diverge; layout and idiom may), and the
+> contrast methodology. **Everything about colour, type, radius, elevation and texture below is
+> historical.** Do not implement from it.
 
 ---
 

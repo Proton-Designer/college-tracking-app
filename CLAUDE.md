@@ -19,7 +19,7 @@ Observe → Plan → Execute → Detect deviation → Intervene → Reflect → 
 | Current project state | `docs/STATUS.md` |
 | Original product brief (requirements) | `docs/context/SOURCE_BRIEF.txt` |
 | Database schema | `docs/DATA_MODEL.md` |
-| Visual language + tokens | `docs/DESIGN_SYSTEM.md`, `packages/design/` |
+| **Visual language + tokens** | **`docs/DESIGN_LANGUAGE_V2.md`**, `packages/design/` (`DESIGN_SYSTEM.md` is v1, superseded) |
 | Cloud provisioning runbook | `docs/SUPABASE_SETUP.md` |
 | Durable decisions | `.brain/memory/decisions.md` |
 
