@@ -58,7 +58,8 @@ export function Modal({ open, onClose, title, children, footer, dismissable = tr
         tabIndex={-1}
         className={cn(
           "modal-fade-in relative flex max-h-[85vh] w-full max-w-[480px] flex-col gap-4",
-          "overflow-y-auto rounded-lg bg-surface p-6 shadow-overlay outline-none",
+          "overflow-y-auto rounded-lg bg-surface p-6 shadow-overlay",
+          "outline-none focus-visible:[outline:2px_solid_var(--color-accent)] focus-visible:outline-offset-2",
           className,
         )}
       >
