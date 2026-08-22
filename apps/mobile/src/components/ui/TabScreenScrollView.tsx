@@ -1,8 +1,7 @@
-import { color, space } from "@collegeos/design/native";
+import { color, island, space } from "@collegeos/design/native";
 import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, type RefreshControlProps, type ScrollViewProps } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTabBarClearance } from "../../design/layout";
 
 export interface TabScreenScrollViewProps {
   children: ReactNode;
@@ -10,20 +9,22 @@ export interface TabScreenScrollViewProps {
 }
 
 /**
- * The shared scroll container for every screen inside the `(tabs)` group. Applies safe-area
- * top padding and `useTabBarClearance()` as a `marginBottom` on the ScrollView itself (not
- * `contentContainerStyle` padding -- confirmed live, twice, that padding alone doesn't
- * un-hide bottom content from behind the tab bar; see `design/layout.ts`). One place to
- * fix if this ever needs adjusting, instead of four screens quietly drifting apart.
+ * The shared scroll container for every screen inside the `(tabs)` group. The island tab bar
+ * (`components/shell/Island.tsx`) is absolutely positioned and detached, so the Tabs navigator
+ * no longer reserves any space for it in normal flow -- content genuinely extends to the bottom
+ * edge, and the only correct treatment is `contentContainerStyle.paddingBottom`, never a
+ * `marginBottom` on the ScrollView itself (that double-counts space nothing is reserving).
  */
 export function TabScreenScrollView({ children, refreshControl }: TabScreenScrollViewProps) {
   const insets = useSafeAreaInsets();
-  const tabBarClearance = useTabBarClearance();
 
   return (
     <ScrollView
-      style={[styles.flex, { marginBottom: tabBarClearance }]}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: space[8] }]}
+      style={styles.flex}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + space[6], paddingBottom: island.contentInset + insets.bottom },
+      ]}
       refreshControl={refreshControl as React.ReactElement<RefreshControlProps> | undefined}
     >
       {children}
