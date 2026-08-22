@@ -50,7 +50,7 @@ export default async function DeliverableDetailPage({ params }: { params: Promis
         <PageHeader
           title={deliverable.title}
           titleTestId="deliverable-detail-title"
-          context={`${typeLabel(deliverable.type)} · Due ${daysRemainingLabel(today, deliverable.local_due_date)} · ${deliverable.status.replace(/_/g, " ")}`}
+          context={`${typeLabel(deliverable.type)} · ${daysRemainingLabel(today, deliverable.local_due_date)} · ${deliverable.status.replace(/_/g, " ")}`}
           actions={<EditDeliverableModal deliverable={deliverable} />}
         />
       </div>
