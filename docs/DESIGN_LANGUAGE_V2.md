@@ -279,7 +279,10 @@ a gap to fill:
 | `/courses/[id]` | that course's own `CourseRiskSummary.result.band` |
 | `/deliverables/[id]` | **none — flat ground.** See below; this row originally said "that deliverable's `result.band`" and that was wrong. |
 | `/review/[date]` | the band recorded **for that date**, never today's — a report is an archival record of a moment |
-| `/calendar`, `/insights`, `/settings`, `/focus`, auth, landing | **none — flat ground** |
+| `/calendar` (web) | **none — flat ground.** That route holds no risk data, and atmosphere never justifies a query. |
+| Horizon / This week (mobile) | **the `/courses` band it lives inside.** Mobile has no separate calendar route — Horizon is a segment of the Courses screen, so it inherits that screen's atmosphere. Do **not** force it flat on segment change: a background that reacts to a segmented control is §6's "does not animate, pulse, or breathe" broken in the most distracting way. The mismatch with web is permitted because the Aurora carries no information — this is route structure, i.e. idiom. |
+| `/insights`, `/settings`, `/focus`, auth | **none — flat ground** |
+| landing (`/`, `index.tsx`) | **`aurora.periwinkle` + `aurora.lilac`, hardcoded.** See the exception below. The pair is chosen, not derived: mint reads specifically as *calm* and blush as *urgent*, and a page with no user should imply neither. Periwinkle/lilac is the neutral middle of the range. **Both platforms use this exact pair.** |
 
 **The landing page is the one deliberate exception, and it is not a loophole.** `/` (web) and
 `index.tsx` (mobile) may paint the Aurora as **design**, from a fixed chosen stop pair, because
