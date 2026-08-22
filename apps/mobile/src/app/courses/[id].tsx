@@ -2,8 +2,12 @@ import { color, space } from "@collegeos/design/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { AddAssignmentModal } from "../../components/courses/AddAssignmentModal";
 import { AssignmentsTable } from "../../components/courses/AssignmentsTable";
 import { CourseRiskPanel } from "../../components/courses/CourseRiskPanel";
+import { EditCourseModal } from "../../components/courses/EditCourseModal";
+import { GradeBoundariesSection } from "../../components/courses/GradeBoundariesSection";
+import { GradeCategoriesSection } from "../../components/courses/GradeCategoriesSection";
 import { ScenarioPlanner } from "../../components/courses/ScenarioPlanner";
 import { Button, Metric, NavLink, Panel, RiskPill, Skeleton } from "../../components/ui";
 import { textStyle } from "../../design/typography";
@@ -54,7 +58,7 @@ export default function CourseDetailScreen() {
       ) : null}
 
       {Number.isInteger(courseId) && result.status === "ready" && session?.user.id ? (
-        <CourseDetailReady userId={session.user.id} courseId={courseId} data={result.data} />
+        <CourseDetailReady userId={session.user.id} courseId={courseId} data={result.data} onChanged={result.refetch} />
       ) : null}
     </ScrollView>
   );
@@ -64,10 +68,12 @@ function CourseDetailReady({
   userId,
   courseId,
   data,
+  onChanged,
 }: {
   userId: string;
   courseId: number;
   data: CourseDetailData;
+  onChanged: () => void;
 }) {
   const { course, gradeResult, courseRisk, deliverableRisks, today, categories, gradeItems, gradeBoundaries, deliverables, backplanChains } = data;
   const weightSumIssue = gradeResult?.issues.find((i) => i.kind === "weightSumWarning");
@@ -75,7 +81,7 @@ function CourseDetailReady({
 
   return (
     <View style={styles.stack}>
-      <View style={{ gap: space[1] }}>
+      <View style={{ gap: space[3] }}>
         <View style={styles.headerRow}>
           <View>
             <Text style={textStyle("displayM", color.ink)}>{course.code}</Text>
@@ -89,6 +95,9 @@ function CourseDetailReady({
               <Text style={textStyle("bodyS", color.inkFaint)}>{courseRisk.result.score}</Text>
             </View>
           ) : null}
+        </View>
+        <View style={{ alignSelf: "flex-start" }}>
+          <EditCourseModal userId={userId} course={course} onSaved={onChanged} />
         </View>
       </View>
 
@@ -128,29 +137,22 @@ function CourseDetailReady({
         <CourseRiskPanel deliverableRisks={deliverableRisks} today={today} />
       </Section>
 
-      <Section title="Assignments & exams">
+      <View style={{ gap: space[3] }}>
+        <View style={styles.headerRow}>
+          <Text style={textStyle("label", color.inkMuted)}>Assignments & exams</Text>
+          <AddAssignmentModal userId={userId} courseId={courseId} onAdded={onChanged} />
+        </View>
         <AssignmentsTable deliverables={deliverables} gradeItems={gradeItems} categories={categories} backplanChains={backplanChains} today={today} />
-      </Section>
+      </View>
+
+      <GradeCategoriesSection userId={userId} courseId={courseId} categories={categories} onChanged={onChanged} />
 
       <Section title="Policies">
         <Panel style={styles.policyPanel}>
           <PolicyRow label="Late work" value={course.late_policy} />
           <PolicyRow label="Attendance" value={course.attendance_policy} />
           {course.allowed_absences != null ? <PolicyRow label="Allowed absences" value={String(course.allowed_absences)} /> : null}
-          {gradeBoundaries.length > 0 ? (
-            <View style={{ gap: 2 }}>
-              <Text style={textStyle("label", color.inkMuted)}>Grade boundaries</Text>
-              <View style={styles.boundaryRow}>
-                {gradeBoundaries.map((b) => (
-                  <Text key={b.id} style={textStyle("bodyS", color.ink)}>
-                    {b.letter} {Math.round(b.min_pct)}%+
-                  </Text>
-                ))}
-              </View>
-            </View>
-          ) : (
-            <PolicyRow label="Grade boundaries" value={null} />
-          )}
+          <GradeBoundariesSection userId={userId} courseId={courseId} boundaries={gradeBoundaries} onChanged={onChanged} />
         </Panel>
       </Section>
     </View>
