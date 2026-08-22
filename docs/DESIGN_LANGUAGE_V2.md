@@ -248,6 +248,32 @@ The aurora is never decoration applied for mood; if it is showing, it is reporti
 system actually computed. This is the three laws applied to pixels: *deterministic code calculates,
 the surface only interprets.*
 
+### 6.0 The resting wash — why "flat ground" is not bare ground
+
+Ratified after reviewing `/insights` and `/calendar` rendered. Both inherit glass correctly and both
+looked *plainer than the rest of the app* — white cards on light grey. The cause is structural, not
+sloppiness: **glass is only legible as glass when there is something behind it to refract.** On the
+six screens that legitimately get no derived aurora, glass degenerates into plain white cards, and
+half the product ends up in a different visual language from the other half. That is the same "one
+surface, two design languages" fault both engineers have been fixing screen by screen — just at
+app scale, where nobody standing inside a single screen can see it.
+
+So the ground is **never bare**. There are two layers, and only one of them means anything:
+
+| Layer | Source | Strength | Claims |
+|---|---|---|---|
+| **Resting wash** | fixed `periwinkle + lilac`, every screen | ~**0.15** | nothing |
+| **Derived aurora** | `auroraForRisk(deriveDayBand(...))` | ~**0.35–0.5** | the day's real band |
+
+**They never stack.** One component, one gradient: if a band exists, paint its pair at aurora
+strength; if not, paint the neutral pair at resting strength. Compounding two gradients is the exact
+bug that made the first Aurora read as a pink app.
+
+The resting wash is honest for the same reason the landing page's is (§6 exception): it is a **fixed
+pair that reports nothing**. It never varies, so it cannot mislead — a user who learns to read the
+aurora learns to read *change*, and an unchanging neutral wash is the absence of a reading, not a
+false one. Do not derive it, do not vary it by screen, and never route it through `auroraForRisk`.
+
 ### 6.1 Where each screen's band comes from
 
 **There was no day-level risk band before this.** `RiskAssessment` is per-deliverable and
