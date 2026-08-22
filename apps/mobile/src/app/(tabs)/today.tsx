@@ -27,12 +27,14 @@ import { type TodayMode, useTodayData } from "../../lib/useTodayData";
 /** A focus session leaves no trace on the task it was for otherwise -- todayTaskSessions is
  *  already fetched onto dayView (see dayView.ts), so this costs no new query. Sums only ended
  *  sessions (actual_duration_min is null while a session is still active, server-computed once
- *  it ends); `null` rather than 0 when nothing's logged, per the R1 real-zero-vs-absent rule. */
+ *  it ends). `null` means no session exists for this task today; a real session summing to 0
+ *  (started and ended inside the same minute) is a different fact and must stay a real 0, not
+ *  collapse into the same null "nothing happened" case -- R1. formatLoggedMinutesSuffix is what
+ *  turns that 0 into honest copy rather than a bare, failure-reading "0 min". */
 function sumLoggedMinutes(taskId: number, sessions: readonly TaskSessionRow[]): number | null {
-  const total = sessions
-    .filter((s) => s.task_id === taskId && s.actual_duration_min != null)
-    .reduce((sum, s) => sum + (s.actual_duration_min ?? 0), 0);
-  return total > 0 ? total : null;
+  const relevant = sessions.filter((s) => s.task_id === taskId && s.actual_duration_min != null);
+  if (relevant.length === 0) return null;
+  return relevant.reduce((sum, s) => sum + (s.actual_duration_min ?? 0), 0);
 }
 
 function buildMitItems(dayView: DayView, courses: Record<number, Course>): MitItem[] {

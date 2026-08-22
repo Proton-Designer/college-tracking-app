@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Checkbox } from "../ui/Checkbox";
 import { ConfidenceRule, type ConfidenceLineStyle } from "../ui/ConfidenceRule";
 import { textStyle } from "../../design/typography";
+import { formatLoggedMinutesSuffix } from "../../lib/loggedMinutes";
 import { toggleTaskCompletion } from "../../lib/todayActions";
 
 export interface MitItem {
@@ -101,7 +102,7 @@ export function MitList({
                 {item.courseCode ? <Text style={textStyle("caption", color.inkFaint)}>{item.courseCode}</Text> : null}
                 <Text style={textStyle("caption", color.inkFaint)}>
                   ~{Math.round(item.calibratedMinutes)} min
-                  {item.loggedMinutesToday != null ? ` · ${item.loggedMinutesToday} min logged today` : ""}
+                  {formatLoggedMinutesSuffix(item.loggedMinutesToday)}
                 </Text>
               </View>
             </View>

@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useState, useTransition } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { textStyle } from "../../design/typography";
+import { formatLoggedMinutesSuffix } from "../../lib/loggedMinutes";
 import { startFocus } from "../../lib/todayActions";
 import { Button, Panel } from "../ui";
 import { useToast } from "../ui/ToastProvider";
@@ -81,7 +82,7 @@ export function FocusLauncher({
           </Text>
           <Text style={textStyle("caption", color.inkFaint)}>
             {block.calibratedMinutes} min
-            {block.loggedMinutesToday != null ? ` · ${block.loggedMinutesToday} min logged today` : ""}
+            {formatLoggedMinutesSuffix(block.loggedMinutesToday)}
           </Text>
         </View>
         <Button variant="primary" loading={isPending} onPress={handleStart}>
