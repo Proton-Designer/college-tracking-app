@@ -1,12 +1,13 @@
 "use client";
 
-import type { TaskSessionRow } from "@collegeos/api";
+import type { TaskSession, TaskSessionRow } from "@collegeos/api";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { startFocus } from "@/app/(app)/today/actions";
 import { Button, Panel } from "@/components/ui";
 import { useToast } from "@/components/ui/ToastProvider";
+import { loggedMinutesFragment } from "@/lib/loggedMinutes";
 
 export interface FocusBlock {
   taskId: number;
@@ -23,7 +24,18 @@ export interface FocusBlock {
  * native Screen Time, out of scope), and implying enforcement that isn't happening would
  * be exactly the kind of dishonest UI this codebase refuses to ship elsewhere.
  */
-export function FocusLauncher({ block, activeSession }: { block: FocusBlock | null; activeSession: TaskSessionRow | null }) {
+export function FocusLauncher({
+  block,
+  activeSession,
+  taskSessions,
+}: {
+  block: FocusBlock | null;
+  activeSession: TaskSessionRow | null;
+  /** D20 -- today's task sessions (DayView.todayTaskSessions, no new query), shared with
+   *  MitList via loggedMinutesFragment so the two can never independently decide what
+   *  "logged" means. */
+  taskSessions: readonly TaskSession[];
+}) {
   const router = useRouter();
   const toast = useToast();
   const [isPending, startTransition] = useTransition();
@@ -68,7 +80,10 @@ export function FocusLauncher({ block, activeSession }: { block: FocusBlock | nu
             {block.title}
             {block.courseCode ? <span className="text-ink-faint"> · {block.courseCode}</span> : null}
           </span>
-          <span className="font-mono text-caption tabular-nums text-ink-faint">{block.calibratedMinutes} min</span>
+          <span className="font-mono text-caption tabular-nums text-ink-faint">
+            {block.calibratedMinutes} min
+            {loggedMinutesFragment(taskSessions, block.taskId)}
+          </span>
         </div>
         <Button variant="primary" loading={isPending} onClick={handleStart}>
           Start focus

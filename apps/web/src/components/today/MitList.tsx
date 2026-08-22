@@ -1,8 +1,10 @@
 "use client";
 
 import type { Confidence } from "@collegeos/core";
+import type { TaskSession } from "@collegeos/api";
 import { useState, useTransition } from "react";
 import { Checkbox } from "@/components/ui/Checkbox";
+import { loggedMinutesFragment } from "@/lib/loggedMinutes";
 import { toggleTaskCompletion } from "@/app/(app)/today/actions";
 
 export interface MitItem {
@@ -37,9 +39,20 @@ export interface MitListProps {
   onToggle?: (taskId: number, checked: boolean) => void;
   failedIds?: Set<number>;
   isPending?: boolean;
+  /** D20 -- today's task sessions (DayView.todayTaskSessions, already fetched, no new
+   *  query), so this row can say how much of this task is already done today. Passed
+   *  through loggedMinutesFragment rather than pre-reduced by a caller, so this list and
+   *  FocusLauncher can never independently decide what "logged" means. */
+  taskSessions: readonly TaskSession[];
 }
 
-export function MitList({ items, onToggle, failedIds: controlledFailedIds, isPending: controlledIsPending }: MitListProps) {
+export function MitList({
+  items,
+  onToggle,
+  failedIds: controlledFailedIds,
+  isPending: controlledIsPending,
+  taskSessions,
+}: MitListProps) {
   const isControlled = onToggle !== undefined;
 
   // Uncontrolled mode only: a per-task optimistic override, keyed by taskId rather than a
@@ -101,7 +114,10 @@ export function MitList({ items, onToggle, failedIds: controlledFailedIds, isPen
             />
             <div className="ml-[30px] flex items-center gap-3 font-mono text-caption text-ink-faint">
               {item.courseCode ? <span>{item.courseCode}</span> : null}
-              <span>~{Math.round(item.calibratedMinutes)} min</span>
+              <span>
+                ~{Math.round(item.calibratedMinutes)} min
+                {loggedMinutesFragment(taskSessions, item.taskId)}
+              </span>
             </div>
           </li>
         );

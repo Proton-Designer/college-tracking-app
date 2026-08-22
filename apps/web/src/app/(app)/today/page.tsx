@@ -163,9 +163,9 @@ export default async function TodayPage({
       <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
         <div className="flex flex-col gap-8">
           <Section title="Top 3" action={<QuickAddTaskModal today={dayView.today} courses={courses} />}>
-            <ConnectedMitList />
+            <ConnectedMitList taskSessions={dayView.todayTaskSessions} />
           </Section>
-          <FocusLauncher block={focusBlock} activeSession={activeFocusSession} />
+          <FocusLauncher block={focusBlock} activeSession={activeFocusSession} taskSessions={dayView.todayTaskSessions} />
         </div>
         <div className="flex flex-col gap-8">
           <Section title="Workload">
@@ -254,10 +254,10 @@ export default async function TodayPage({
           />
           {recoveryMitItems.length > 0 ? (
             <Section title="Today's minimum">
-              <MitList items={recoveryMitItems} />
+              <MitList items={recoveryMitItems} taskSessions={dayView.todayTaskSessions} />
             </Section>
           ) : null}
-          <FocusLauncher block={recoveryFocusBlock} activeSession={activeFocusSession} />
+          <FocusLauncher block={recoveryFocusBlock} activeSession={activeFocusSession} taskSessions={dayView.todayTaskSessions} />
         </div>
       ) : mode === "unplanned" ? (
         <UnplannedGate

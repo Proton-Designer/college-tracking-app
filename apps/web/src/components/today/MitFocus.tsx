@@ -1,5 +1,6 @@
 "use client";
 
+import type { TaskSession } from "@collegeos/api";
 import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
 import { toggleTaskCompletion } from "@/app/(app)/today/actions";
 import { MitList, type MitItem } from "./MitList";
@@ -66,9 +67,9 @@ function useMitFocus(): MitFocusContextValue {
 }
 
 /** The Top 3 list, wired to the same state the headline reads -- see MitFocusProvider above. */
-export function ConnectedMitList() {
+export function ConnectedMitList({ taskSessions }: { taskSessions: readonly TaskSession[] }) {
   const { items, failedIds, isPending, toggle } = useMitFocus();
-  return <MitList items={items} onToggle={toggle} failedIds={failedIds} isPending={isPending} />;
+  return <MitList items={items} onToggle={toggle} failedIds={failedIds} isPending={isPending} taskSessions={taskSessions} />;
 }
 
 interface TodayHeadlineText {
