@@ -15,6 +15,11 @@ export interface MitItem {
   completed: boolean;
   calibratedMinutes: number;
   calibrationConfidence: Confidence;
+  /** Real minutes actually logged against this task today, summed from ended focus
+   *  sessions (never a fabricated or rounded-up figure). `null` when nothing's been
+   *  logged yet -- absent, not "0 min logged today": a session that hasn't happened
+   *  and a session that logged exactly zero minutes are different facts (R1). */
+  loggedMinutesToday: number | null;
 }
 
 /** DESIGN_SYSTEM §6.2: line style encodes epistemic status, ratified system-wide. `low` and
@@ -94,7 +99,10 @@ export function MitList({
               />
               <View style={styles.captionRow}>
                 {item.courseCode ? <Text style={textStyle("caption", color.inkFaint)}>{item.courseCode}</Text> : null}
-                <Text style={textStyle("caption", color.inkFaint)}>~{Math.round(item.calibratedMinutes)} min</Text>
+                <Text style={textStyle("caption", color.inkFaint)}>
+                  ~{Math.round(item.calibratedMinutes)} min
+                  {item.loggedMinutesToday != null ? ` · ${item.loggedMinutesToday} min logged today` : ""}
+                </Text>
               </View>
             </View>
           </View>

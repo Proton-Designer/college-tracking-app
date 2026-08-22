@@ -14,6 +14,10 @@ export interface FocusBlock {
   courseCode: string | null;
   calibratedMinutes: number;
   location: string | null;
+  /** Real minutes already logged against this task today (ended focus sessions only --
+   *  never a fabricated or rounded-up figure). `null`, not 0, when nothing's logged yet;
+   *  a session that hasn't happened and one that logged zero minutes are different facts. */
+  loggedMinutesToday: number | null;
 }
 
 /**
@@ -75,7 +79,10 @@ export function FocusLauncher({
             {block.title}
             {block.courseCode ? <Text style={textStyle("body", color.inkFaint)}> · {block.courseCode}</Text> : null}
           </Text>
-          <Text style={textStyle("caption", color.inkFaint)}>{block.calibratedMinutes} min</Text>
+          <Text style={textStyle("caption", color.inkFaint)}>
+            {block.calibratedMinutes} min
+            {block.loggedMinutesToday != null ? ` · ${block.loggedMinutesToday} min logged today` : ""}
+          </Text>
         </View>
         <Button variant="primary" loading={isPending} onPress={handleStart}>
           Start focus

@@ -24,6 +24,17 @@ import { getMobileSupabaseClient } from "../../lib/supabase/client";
 import { useAuthSession } from "../../lib/useAuthSession";
 import { type TodayMode, useTodayData } from "../../lib/useTodayData";
 
+/** A focus session leaves no trace on the task it was for otherwise -- todayTaskSessions is
+ *  already fetched onto dayView (see dayView.ts), so this costs no new query. Sums only ended
+ *  sessions (actual_duration_min is null while a session is still active, server-computed once
+ *  it ends); `null` rather than 0 when nothing's logged, per the R1 real-zero-vs-absent rule. */
+function sumLoggedMinutes(taskId: number, sessions: readonly TaskSessionRow[]): number | null {
+  const total = sessions
+    .filter((s) => s.task_id === taskId && s.actual_duration_min != null)
+    .reduce((sum, s) => sum + (s.actual_duration_min ?? 0), 0);
+  return total > 0 ? total : null;
+}
+
 function buildMitItems(dayView: DayView, courses: Record<number, Course>): MitItem[] {
   const tasksById = new Map(dayView.todayTasks.map((t) => [t.id, t]));
   return dayView.suggestedMits.map((mit) => {
@@ -36,6 +47,7 @@ function buildMitItems(dayView: DayView, courses: Record<number, Course>): MitIt
       completed: task?.status === "completed",
       calibratedMinutes: mit.calibratedMinutes,
       calibrationConfidence: mit.calibrationConfidence,
+      loggedMinutesToday: sumLoggedMinutes(mit.taskId, dayView.todayTaskSessions),
     };
   });
 }
@@ -87,6 +99,7 @@ function buildFocusBlock(dayView: DayView, courses: Record<number, Course>): Foc
     courseCode: task.course_id != null ? (courses[task.course_id]?.code ?? null) : null,
     calibratedMinutes: top.calibratedMinutes,
     location: task.planned_location,
+    loggedMinutesToday: sumLoggedMinutes(task.id, dayView.todayTaskSessions),
   };
 }
 
@@ -116,6 +129,7 @@ function buildRecoveryMitItems(dayView: DayView, courses: Record<number, Course>
       completed: task.status === "completed",
       calibratedMinutes: suggested?.calibratedMinutes ?? task.estimated_minutes ?? 30,
       calibrationConfidence: suggested?.calibrationConfidence ?? "insufficient",
+      loggedMinutesToday: sumLoggedMinutes(taskId, dayView.todayTaskSessions),
     });
   }
   return items;
@@ -134,6 +148,7 @@ function buildRecoveryFocusBlock(dayView: DayView, courses: Record<number, Cours
     courseCode: task.course_id != null ? (courses[task.course_id]?.code ?? null) : null,
     calibratedMinutes: suggested?.calibratedMinutes ?? task.estimated_minutes ?? 30,
     location: task.planned_location,
+    loggedMinutesToday: sumLoggedMinutes(task.id, dayView.todayTaskSessions),
   };
 }
 
