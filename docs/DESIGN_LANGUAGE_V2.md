@@ -282,8 +282,30 @@ Non-negotiable, and a revamp is exactly when these get quietly broken:
 - **Every domain calculation stays in `packages/core`.** A component that computes is a bug.
 - Visible keyboard focus on every interactive element — a 2px `accent` ring at 2px offset. Glass
   makes focus rings harder to see, which is a reason to be *more* careful, not less.
-- Contrast: body text on glass must clear **4.5:1** measured against the *lightest* point of the
-  aurora, not against white. Verify with a real contrast check, not by eye.
+- Contrast: body text must clear **4.5:1** measured against the **worst real surface**, which is
+  `glass-sunken` composited over the lightest aurora stop — `rgba(255,255,255,0.38)` over `#FFD3E4`
+  = **`#FFE4EE`**. Not against white, and not against the raw aurora either: text sits on a glass
+  panel *over* the field, so both of those measure the wrong thing. Verify with a real
+  contrast check, never by eye.
+
+### 7.1 Measured, not estimated
+
+Computed during the primitive pass after ATLAS put real WCAG ratios on `/design` and two tokens
+failed. Kept here because the numbers are the evidence:
+
+| Token | Was | Now | On its own wash, at `RiskPill`'s 11px |
+|---|---|---|---|
+| `riskLow` | `#1F7A5C` | `#1F785B` | 4.67 → **4.79** |
+| `riskModerate` | `#B07A0A` | `#8E6208` | **3.31 (FAIL)** → **4.79** |
+| `riskHigh` | `#D2601F` | `#AC4F19` | **3.41 (FAIL)** → **4.76** |
+| `riskCritical` | — | `#C42B2B` | 4.84, unchanged |
+| `accent` | — | `#3A56F0` | 4.67 on the worst glass, unchanged |
+| `inkFaint` | `#8E95A8` | `#818798` | 2.51 → 3.00 (large-text/non-text bar only) |
+
+The measurement that mattered was **foreground on its own wash**, not foreground on white. A
+`RiskPill` never renders on white — it renders on `riskModerateWash`, which is lighter than the
+aurora and darker than the panel. Checking against white would have passed two colours that fail
+where they actually appear.
 
 ---
 

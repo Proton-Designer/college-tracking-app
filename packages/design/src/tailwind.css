@@ -16,7 +16,7 @@
   --color-surface-sunken: #edf0f7;
   --color-ink: #0e1220;
   --color-ink-muted: #5a6178;
-  --color-ink-faint: #8e95a8;
+  --color-ink-faint: #818798;
   --color-hairline: #e1e6f0;
   --color-border: #c2c9d8;
   /* Indigo. Deliberately NOT #007AFF — see tokens.ts. */
@@ -24,11 +24,11 @@
   --color-accent-hover: #2b41c4;
   --color-accent-wash: #ebeefe;
 
-  --color-risk-low: #1f7a5c;
+  --color-risk-low: #1f785b;
   --color-risk-low-wash: #e9f4f0;
-  --color-risk-moderate: #b07a0a;
+  --color-risk-moderate: #8e6208;
   --color-risk-moderate-wash: #f8f1e2;
-  --color-risk-high: #d2601f;
+  --color-risk-high: #ac4f19;
   --color-risk-high-wash: #fceee6;
   --color-risk-critical: #c42b2b;
   --color-risk-critical-wash: #fbeaea;

@@ -22,7 +22,16 @@ export const color = {
   /** Near-black with a blue cast. Never pure #000. */
   ink: "#0E1220",
   inkMuted: "#5A6178",
-  inkFaint: "#8E95A8",
+  /**
+   * **Never body text.** This clears WCAG's 3:1 bar for large text (≥24px) and non-text graphics,
+   * and it does NOT clear 4.5:1 — by design, because its whole job is to be quieter than
+   * `inkMuted`. Legitimate uses: the de-emphasised fractional part of a metric (§3, always ≥24px),
+   * the Day Ribbon's ghost lane (non-text), and disabled controls (WCAG-exempt).
+   *
+   * Was `#8E95A8`, which measured **2.51:1** on the worst real surface (glass-sunken over the
+   * lightest aurora stop) and so failed even the large-text bar.
+   */
+  inkFaint: "#818798",
   hairline: "#E1E6F0",
   border: "#C2C9D8",
   /**
@@ -33,11 +42,11 @@ export const color = {
   accentHover: "#2B41C4",
   accentWash: "#EBEEFE",
 
-  riskLow: "#1F7A5C",
+  riskLow: "#1F785B",
   riskLowWash: "#E9F4F0",
-  riskModerate: "#B07A0A",
+  riskModerate: "#8E6208",
   riskModerateWash: "#F8F1E2",
-  riskHigh: "#D2601F",
+  riskHigh: "#AC4F19",
   riskHighWash: "#FCEEE6",
   riskCritical: "#C42B2B",
   riskCriticalWash: "#FBEAEA",
