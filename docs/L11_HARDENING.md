@@ -160,6 +160,43 @@ Every screen has been verified against the seeded demo semester. Verify each aga
 
 ---
 
+### MEASURED — 2026-08-22, Lead. Sparse account.
+
+Tested against a real account holding **1 course, 1 task, 0 deliverables, no integrations, no
+history** — the "day three of real use" case §3 asks for, which had never been tested (cold-start
+covered *zero* of everything; a rich seeded semester covered the other extreme; nothing covered the
+middle).
+
+**No fabricated or broken values anywhere.** Scraped visible text (scripts and styles stripped) from
+`/today`, `/courses`, `/calendar`, `/insights`, `/review` and grepped for `NaN`, `undefined`, `null`,
+`Infinity`, `[object Object]`: **zero hits on all five.**
+
+**Every empty state says *why* it is empty, not just that it is:**
+
+| Surface | What a sparse user is told |
+|---|---|
+| Insights | *"No insights yet — these build up as the semester's data accumulates."* |
+| Calibration | *"No completed sessions yet to calibrate against."* |
+| Friction | *"No friction logged in the last 30 days."* |
+| Bounce-back | *"No active kill-list commitments yet."* |
+| Planning vs. execution | *"No review submitted yesterday to diagnose against."* |
+| This week | *"Academic load: LOW · 0m needed of 1h 53m available · Nothing placed this week."* |
+
+That distinction is the whole point: *"no data"* reads as breakage, *"no completed sessions yet to
+calibrate against"* reads as a system that knows what it's waiting for.
+
+**Failure paths — structurally present, not yet exercised.** All **9** `(app)` routes have an
+explicit `!result.ok` branch rendering a named error state rather than a spinner or a blank panel.
+So the shape is right everywhere.
+
+**Still genuinely untested — say so rather than implying coverage:**
+- **A mid-request database failure.** Killing the local Postgres is the obvious test and it was
+  deliberately *not* run: two engineers are working against that same database and it would have
+  destroyed their in-flight verification. Needs a dedicated window, or a per-request fault injection
+  that doesn't touch shared state.
+- **Offline.** Untested. The requirement is last-known data with an explicit staleness timestamp,
+  never silently stale — and nothing implements that today.
+
 ## 4. Security review
 
 - Re-run the full `pgTAP` suite and confirm **0 tables without RLS**.
