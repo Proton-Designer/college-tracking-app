@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { HorizonView } from "@/components/calendar/HorizonView";
 import { ThisWeekView } from "@/components/calendar/ThisWeekView";
-import { PageHeader } from "@/components/ui";
+import { Aurora, PageHeader } from "@/components/ui";
 import { loadCalendarHorizon, loadThisWeekView } from "./data";
 
 type CalendarView = "week" | "horizon";
@@ -39,6 +39,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-6 px-8 py-10">
+      {/* §6.0 -- no per-day/per-course band applies to a calendar; the resting wash keeps this
+          screen from reading flatter than Today/Courses next to it in the nav. */}
+      <Aurora />
       <PageHeader title="Calendar" actions={<ViewSwitcher active={view} />} />
       {view === "week" ? <ThisWeekSection /> : <HorizonSection />}
     </main>

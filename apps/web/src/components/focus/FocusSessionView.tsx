@@ -4,7 +4,7 @@ import type { Course, Task, TaskSessionRow } from "@collegeos/api";
 import { useRouter } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
 import { abandonFocus, completeFocus } from "@/app/focus/[sessionId]/actions";
-import { Button, Panel, SegmentedControl, Textarea } from "@/components/ui";
+import { Aurora, Button, Panel, SegmentedControl, Textarea } from "@/components/ui";
 
 function formatElapsed(totalSeconds: number): string {
   const h = Math.floor(totalSeconds / 3600);
@@ -70,6 +70,7 @@ export function FocusSessionView({ session, task, course }: { session: TaskSessi
   if (mode === "completing") {
     return (
       <main className="mx-auto flex w-full max-w-report flex-1 flex-col justify-center gap-6 px-8 py-12">
+        <Aurora />
         <h1 className="font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">How did that go?</h1>
         <Panel className="flex flex-col gap-5">
           <Textarea label="Actual output" value={output} onChange={(e) => setOutput(e.target.value)} rows={2} />
@@ -85,6 +86,7 @@ export function FocusSessionView({ session, task, course }: { session: TaskSessi
 
   return (
     <main className="mx-auto flex w-full max-w-report flex-1 flex-col items-center justify-center gap-8 px-8 py-12">
+      <Aurora />
       <div className="flex flex-col items-center gap-1 text-center">
         <p className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">
           {course ? `${course.code} focus` : "Focus"}

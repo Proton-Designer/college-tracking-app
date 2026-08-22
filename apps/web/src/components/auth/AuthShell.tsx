@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { Aurora } from "@/components/ui/Aurora";
 
 export function AuthShell({
   title,
@@ -14,6 +15,10 @@ export function AuthShell({
 }) {
   return (
     <main className="flex min-h-full flex-1 items-center justify-center px-5 py-16">
+      {/* §6.0 -- no signed-in user yet on any of these five screens, so there's never a band to
+          derive; the resting wash (Aurora's default with no band/stops) is what keeps them from
+          reading as a flatter, plainer app than the rest of the product. */}
+      <Aurora />
       <div className="w-full max-w-sm">
         <Link href="/" className="font-sans text-title font-semibold text-ink">
           CollegeOS

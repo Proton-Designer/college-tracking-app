@@ -3,6 +3,7 @@ import { IntegrationsSection } from "@/components/settings/IntegrationsSection";
 import { KillHabitsSection } from "@/components/settings/KillHabitsSection";
 import { LlmBudgetSection } from "@/components/settings/LlmBudgetSection";
 import { ProfileSection } from "@/components/settings/ProfileSection";
+import { Aurora } from "@/components/ui";
 import { loadSettingsData } from "./data";
 
 export default async function SettingsPage() {
@@ -21,6 +22,10 @@ export default async function SettingsPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-8 px-8 py-10">
+      {/* §6.0 -- resting wash. Every section here already composes from real Panels
+          (ProfileSection, LlmBudgetSection, the individual integration/habit cards), so unlike
+          the other flat screens this one needed no panel-parity work -- just the ground. */}
+      <Aurora />
       <h1 className="font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">Settings</h1>
 
       <section className="flex flex-col gap-3">

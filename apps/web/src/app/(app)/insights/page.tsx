@@ -6,7 +6,7 @@ import { CalibrationTable } from "@/components/insights/CalibrationTable";
 import { FrictionDistributionSection } from "@/components/insights/FrictionDistributionSection";
 import { InsightsList } from "@/components/insights/InsightsList";
 import { PlanningExecutionQuadrant } from "@/components/insights/PlanningExecutionQuadrant";
-import { PageHeader, Panel } from "@/components/ui";
+import { Aurora, PageHeader, Panel } from "@/components/ui";
 import { loadInsightsData } from "./data";
 
 /**
@@ -61,6 +61,9 @@ export default async function InsightsPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-6 px-8 py-10">
+      {/* §6.0 -- resting wash, per the Lead's ruling. This is the barest of the flat screens
+          and the explicit test case for whether 0.15 is enough for glass to read here. */}
+      <Aurora />
       <PageHeader title="Insights" context="Last 30 days" />
 
       <Panel>
