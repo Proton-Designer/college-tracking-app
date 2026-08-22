@@ -25,8 +25,9 @@ import type { DailyReview } from '../data/dailyReviews';
 import type { Profile } from '../data/profiles';
 import type { Course } from '../data/courses';
 import type { Task } from '../data/tasks';
+import type { CalendarEvent } from './calendarEvent';
 
-export type CalendarEvent = Database['public']['Tables']['calendar_events']['Row'];
+export type { CalendarEvent } from './calendarEvent';
 export type TaskSession = Database['public']['Tables']['task_sessions']['Row'];
 
 export interface TodayHealth {
@@ -97,7 +98,14 @@ export async function getDayView(
     { data: todayCheckin, error: checkinError },
     { data: todayReview, error: reviewError },
     { data: todayTasks, error: taskError },
-    { data: todayCalendarEvents, error: calendarEventError },
+    // Unbounded (no date filter) -- this is the one read that has to satisfy every
+    // downstream consumer, and computeRiskAssessment's own committed-hours calculation
+    // (a separate, wider-blast-radius refactor, not part of this pass) needs events from
+    // today through however far out a deliverable is due, not just today's. Every
+    // *narrower* need (today's display copy below, plus recoveryMode/workload/mvd's
+    // today-only + is_busy(+is_class_meeting) windows) is filtered from this same array
+    // in memory rather than re-queried -- see L11_HARDENING.md §1.
+    { data: allCalendarEvents, error: calendarEventError },
     { data: todayTaskSessions, error: taskSessionError },
     { data: courses, error: courseError },
     { data: upcomingDeliverables, error: deliverableError },
@@ -105,13 +113,7 @@ export async function getDayView(
     client.from('daily_checkins').select('*').eq('user_id', userId).eq('local_date', today).maybeSingle(),
     client.from('daily_reviews').select('*').eq('user_id', userId).eq('local_date', today).maybeSingle(),
     client.from('tasks').select('*').eq('user_id', userId).eq('planned_date', today).order('mit_rank', { nullsFirst: false }),
-    client
-      .from('calendar_events')
-      .select('*')
-      .eq('user_id', userId)
-      .gte('start_at', todayStart.toISOString())
-      .lt('start_at', todayEnd.toISOString())
-      .order('start_at'),
+    client.from('calendar_events').select('*').eq('user_id', userId).order('start_at'),
     client
       .from('task_sessions')
       .select('*')
@@ -136,6 +138,14 @@ export async function getDayView(
   if (courseError) return dataErr(mapDataError(courseError));
   if (deliverableError) return dataErr(mapDataError(deliverableError));
 
+  const calendarEvents = allCalendarEvents ?? [];
+
+  // The display copy (Day Trace) is still exactly today's events, same as before this
+  // refactor -- derived here rather than re-queried.
+  const todayCalendarEvents = calendarEvents.filter(
+    (e) => e.start_at >= todayStart.toISOString() && e.start_at < todayEnd.toISOString(),
+  );
+
   const gradeProjections = await loadCourseGradeProjections(client, userId);
   const risk = await computeRiskAssessment(
     client,
@@ -149,7 +159,7 @@ export async function getDayView(
   const calibration = await loadCalibrationObservations(client, userId, profile.timezone, now);
 
   const [recoveryMode, yesterdayPlanningExecution, historicalCapacity] = await Promise.all([
-    computeTodayRecoveryMode(client, userId, today, profile.sleep_baseline_hours, profile.timezone),
+    computeTodayRecoveryMode(client, userId, today, profile.sleep_baseline_hours, profile.timezone, calendarEvents),
     computeYesterdayPlanningExecution(client, userId, today),
     computeHistoricalCapacityP50Min(client, userId, today),
   ]);
@@ -178,10 +188,19 @@ export async function getDayView(
     todayHealth?.whoopRecoveryPct ?? null,
     profile.sleep_baseline_hours,
     profile.timezone,
+    calendarEvents,
   );
 
   const mvdPlan = recoveryMode.triggered
-    ? await composeMvdPlanForToday(client, userId, today, risk.deliverableRisks, profile.sleep_baseline_hours, profile.timezone)
+    ? await composeMvdPlanForToday(
+        client,
+        userId,
+        today,
+        risk.deliverableRisks,
+        profile.sleep_baseline_hours,
+        profile.timezone,
+        calendarEvents,
+      )
     : null;
 
   return dataOk({
@@ -190,7 +209,7 @@ export async function getDayView(
     todayCheckin,
     todayReview,
     todayTasks: todayTasks ?? [],
-    todayCalendarEvents: todayCalendarEvents ?? [],
+    todayCalendarEvents,
     todayTaskSessions: todayTaskSessions ?? [],
     todayHealth,
     upcomingDeliverables: (upcomingDeliverables ?? []).map((d) => ({

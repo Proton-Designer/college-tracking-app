@@ -131,14 +131,35 @@ daily_checkins    ×2      daily_reviews     ×3      kill_events      ×2
 ```
 
 It is not one function looping. It is **many domain functions each independently re-reading the same
-tables**: `computeRiskAssessment`, `computeTodayRecoveryMode`, `buildTodayWorkloadItems`,
-`composeMvdPlanForToday` and `computeCapacityHorizon` all fetch their own `calendar_events`, their own
-`deliverables`, their own `courses`. Each is individually correct and independently testable — which
-is exactly why it was never noticed — and together they cost five round trips for one table.
+tables**: `computeRiskAssessment`, `computeTodayRecoveryMode`, `buildTodayWorkloadItems`, and
+`composeMvdPlanForToday` all fetch their own `calendar_events`, their own `deliverables`, their own
+`courses`. Each is individually correct and independently testable — which is exactly why it was never
+noticed — and together they cost five round trips for one table.
+
+*Correction (L14 performance pass, NOVA): `computeCapacityHorizon` does not belong on this list —
+it is not called from `getDayView` at all (it belongs to the Courses/Calendar Horizon path, a
+different screen). The `/today` render's own call graph is the 4 functions named above.*
 
 **The real fix is structural, not local:** a per-request read cache, or threading shared reads into the
 domain functions rather than letting each fetch its own. That is a real refactor with real risk to a
 well-tested layer, and it should not be done casually at this stage. **Filed, not attempted.**
+
+*Update (L14 performance pass, NOVA): landed for 3 of the 4. `getDayView` now fetches one unbounded
+`calendar_events` superset and threads it as a parameter into `computeTodayRecoveryMode`,
+`buildTodayWorkloadItems`, and `composeMvdPlanForToday`, each filtering its own narrower subset in
+memory instead of re-querying. `calendar_events` reads on `/today` go from ×5 to ×2 (the superset
+read, plus `computeRiskAssessment`'s own separate read, untouched — see below). Verified via
+typecheck across all 5 workspaces, the full existing integration suite (18 tests, unchanged), and a
+byte-identical before/after diff of `getDayView`'s full JSON payload for a real seeded account.*
+
+*`computeRiskAssessment` was deliberately left out of this pass: unlike the other 3 (each with exactly
+one external caller, `dayView.ts`), it has 9 — web Calendar/Courses-index/Course-detail data.ts files,
+3 mobile equivalent hooks, and `weeklyPlan.ts` — so threading a parameter through it means editing
+eight call sites that gain nothing locally, versus pure upside for the other 3. Filed as a separate,
+not-yet-scheduled option: make its `calendarEvents` parameter optional with an internal fallback-fetch
+when omitted, so the 9 existing call sites change by exactly nothing and only `dayView.ts` opts in to
+passing its own superset. Any caller that does pass one must pass the full unbounded, unfiltered-by-
+`is_busy` set — a narrower one silently produces a wrong committed-hours calculation.*
 
 Priority judgement: this is invisible locally (131 ms) and only bites against cloud Supabase. It
 should be measured again **after the first cloud deploy**, against real RTT, before deciding how much

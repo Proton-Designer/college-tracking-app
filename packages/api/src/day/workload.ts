@@ -14,6 +14,7 @@ import {
 import type { TypedSupabaseClient } from '../client/types';
 import type { DurationObservation } from '@collegeos/core';
 import { calibrateCategory } from './calibration';
+import type { CalendarEvent } from './calendarEvent';
 import type { DeliverableRisk } from './risk';
 
 const DEFAULT_WAKING_HOURS_PER_DAY = 16;
@@ -74,33 +75,31 @@ export async function buildTodayWorkloadItems(
   deliverableRisks: DeliverableRisk[],
   calibration: CalibrationObservations,
   timezone: string,
+  /** The caller's own unbounded calendar_events read (see recoveryMode.ts's identical
+   *  parameter for the full reasoning) -- filtered here to today+is_busy in memory instead
+   *  of a second round trip for the same table. */
+  calendarEvents: CalendarEvent[],
 ): Promise<WorkloadItemsResult> {
   // B4: the user's real local day, not UTC midnight -- see CLAUDE.md's "never derive a
   // day boundary from UTC."
-  const [{ data: tasks, error: taskError }, { data: events, error: eventError }] = await Promise.all([
-    client
-      .from('tasks')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('planned_date', today)
-      .not('status', 'in', '(completed,cancelled)'),
-    client
-      .from('calendar_events')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('is_busy', true)
-      .gte('start_at', localTimeToInstant(today, 0, 0, timezone))
-      .lt('start_at', localTimeToInstant(addDays(today, 1), 0, 0, timezone)),
-  ]);
+  const { data: tasks, error: taskError } = await client
+    .from('tasks')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('planned_date', today)
+    .not('status', 'in', '(completed,cancelled)');
   if (taskError) throw taskError;
-  if (eventError) throw eventError;
+
+  const todayStartIso = localTimeToInstant(today, 0, 0, timezone);
+  const todayEndIso = localTimeToInstant(addDays(today, 1), 0, 0, timezone);
+  const events = calendarEvents.filter((e) => e.is_busy && e.start_at >= todayStartIso && e.start_at < todayEndIso);
 
   const riskByDeliverable = new Map(deliverableRisks.map((r) => [r.deliverableId, r]));
 
   const items: WorkloadItem[] = [];
   const calibrationByItemId = new Map<string, ItemCalibration>();
 
-  for (const event of events ?? []) {
+  for (const event of events) {
     items.push({ id: `event-${event.id}`, kind: 'attendance', estimatedMinutes: eventDurationMinutes(event) });
   }
 
@@ -144,8 +143,17 @@ export async function computeTodayWorkload(
   whoopRecoveryPct: number | null,
   sleepBaselineHours: number | null,
   timezone: string,
+  calendarEvents: CalendarEvent[],
 ): Promise<TodayWorkload> {
-  const { items, calibrationByItemId } = await buildTodayWorkloadItems(client, userId, today, deliverableRisks, calibration, timezone);
+  const { items, calibrationByItemId } = await buildTodayWorkloadItems(
+    client,
+    userId,
+    today,
+    deliverableRisks,
+    calibration,
+    timezone,
+    calendarEvents,
+  );
 
   const wakingMinutesPerDay = wakingMinutesPerDayFor(sleepBaselineHours);
   const busyMinutesToday = items

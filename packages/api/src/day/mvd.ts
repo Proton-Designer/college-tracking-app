@@ -1,5 +1,6 @@
 import { addDays, composeMinimumViableDay, daysBetween, localTimeToInstant, type LocalDate, type MvdCandidateItem, type MvdPlan } from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
+import type { CalendarEvent } from './calendarEvent';
 import type { DeliverableRisk } from './risk';
 
 const HARD_DEADLINE_WINDOW_DAYS = 2;
@@ -23,33 +24,32 @@ export async function composeMvdPlanForToday(
   deliverableRisks: DeliverableRisk[],
   sleepBaselineHours: number | null,
   timezone: string,
+  /** The caller's own unbounded calendar_events read (see recoveryMode.ts's identical
+   *  parameter for the full reasoning) -- filtered here to today+is_busy+is_class_meeting
+   *  in memory instead of a second round trip for the same table. */
+  calendarEvents: CalendarEvent[],
 ): Promise<MvdPlan> {
   // B4: the user's real local day, not UTC midnight -- see CLAUDE.md's "never derive a
   // day boundary from UTC."
-  const [{ data: tasks, error: taskError }, { data: events, error: eventError }] = await Promise.all([
-    client
-      .from('tasks')
-      .select('id, title, deliverable_id')
-      .eq('user_id', userId)
-      .eq('planned_date', today)
-      .not('status', 'in', '(completed,cancelled)'),
-    client
-      .from('calendar_events')
-      .select('id, title')
-      .eq('user_id', userId)
-      .eq('is_busy', true)
-      .eq('is_class_meeting', true)
-      .gte('start_at', localTimeToInstant(today, 0, 0, timezone))
-      .lt('start_at', localTimeToInstant(addDays(today, 1), 0, 0, timezone)),
-  ]);
+  const { data: tasks, error: taskError } = await client
+    .from('tasks')
+    .select('id, title, deliverable_id')
+    .eq('user_id', userId)
+    .eq('planned_date', today)
+    .not('status', 'in', '(completed,cancelled)');
   if (taskError) throw taskError;
-  if (eventError) throw eventError;
+
+  const todayStartIso = localTimeToInstant(today, 0, 0, timezone);
+  const todayEndIso = localTimeToInstant(addDays(today, 1), 0, 0, timezone);
+  const events = calendarEvents.filter(
+    (e) => e.is_busy && e.is_class_meeting && e.start_at >= todayStartIso && e.start_at < todayEndIso,
+  );
 
   const riskByDeliverable = new Map(deliverableRisks.map((r) => [r.deliverableId, r]));
 
   const items: MvdCandidateItem[] = [];
 
-  for (const event of events ?? []) {
+  for (const event of events) {
     items.push({ id: `event-${event.id}`, kind: 'attendance' });
   }
 

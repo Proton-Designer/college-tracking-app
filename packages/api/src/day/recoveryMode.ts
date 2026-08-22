@@ -1,5 +1,6 @@
 import { addDays, computeRecoveryModeTrigger, localTimeToInstant, type LocalDate, type RecoveryModeResult } from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
+import type { CalendarEvent } from './calendarEvent';
 
 const HARD_DEADLINE_WINDOW_HOURS = 48;
 // Every other execution/academic signal here is near-term (today, yesterday, 48h) --
@@ -26,11 +27,18 @@ export async function computeTodayRecoveryMode(
   today: LocalDate,
   sleepBaselineHours: number | null,
   timezone: string,
+  /** The caller's own unbounded calendar_events read (getDayView already fetches this for
+   *  every consumer that needs it) -- filtered here to today+is_busy in memory instead of
+   *  a second round trip for the same table. A user's semester is a few hundred rows at
+   *  most, so filtering it in memory here (and in workload.ts/mvd.ts, which take the same
+   *  array) is cheap; it is not a query cost that scales with anything real. */
+  calendarEvents: CalendarEvent[],
 ): Promise<RecoveryModeResult> {
   const yesterday = addDays(today, -1);
   // B4: local midnight, not UTC midnight -- see CLAUDE.md's "never derive a day
   // boundary from UTC." A wrong start here also shifts the 48h hard-deadline horizon.
   const todayStart = new Date(localTimeToInstant(today, 0, 0, timezone));
+  const todayEnd = new Date(localTimeToInstant(addDays(today, 1), 0, 0, timezone));
   const deadlineHorizon = new Date(todayStart);
   deadlineHorizon.setUTCHours(deadlineHorizon.getUTCHours() + HARD_DEADLINE_WINDOW_HOURS);
 
@@ -40,7 +48,6 @@ export async function computeTodayRecoveryMode(
     { data: hardDeadlines, error: deadlineError },
     { data: yesterdayCheckin, error: checkinError },
     { data: yesterdayMits, error: mitError },
-    { data: todayCalendar, error: calError },
     { data: compressedBackplans, error: backplanError },
   ] = await Promise.all([
     client.from('health_daily').select('sleep_hours, whoop_recovery_pct').eq('user_id', userId).eq('local_date', today).maybeSingle(),
@@ -61,13 +68,6 @@ export async function computeTodayRecoveryMode(
     client.from('daily_checkins').select('id').eq('user_id', userId).eq('local_date', yesterday).maybeSingle(),
     client.from('tasks').select('id, status').eq('user_id', userId).eq('planned_date', yesterday).not('mit_rank', 'is', null),
     client
-      .from('calendar_events')
-      .select('start_at, end_at')
-      .eq('user_id', userId)
-      .eq('is_busy', true)
-      .gte('start_at', todayStart.toISOString())
-      .lt('start_at', localTimeToInstant(addDays(today, 1), 0, 0, timezone)),
-    client
       .from('deliverable_backplans')
       .select('id, deliverables!inner(status)')
       .eq('user_id', userId)
@@ -79,10 +79,12 @@ export async function computeTodayRecoveryMode(
   if (deadlineError) throw deadlineError;
   if (checkinError) throw checkinError;
   if (mitError) throw mitError;
-  if (calError) throw calError;
   if (backplanError) throw backplanError;
 
-  const committedCalendarHours = (todayCalendar ?? []).reduce((sum, e) => {
+  const todayCalendar = calendarEvents.filter(
+    (e) => e.is_busy && e.start_at >= todayStart.toISOString() && e.start_at < todayEnd.toISOString(),
+  );
+  const committedCalendarHours = todayCalendar.reduce((sum, e) => {
     const hours = (new Date(e.end_at).getTime() - new Date(e.start_at).getTime()) / (1000 * 60 * 60);
     return sum + Math.max(hours, 0);
   }, 0);
