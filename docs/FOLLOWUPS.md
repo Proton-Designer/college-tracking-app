@@ -671,6 +671,45 @@ behaviour that makes a report trustworthy; the wrong lesson would be "don't repo
 
 ---
 
+## 🟡 G4 — `accessibilityState` is a no-op on react-native-web, and that blinds our a11y audit method
+
+Found in the v2 accessibility pass, by reading `react-native-web`'s `createDOMProps` source rather
+than inferring from behaviour.
+
+RN core unpacks `accessibilityState={{selected, checked, disabled, busy, expanded}}` into the real
+native accessibility APIs. **RN-web never reads the nested object at all** — it only honours a
+literal `aria-*` prop or the deprecated flat `accessibility<State>` form. So a control can carry a
+correct role and a correct name and still announce **no state whatsoever** on web.
+
+**Fixed (v2-introduced surfaces only):** `Island`'s tab bar and `courses.tsx`'s `SegmentTab` now pass
+`aria-selected` alongside `accessibilityState`. Both are real typed props on RN 0.86's `View`, so
+this is dual-platform-correct rather than a web-only patch — verified live flipping true/false as
+the active tab changes.
+
+**Still open — 12 files use `accessibilityState`, only 2 carry the aria fix.** The remaining ten
+include `ChipGroup`, `Toggle`, `Checkbox`, `SegmentedControl`, `Select`, `KillHabitsSection`,
+`CheckinFlow`, `DatePicker`/`TimePicker` (disabled), and `Button` (busy/disabled). All predate v2.
+Deliberately not chased in that pass — it's a separate cleanup, not part of "audit what v2 added."
+
+**The second-order finding is the important one.** Shipping iOS/Android were never affected; RN core
+handles the nested object correctly. But **Expo Web's ARIA tree is the method `HANDOFF.md` §7.2's
+structural audit uses**, which means that audit is *structurally incapable of seeing state
+announcements at all*. Every "checked", "selected", "disabled" and "busy" in the app is invisible to
+it — not verified-and-passing, but unverifiable.
+
+Same shape as **G3**: a harness limitation masquerading as a product result. Together they mean the
+Expo-Web verification path cannot reach date/time pickers, auth confirmation, **or** accessibility
+state. §7.2 already says a real VoiceOver/TalkBack pass on a device is a required pre-launch item;
+this is a second, independent reason it cannot be skipped.
+
+Also fixed in the same pass: mobile's `Aurora` was reachable by assistive tech (web's already had
+`aria-hidden`); it is decorative and information-free by design, so it now carries
+`accessibilityElementsHidden` + `importantForAccessibility="no-hide-descendants"` + `aria-hidden`.
+And `FocusLauncher`'s course-code suffix used `inkFaint` for 15px body copy — the token's own comment
+says **"never body text"** (it clears 3:1, not 4.5:1); changed to `inkMuted`.
+
+---
+
 ## 🟡 G3 — The exact mechanism behind HANDOFF §7.4: pickers are unreachable under Expo Web
 
 §7.4 records that `@react-native-community/datetimepicker` "does not render under Expo Web, which is
