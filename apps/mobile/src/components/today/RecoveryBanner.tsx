@@ -1,9 +1,11 @@
-import type { Task } from "@collegeos/api";
+import type { CalendarEvent, Task } from "@collegeos/api";
 import type { MvdCandidateItem, MvdPlan, RecoveryModeResult } from "@collegeos/core";
 import { color, radius, space } from "@collegeos/design/native";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { textStyle } from "../../design/typography";
+
+const EVENT_ID_PREFIX = "event-";
 
 const SIGNAL_LABEL: Record<string, string> = {
   lowSleep: "Slept less than your baseline",
@@ -23,8 +25,11 @@ const KIND_LABEL: Record<MvdCandidateItem["kind"], string> = {
   other: "Task",
 };
 
-function itemLabel(item: MvdCandidateItem, tasksById: Map<number, Task>): string {
-  if (item.id.startsWith("event-")) return KIND_LABEL[item.kind];
+function itemLabel(item: MvdCandidateItem, tasksById: Map<number, Task>, eventsById: Map<number, CalendarEvent>): string {
+  if (item.id.startsWith(EVENT_ID_PREFIX)) {
+    const eventId = Number(item.id.slice(EVENT_ID_PREFIX.length));
+    return eventsById.get(eventId)?.title ?? KIND_LABEL[item.kind];
+  }
   const task = tasksById.get(Number(item.id));
   return task?.title ?? KIND_LABEL[item.kind];
 }
@@ -33,13 +38,16 @@ export function RecoveryBanner({
   recoveryMode,
   mvdPlan,
   todayTasks,
+  calendarEvents,
 }: {
   recoveryMode: RecoveryModeResult;
   mvdPlan: MvdPlan | null;
   todayTasks: Task[];
+  calendarEvents: CalendarEvent[];
 }) {
   const [expanded, setExpanded] = useState(false);
   const tasksById = new Map(todayTasks.map((t) => [t.id, t]));
+  const eventsById = new Map(calendarEvents.map((e) => [e.id, e]));
   const activeSignals = recoveryMode.signals.filter((s) => s.active);
 
   return (
@@ -64,7 +72,7 @@ export function RecoveryBanner({
           <Text style={textStyle("label", color.inkMuted)}>Kept today</Text>
           {mvdPlan.kept.map((item) => (
             <Text key={item.id} style={textStyle("bodyS", color.ink)}>
-              {itemLabel(item, tasksById)}
+              {itemLabel(item, tasksById, eventsById)}
             </Text>
           ))}
 
@@ -81,7 +89,7 @@ export function RecoveryBanner({
           {expanded
             ? mvdPlan.deferred.map((item) => (
                 <Text key={item.id} style={textStyle("bodyS", color.inkMuted)}>
-                  {itemLabel(item, tasksById)}
+                  {itemLabel(item, tasksById, eventsById)}
                 </Text>
               ))
             : null}

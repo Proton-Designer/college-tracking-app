@@ -49,6 +49,53 @@ function buildFocusBlock(dayView: DayView, courses: Record<number, Course>): Foc
   };
 }
 
+/** Recovery Mode's "kept" set is hard-deadline + at most one study-block task -- both real
+ *  tasks, both completable. (Attendance/kept calendar events aren't tasks and were never
+ *  completable in the normal flow either.) When a kept task isn't among suggestedMits (it
+ *  wasn't ranked as a top MIT), fall back to its raw estimate with 'insufficient' confidence
+ *  -- the same fallback buildTodayWorkloadItems already uses for a null estimate, not a
+ *  number invented here. */
+function buildRecoveryMitItems(dayView: DayView, courses: Record<number, Course>): MitItem[] {
+  const kept = dayView.mvdPlan?.kept ?? [];
+  const tasksById = new Map(dayView.todayTasks.map((t) => [t.id, t]));
+  const suggestedById = new Map(dayView.suggestedMits.map((m) => [m.taskId, m]));
+
+  const items: MitItem[] = [];
+  for (const item of kept) {
+    if (item.kind !== "hardDeadline" && item.kind !== "studyBlock") continue;
+    const taskId = Number(item.id);
+    const task = tasksById.get(taskId);
+    if (!task) continue;
+    const suggested = suggestedById.get(taskId);
+    items.push({
+      taskId,
+      rank: suggested?.rank ?? items.length + 1,
+      title: task.title,
+      courseCode: task.course_id != null ? (courses[task.course_id]?.code ?? null) : null,
+      completed: task.status === "completed",
+      calibratedMinutes: suggested?.calibratedMinutes ?? task.estimated_minutes ?? 30,
+      calibrationConfidence: suggested?.calibrationConfidence ?? "insufficient",
+    });
+  }
+  return items;
+}
+
+function buildRecoveryFocusBlock(dayView: DayView, courses: Record<number, Course>): FocusBlock | null {
+  const keptStudyBlock = dayView.mvdPlan?.kept.find((i) => i.kind === "studyBlock");
+  if (!keptStudyBlock) return null;
+  const taskId = Number(keptStudyBlock.id);
+  const task = dayView.todayTasks.find((t) => t.id === taskId);
+  if (!task) return null;
+  const suggested = dayView.suggestedMits.find((m) => m.taskId === taskId);
+  return {
+    taskId: task.id,
+    title: task.title,
+    courseCode: task.course_id != null ? (courses[task.course_id]?.code ?? null) : null,
+    calibratedMinutes: suggested?.calibratedMinutes ?? task.estimated_minutes ?? 30,
+    location: task.planned_location,
+  };
+}
+
 export default function TodayScreen() {
   const router = useRouter();
   const { session } = useAuthSession();
@@ -128,6 +175,8 @@ function TodayReady({
   const hasAnyData = dayView.todayTasks.length > 0 || dayView.todayCalendarEvents.length > 0 || dayView.upcomingDeliverables.length > 0;
   const mitItems = buildMitItems(dayView, courses);
   const focusBlock = buildFocusBlock(dayView, courses);
+  const recoveryMitItems = buildRecoveryMitItems(dayView, courses);
+  const recoveryFocusBlock = buildRecoveryFocusBlock(dayView, courses);
 
   const normalBody = (
     <View style={styles.sectionGap}>
@@ -169,7 +218,20 @@ function TodayReady({
       />
 
       {mode === "recovery" ? (
-        <RecoveryBanner recoveryMode={dayView.recoveryMode} mvdPlan={dayView.mvdPlan} todayTasks={dayView.todayTasks} />
+        <>
+          <RecoveryBanner
+            recoveryMode={dayView.recoveryMode}
+            mvdPlan={dayView.mvdPlan}
+            todayTasks={dayView.todayTasks}
+            calendarEvents={dayView.todayCalendarEvents}
+          />
+          {recoveryMitItems.length > 0 ? (
+            <Section title="Today's minimum">
+              <MitList items={recoveryMitItems} />
+            </Section>
+          ) : null}
+          <FocusLauncher userId={dayView.profile.id} block={recoveryFocusBlock} activeSession={activeFocusSession} />
+        </>
       ) : mode === "unplanned" && !dismissedCheckin ? (
         <CheckinFlow
           userId={dayView.profile.id}

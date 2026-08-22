@@ -1,8 +1,10 @@
 "use client";
 
-import type { Task } from "@collegeos/api";
+import type { CalendarEvent, Task } from "@collegeos/api";
 import type { MvdCandidateItem, MvdPlan, RecoveryModeResult } from "@collegeos/core";
 import { useState } from "react";
+
+const EVENT_ID_PREFIX = "event-";
 
 const SIGNAL_LABEL: Record<string, string> = {
   lowSleep: "Slept less than your baseline",
@@ -22,8 +24,11 @@ const KIND_LABEL: Record<MvdCandidateItem["kind"], string> = {
   other: "Task",
 };
 
-function itemLabel(item: MvdCandidateItem, tasksById: Map<number, Task>): string {
-  if (item.id.startsWith("event-")) return KIND_LABEL[item.kind];
+function itemLabel(item: MvdCandidateItem, tasksById: Map<number, Task>, eventsById: Map<number, CalendarEvent>): string {
+  if (item.id.startsWith(EVENT_ID_PREFIX)) {
+    const eventId = Number(item.id.slice(EVENT_ID_PREFIX.length));
+    return eventsById.get(eventId)?.title ?? KIND_LABEL[item.kind];
+  }
   const task = tasksById.get(Number(item.id));
   return task?.title ?? KIND_LABEL[item.kind];
 }
@@ -32,13 +37,16 @@ export function RecoveryBanner({
   recoveryMode,
   mvdPlan,
   todayTasks,
+  calendarEvents,
 }: {
   recoveryMode: RecoveryModeResult;
   mvdPlan: MvdPlan | null;
   todayTasks: Task[];
+  calendarEvents: CalendarEvent[];
 }) {
   const [expanded, setExpanded] = useState(false);
   const tasksById = new Map(todayTasks.map((t) => [t.id, t]));
+  const eventsById = new Map(calendarEvents.map((e) => [e.id, e]));
   const activeSignals = recoveryMode.signals.filter((s) => s.active);
 
   return (
@@ -69,7 +77,7 @@ export function RecoveryBanner({
             <ul className="flex flex-col gap-0.5">
               {mvdPlan.kept.map((item) => (
                 <li key={item.id} className="text-body-s text-ink">
-                  {itemLabel(item, tasksById)}
+                  {itemLabel(item, tasksById, eventsById)}
                 </li>
               ))}
             </ul>
@@ -88,7 +96,7 @@ export function RecoveryBanner({
             <ul className="mt-2 flex flex-col gap-0.5">
               {mvdPlan.deferred.map((item) => (
                 <li key={item.id} className="text-body-s text-ink-muted">
-                  {itemLabel(item, tasksById)}
+                  {itemLabel(item, tasksById, eventsById)}
                 </li>
               ))}
             </ul>
