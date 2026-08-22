@@ -20,6 +20,8 @@ export { NavLink } from "./NavLink";
 export type { NavLinkProps } from "./NavLink";
 export { Metric } from "./Metric";
 export type { MetricDelta, MetricProps } from "./Metric";
+export { Modal } from "./Modal";
+export type { ModalProps } from "./Modal";
 export { Panel } from "./Panel";
 export type { PanelProps, PanelTone } from "./Panel";
 export { PageHeader } from "./PageHeader";

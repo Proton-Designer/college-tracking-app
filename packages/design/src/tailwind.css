@@ -144,4 +144,27 @@
       animation: none;
     }
   }
+
+  /* Modal/dialog entrance -- a floating element gets motion same as any other state change,
+     but stays under the deliberate Day Trace draw-in's 380ms so nothing competes with it. */
+  @keyframes modal-fade-in {
+    from {
+      opacity: 0;
+      transform: translateY(4px) scale(0.98);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .modal-fade-in {
+    animation: modal-fade-in 150ms var(--ease-decelerate) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .modal-fade-in {
+      animation: none;
+    }
+  }
 }

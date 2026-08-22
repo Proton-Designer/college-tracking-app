@@ -16,6 +16,8 @@ export { Label } from "./Label";
 export type { LabelProps } from "./Label";
 export { Metric } from "./Metric";
 export type { MetricDelta, MetricProps } from "./Metric";
+export { Modal } from "./Modal";
+export type { ModalProps } from "./Modal";
 export { Panel, PanelButton } from "./Panel";
 export type { PanelButtonProps, PanelProps, PanelTone } from "./Panel";
 export { PageHeader } from "./PageHeader";
