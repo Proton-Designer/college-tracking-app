@@ -1,7 +1,24 @@
-import { color, riskBandColor, riskBands, space, type as typeScale } from "@collegeos/design/native";
+import { BarChart3, Home } from "lucide-react-native";
+import { BlurView } from "expo-blur";
+import { LinearGradient } from "expo-linear-gradient";
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  aurora,
+  auroraForRisk,
+  color,
+  glass,
+  glassEdge,
+  island,
+  radius,
+  riskBandColor,
+  riskBands,
+  shadow,
+  space,
+  type as typeScale,
+} from "@collegeos/design/native";
+import type { RiskBand } from "@collegeos/design/native";
 import {
   Badge,
   Button,
@@ -40,6 +57,17 @@ const TYPE_SAMPLE: Record<keyof typeof typeScale, string> = {
   caption: "6.3 h · 2 min ago",
 };
 
+/** DESIGN_LANGUAGE_V2 §6 — every non-null band, in order, plus the honest no-data case. */
+const AURORA_PREVIEW_BANDS: readonly (RiskBand | null)[] = [...riskBands, null];
+
+/** §2 — native has no literal CSS blur-radius; these are hand-calibrated to *read* right at
+ *  the three tiers' relative strength (24 / 32 / 16 web px), not a unit conversion. */
+const GLASS_TIER_INTENSITY: Record<"base" | "raised" | "sunken", number> = {
+  base: 60,
+  raised: 80,
+  sunken: 35,
+};
+
 function SectionTitle({ children, note }: { children: string; note?: string }) {
   return (
     <View style={styles.sectionHeader}>
@@ -59,6 +87,65 @@ function Swatch({ name, hex }: { name: string; hex: string }) {
       <View style={[styles.swatchColor, { backgroundColor: hex }]} />
       <Text style={textStyle("caption", color.ink)}>{name}</Text>
       <Text style={textStyle("caption", color.inkFaint)}>{hex}</Text>
+    </View>
+  );
+}
+
+interface GlassTier {
+  fill: string;
+  fallback: string;
+  blur: number;
+  saturate: number;
+}
+
+function GlassTile({ tierName, tier }: { tierName: string; tier: GlassTier }) {
+  return (
+    <View style={styles.glassTileShadow}>
+      <View style={styles.glassTileClip}>
+        {/* Android renders a solid tinted fill here, never a blur, unless `blurTarget` is
+            wired -- see FOLLOWUPS G1. Readable either way: `tier.fill` alone is opaque enough. */}
+        <BlurView intensity={GLASS_TIER_INTENSITY[tierName as keyof typeof GLASS_TIER_INTENSITY]} tint="light" style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: tier.fill }]} />
+        <Text style={textStyle("label", color.ink)}>{tierName}</Text>
+        <Text style={textStyle("caption", color.inkMuted)}>{tier.blur}px blur</Text>
+        <Text style={textStyle("caption", color.inkFaint)}>fallback {tier.fallback}</Text>
+      </View>
+    </View>
+  );
+}
+
+function AuroraSwatch({ band }: { band: RiskBand | null }) {
+  const stops = auroraForRisk(band);
+  return (
+    <View style={styles.auroraRow}>
+      {stops ? (
+        <LinearGradient colors={stops} style={styles.auroraBar} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} />
+      ) : (
+        <View style={[styles.auroraBar, { backgroundColor: color.ground, borderWidth: StyleSheet.hairlineWidth, borderColor: color.hairline }]} />
+      )}
+      <Text style={textStyle("caption", color.inkMuted)}>{band ?? "no data — flat ground, no aurora"}</Text>
+    </View>
+  );
+}
+
+/** Static preview only — not wired to real navigation. The live, wired dock is
+ *  `components/shell/Island.tsx`, rendered as `(tabs)/_layout.tsx`'s custom `tabBar`. */
+function IslandPreview() {
+  return (
+    <View style={styles.islandPreviewShadow}>
+      <View style={styles.islandPreviewClip}>
+        <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: `${island.fill}e0` }]} />
+        <View style={styles.islandPreviewRow}>
+          <View style={styles.islandPreviewItemActive}>
+            <Home size={20} color={island.ink} strokeWidth={2} />
+            <Text style={[textStyle("body", island.ink)]}>Today</Text>
+          </View>
+          <View style={styles.islandPreviewItem}>
+            <BarChart3 size={20} color={island.inkDim} strokeWidth={2} />
+          </View>
+        </View>
+      </View>
     </View>
   );
 }
@@ -85,9 +172,9 @@ export default function DesignPreviewScreen() {
   return (
     <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + space[5] }]}>
       <Text style={textStyle("label", color.inkFaint)}>DESIGN SYSTEM</Text>
-      <Text style={[textStyle("displayL", color.ink), styles.pageTitle]}>Instrument</Text>
+      <Text style={[textStyle("displayL", color.ink), styles.pageTitle]}>Aurora</Text>
       <Text style={textStyle("body", color.inkMuted)}>
-        Every token and primitive from docs/DESIGN_SYSTEM.md, rendered live.
+        Every token and primitive from docs/DESIGN_LANGUAGE_V2.md, rendered live.
       </Text>
 
       <SectionTitle note="Foundation + risk scale.">Color</SectionTitle>
@@ -102,6 +189,38 @@ export default function DesignPreviewScreen() {
           <Swatch key={band} name={`risk-${band}`} hex={riskBandColor[band].fg} />
         ))}
       </View>
+      <View style={styles.swatchRow}>
+        <Swatch name="aurora-periwinkle" hex={aurora.periwinkle} />
+        <Swatch name="aurora-lilac" hex={aurora.lilac} />
+        <Swatch name="aurora-mint" hex={aurora.mint} />
+        <Swatch name="aurora-blush" hex={aurora.blush} />
+      </View>
+
+      <SectionTitle note="§2 — only these three tiers exist. Every tier's opaque fallback is mandatory, not decorative.">
+        Glass
+      </SectionTitle>
+      <View style={styles.glassStage}>
+        <LinearGradient colors={[aurora.periwinkle, aurora.lilac]} style={StyleSheet.absoluteFill} />
+        <View style={styles.glassRow}>
+          <GlassTile tierName="base" tier={glass.base} />
+          <GlassTile tierName="raised" tier={glass.raised} />
+          <GlassTile tierName="sunken" tier={glass.sunken} />
+        </View>
+      </View>
+
+      <SectionTitle note="§6 — an instrument reading, derived from a real computed RiskBand. Never a fabricated one.">
+        Aurora
+      </SectionTitle>
+      <View style={styles.stack}>
+        {AURORA_PREVIEW_BANDS.map((band) => (
+          <AuroraSwatch key={band ?? "none"} band={band} />
+        ))}
+      </View>
+
+      <SectionTitle note="§5 — the primary nav. Static preview; the wired dock lives in components/shell/Island.tsx.">
+        Island
+      </SectionTitle>
+      <IslandPreview />
 
       <SectionTitle>Typography</SectionTitle>
       <View style={styles.stack}>
@@ -152,7 +271,10 @@ export default function DesignPreviewScreen() {
 
       <SectionTitle>Panel</SectionTitle>
       <Panel title="BME 301">
-        <Text style={textStyle("body", color.inkMuted)}>Panel body content sits here, no shadow, ever.</Text>
+        <Text style={textStyle("body", color.inkMuted)}>
+          Panel body content sits here -- v2 requires glass elevation (§4); a flat, shadowless card is
+          the old rule, not this one.
+        </Text>
       </Panel>
 
       <SectionTitle>RiskPill & Badge</SectionTitle>
@@ -205,7 +327,7 @@ export default function DesignPreviewScreen() {
         <TimePicker label="Study block start" value={studyTime} onValueChange={setStudyTime} />
       </View>
 
-      <SectionTitle note="A bottom sheet, not a centered dialog -- DESIGN_SYSTEM's dedicated sheet spring.">
+      <SectionTitle note="A bottom sheet, not a centered dialog -- the design system's dedicated sheet spring.">
         Modal
       </SectionTitle>
       <Button variant="secondary" onPress={() => setModalOpen(true)}>
@@ -310,7 +432,7 @@ const styles = StyleSheet.create({
   },
   swatchColor: {
     height: 44,
-    borderRadius: 5,
+    borderRadius: radius.sm,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: color.hairline,
   },
@@ -329,5 +451,66 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     gap: space[3],
     marginBottom: space[3],
+  },
+  glassStage: {
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    padding: space[4],
+  },
+  glassRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: space[3],
+  },
+  glassTileShadow: {
+    borderRadius: radius.lg,
+    ...shadow.glass,
+  },
+  glassTileClip: {
+    width: 108,
+    height: 96,
+    borderRadius: radius.lg,
+    overflow: "hidden",
+    padding: space[3],
+    gap: space[1],
+    ...glassEdge,
+  },
+  auroraRow: {
+    gap: space[2],
+  },
+  auroraBar: {
+    height: 28,
+    borderRadius: radius.sm,
+  },
+  islandPreviewShadow: {
+    alignSelf: "flex-start",
+    borderRadius: radius.pill,
+    ...shadow.islandDock,
+  },
+  islandPreviewClip: {
+    borderRadius: radius.pill,
+    overflow: "hidden",
+  },
+  islandPreviewRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space[2],
+    paddingHorizontal: space[3],
+    paddingVertical: space[2],
+  },
+  islandPreviewItem: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  islandPreviewItemActive: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space[2],
+    paddingHorizontal: space[3],
+    paddingVertical: space[3],
+    borderRadius: radius.pill,
+    backgroundColor: color.accent,
   },
 });
