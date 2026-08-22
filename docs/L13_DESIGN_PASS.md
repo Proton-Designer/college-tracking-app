@@ -79,6 +79,33 @@ The hero text wraps around x≈890 in a 1440 viewport with nothing to its right,
 *"THE REPORT SPEAKS"* section indents to a different left edge than every other section. Minor, but
 it's the first thing anyone sees.
 
+### 8. Calendar: the two densest components are data-dumped, not designed 🔴
+
+**The backplan chain is an unparsable run-on.** A four-phase backplan currently renders as:
+
+`check · 2026-08-21 · 21m stuck-review · 2026-08-21 · 29m attempt · 2026-08-21 · 72m understand · 2026-08-21 · 21m`
+
+Fields inside a phase are separated by `·`, and phases are separated by… nothing. There is no way to
+see where one phase ends and the next begins. This is the backplanning engine — one of the
+product's best ideas — rendered as a log line. It needs real structure (a row or column per phase,
+phase name / date / duration as distinct fields) and humanized dates instead of raw ISO.
+
+**The capacity strip inverts the visual hierarchy.** Fourteen near-identical solid-teal bars
+dominate the top of the page while carrying almost no information — the values range 12h15m–16h45m,
+so every bar is within ~20% of every other and the chart reads as flat. The largest, most saturated
+element on the screen is the least informative one.
+
+Related labelling problem, **not** an engine bug (verified): the strip shows
+`wakingMinutes - committedMinutes` under the heading **"AVAILABLE TIME"**, which reads as *"you have
+16 hours to study on Saturday."* The engine is correct — weekly planning clips to real bounded
+capacity via `clipIntervalsToCapacity`, not to raw waking time — but the label over-promises by a
+factor of four. Either name it what it is (uncommitted waking time) or show it against real capacity.
+
+### 9. `/calendar` has no view switcher 🟡
+U6 (weekly planning) was ruled to live here as a "This week" view. There is currently no tab, no
+segmented control, and no affordance of any kind for a second view on this route. Needed before U6
+can land.
+
 ---
 
 ## L13.2 — Mobile
