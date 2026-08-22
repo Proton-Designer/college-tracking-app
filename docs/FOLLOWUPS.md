@@ -632,6 +632,42 @@ match the number in the table I checked" usually means *I checked the wrong tabl
 
 ---
 
+## 🟡 G1 — On Android, `expo-blur` never blurs; the glass effect does not exist there
+
+Found by NOVA reading `expo-blur`'s actual platform sources during the v2 revamp, in response to a
+Lead question about the *readability* fallback. The readability answer was fine; this is a second,
+separate finding that came out of the same read.
+
+- **Web** (`BlurView.web.tsx`): `getBlurStyle()` sets an rgba `backgroundColor` on the same element
+  as `backdropFilter`. The solid fill is always painted, so a browser that ignores
+  `backdrop-filter` still gets an opaque surface. Readable.
+- **iOS** (`ExpoBlurView.swift`): a real `UIVisualEffectView` + `UIBlurEffect`. Expo writes no
+  Reduce-Transparency handling because it doesn't need to — `UIBlurEffect` is the exact system API
+  Apple's Reduce Transparency setting intercepts, and UIKit substitutes an opaque fill at the OS
+  compositing level for every app using it. Covered by the platform.
+- **Android** (`ExpoBlurView.kt`): with the default `BlurMethod.NONE` — which is what you get unless
+  you explicitly pass `blurMethod` *and* wire a `blurTarget` sibling view — every path resolves to
+  `setBackgroundColor(tint.toBlurEffect(...))`. **A solid tinted fill, unconditionally. It never
+  blurs the content behind it.** This isn't a degradation under some condition; it is the only
+  behaviour.
+
+So the `glass` tiers in `DESIGN_LANGUAGE_V2` §2 render as flat tinted panels on Android. Readability
+holds everywhere (the property the mandatory-fallback rule exists to protect); the *effect* is
+absent on one platform.
+
+**Ruled: file, don't fix yet** (Lead, during the revamp). Three reasons: nothing is broken for a
+user, since readability was the contract; `blurTarget` is a per-surface architectural change and
+the primitive layer didn't exist yet, so wiring it then would have meant wiring it twice; and
+**nobody has ever run this app on Android hardware**, in this session or any previous one, so it
+would have been building blind against a platform we cannot see. Do it as one deliberate pass once
+the real glass-surface inventory is known — and verify it on an actual Android device, which is the
+same gap §7.2/§7.4 of `HANDOFF.md` already name.
+
+The `<BlurView>` call sites carry a comment pointing here, so the next person reads it as a known
+platform limit rather than rediscovering it as a bug.
+
+---
+
 ## Must fix before launch 🔴
 
 | # | Item | Notes |
