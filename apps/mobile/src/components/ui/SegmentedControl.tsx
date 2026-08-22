@@ -30,7 +30,7 @@ export function SegmentedControl({
   return (
     <View style={styles.container}>
       <Label>{label}</Label>
-      <View accessibilityRole="radiogroup" style={styles.row}>
+      <View accessibilityRole="radiogroup" accessibilityLabel={label} style={styles.row}>
         {cells.map((cell) => (
           <Cell
             key={cell}

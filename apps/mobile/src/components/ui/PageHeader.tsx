@@ -18,7 +18,9 @@ export function PageHeader({ title, context, actions }: PageHeaderProps) {
   return (
     <View style={styles.row}>
       <View style={styles.titleGroup}>
-        <Text style={textStyle("displayM", color.ink)}>{title}</Text>
+        <Text accessibilityRole="header" style={textStyle("displayM", color.ink)}>
+          {title}
+        </Text>
         {context ? <Text style={textStyle("bodyS", color.inkMuted)}>{context}</Text> : null}
       </View>
       {actions ? <View style={styles.actions}>{actions}</View> : null}

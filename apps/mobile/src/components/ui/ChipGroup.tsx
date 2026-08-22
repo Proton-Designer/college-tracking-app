@@ -23,7 +23,7 @@ export function ChipGroup({ label, options, value, onValueChange, disabled = fal
   return (
     <View style={styles.container}>
       <Label>{label}</Label>
-      <View accessibilityRole="radiogroup" style={styles.row}>
+      <View accessibilityRole="radiogroup" accessibilityLabel={label} style={styles.row}>
         {options.map((option) => (
           <Chip
             key={option.value}

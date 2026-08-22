@@ -15,8 +15,19 @@ export interface NavLinkProps {
 export function NavLink({ label, direction = "back", onPress }: NavLinkProps) {
   const glyph = direction === "back" ? "‹ " : " ›";
   const text = direction === "back" ? `${glyph}${label}` : `${label}${glyph}`;
+  // The visible text bakes the direction into a glyph for sighted users -- without an
+  // explicit label, a screen reader would either skip the decorative arrow character or
+  // read its raw Unicode name, and would never announce this as a control at all (no
+  // accessibilityRole). Both looked fine and were broken for VoiceOver until named here.
+  const accessibilityLabel = direction === "back" ? `Back to ${label}` : label;
   return (
-    <Pressable onPress={onPress} hitSlop={8} style={({ pressed }) => [styles.base, pressed ? styles.pressed : null]}>
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      style={({ pressed }) => [styles.base, pressed ? styles.pressed : null]}
+    >
       <Text style={textStyle("label", color.inkMuted)}>{text}</Text>
     </Pressable>
   );

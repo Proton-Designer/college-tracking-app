@@ -67,7 +67,11 @@ function ModalContent({
       <Animated.View
         style={[styles.sheet, shadow.overlay, { paddingBottom: insets.bottom + space[5] }, sheetStyle]}
       >
-        {title ? <Text style={[textStyle("title", color.ink), styles.title]}>{title}</Text> : null}
+        {title ? (
+          <Text accessibilityRole="header" style={[textStyle("title", color.ink), styles.title]}>
+            {title}
+          </Text>
+        ) : null}
         <ScrollView style={styles.body} keyboardShouldPersistTaps="handled">
           {children}
         </ScrollView>

@@ -54,7 +54,7 @@ export default function CoursesScreen() {
         {showHeaderAddCourse ? <AddCourseModal onCreated={courses.refetch} /> : null}
       </View>
 
-      <View style={styles.segmentRow}>
+      <View accessibilityRole="tablist" style={styles.segmentRow}>
         <SegmentTab label="Courses" active={view === "courses"} onPress={() => setView("courses")} />
         <SegmentTab label="This week" active={view === "week"} onPress={() => setView("week")} />
         <SegmentTab label="Horizon" active={view === "horizon"} onPress={() => setView("horizon")} />

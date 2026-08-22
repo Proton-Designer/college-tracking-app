@@ -45,6 +45,7 @@ export function Select({
       {label ? <Label required={required}>{label}</Label> : null}
       <Pressable
         accessibilityRole="button"
+        accessibilityLabel={label ? `${label}, ${selected ? selected.label : placeholder}` : (selected ? selected.label : placeholder)}
         accessibilityState={{ disabled, expanded: open }}
         disabled={disabled}
         onPress={() => setOpen(true)}
@@ -67,13 +68,14 @@ export function Select({
       {error ? <FieldError>{error}</FieldError> : null}
 
       <Modal visible={open} onClose={() => setOpen(false)} title={label ?? "Select"}>
-        <View style={styles.list}>
+        <View accessibilityRole="radiogroup" accessibilityLabel={label} style={styles.list}>
           {options.map((option) => {
             const isSelected = option.value === value;
             return (
               <Pressable
                 key={option.value}
                 accessibilityRole="radio"
+                accessibilityLabel={option.label}
                 accessibilityState={{ selected: isSelected }}
                 onPress={() => {
                   onValueChange(option.value);
@@ -82,7 +84,11 @@ export function Select({
                 style={({ pressed }) => [styles.option, { backgroundColor: pressed ? color.surfaceSunken : "transparent" }]}
               >
                 <Text style={textStyle("body", isSelected ? color.accent : color.ink)}>{option.label}</Text>
-                {isSelected ? <Text style={textStyle("body", color.accent)}>✓</Text> : null}
+                {isSelected ? (
+                  <Text accessibilityElementsHidden importantForAccessibility="no" style={textStyle("body", color.accent)}>
+                    ✓
+                  </Text>
+                ) : null}
               </Pressable>
             );
           })}

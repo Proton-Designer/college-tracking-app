@@ -72,6 +72,7 @@ export function DatePicker({ label, value, onValueChange, minDate, maxDate, disa
       <View style={styles.row}>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={label ? `${label}, ${value ? formatDisplay(value) : "Set a date"}` : undefined}
           accessibilityState={{ disabled }}
           disabled={disabled}
           onPress={open}
@@ -88,7 +89,12 @@ export function DatePicker({ label, value, onValueChange, minDate, maxDate, disa
           </Text>
         </Pressable>
         {value && !disabled ? (
-          <Pressable onPress={() => onValueChange(null)} hitSlop={8}>
+          <Pressable
+            onPress={() => onValueChange(null)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={label ? `Clear ${label}` : "Clear"}
+          >
             <Text style={textStyle("caption", color.inkFaint)}>Clear</Text>
           </Pressable>
         ) : null}

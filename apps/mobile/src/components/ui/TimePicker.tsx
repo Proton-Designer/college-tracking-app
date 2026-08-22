@@ -63,6 +63,7 @@ export function TimePicker({ label, value, onValueChange, disabled = false, erro
       <View style={styles.row}>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={label ? `${label}, ${value ? formatDisplay(value) : "Set a time"}` : undefined}
           accessibilityState={{ disabled }}
           disabled={disabled}
           onPress={open}
@@ -79,7 +80,12 @@ export function TimePicker({ label, value, onValueChange, disabled = false, erro
           </Text>
         </Pressable>
         {value && !disabled ? (
-          <Pressable onPress={() => onValueChange(null)} hitSlop={8}>
+          <Pressable
+            onPress={() => onValueChange(null)}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={label ? `Clear ${label}` : "Clear"}
+          >
             <Text style={textStyle("caption", color.inkFaint)}>Clear</Text>
           </Pressable>
         ) : null}
