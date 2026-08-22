@@ -84,7 +84,25 @@ describe('agent report and summary pyramid reads', () => {
     for (let i = 1; i < result.data.length; i++) {
       expect(result.data[i - 1]!.local_date <= result.data[i]!.local_date).toBe(true);
     }
-    expect(result.data[result.data.length - 1]!.summary).toHaveProperty('mitsCompleted', 2);
+
+    // Assert the SEEDED run is present, rather than that whatever happens to be newest
+    // has a particular shape.
+    //
+    // This previously read `result.data[result.data.length - 1]` -- the most recent row in
+    // the window -- and asserted mitsCompleted === 2. That held only while the seed batch
+    // stayed the newest rows in the table, and it broke the first time the nightly pipeline
+    // actually ran for real: a genuinely computed summary landed on top of the seed with
+    // mitsCompleted null (a real value for a day with nothing planned, not a defect).
+    //
+    // B5 fixed "time passing since the seed was planted". This is the other failure mode:
+    // "real application writes landing on top of the seed". A test that asserts about seed
+    // data while running against a database the application also writes to is fragile by
+    // construction -- the durable answer is tests owning their own fixtures (S1). Until
+    // then, assert the seeded run's presence, which is what this test's name actually claims.
+    const seededRun = result.data.filter(
+      (row) => (row.summary as { mitsCompleted?: unknown } | null)?.mitsCompleted === 2,
+    );
+    expect(seededRun.length).toBeGreaterThanOrEqual(6);
   });
 
   it('getDailySummary and getWeeklySummary read the exact seeded rows', async () => {
