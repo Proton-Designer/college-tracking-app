@@ -49,6 +49,19 @@ function minutesSinceMidnightUTC(iso: string): number {
   return d.getUTCHours() * 60 + d.getUTCMinutes();
 }
 
+/** actualStartMin relative to plannedStartMin, computed from the real elapsed time between
+ *  the two instants rather than by taking minutesSinceMidnightUTC of each and subtracting.
+ *  The subtract-two-midnights approach wraps incorrectly whenever planned and actual straddle
+ *  UTC midnight -- routine for an evening-timeboxed task in a US timezone (UTC midnight is
+ *  ~7-8pm Eastern) -- turning a real 30-minute delay into a reported -1410 ("23.5h early").
+ *  plannedStartMin keeps its literal minutes-since-midnight meaning; actualStartMin is only
+ *  ever consumed as (actualStartMin - plannedStartMin), so anchoring it to the real elapsed
+ *  minutes past plannedStartMin keeps that diff correct across the day boundary. */
+function actualStartMinFrom(plannedStartMin: number, plannedIso: string, actualIso: string): number {
+  const elapsedMin = (new Date(actualIso).getTime() - new Date(plannedIso).getTime()) / 60_000;
+  return plannedStartMin + elapsedMin;
+}
+
 // @barrel-internal -- the return type of computeHistoricalCapacityP50Min, itself
 // @barrel-internal; consumers (dayView.ts, planning/weeklyPlan.ts) destructure the fields
 // they need rather than importing this type by name.
@@ -140,7 +153,10 @@ export async function computeYesterdayPlanningExecution(
     actualDeepWorkMin: review.deep_work_actual_min ?? 0,
     historicalCapacityP50Min: historicalCapacity.minutes,
     plannedStartMin: firstSession ? minutesSinceMidnightUTC(firstSession.planned_start) : null,
-    actualStartMin: firstSession?.actual_start ? minutesSinceMidnightUTC(firstSession.actual_start) : null,
+    actualStartMin:
+      firstSession?.actual_start != null
+        ? actualStartMinFrom(minutesSinceMidnightUTC(firstSession.planned_start), firstSession.planned_start, firstSession.actual_start)
+        : null,
     mitPlanned: review.mits_planned,
     mitCompleted: review.mits_completed,
   });
