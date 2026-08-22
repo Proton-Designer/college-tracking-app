@@ -56,3 +56,12 @@ android/.gradle/
 
 # Playwright MCP session artifacts — regenerated every session, never source
 .playwright-mcp/
+
+# Verification screenshots under .brain/ are ephemeral evidence, not source. 93 of them were
+# tracked (21MB), which is what pushed .git to 40MB. The knowledge base itself --
+# .brain/memory/*.md -- stays tracked; it is the durable part.
+.brain/*.png
+.brain/*.jpg
+.brain/*.jpeg
+.brain/mobile-shots/
+.brain/web-shots/
