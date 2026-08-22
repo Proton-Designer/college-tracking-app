@@ -17,9 +17,12 @@ export interface AuroraProps {
  * breathes. `prefers-reduced-motion` and `prefers-reduced-transparency` both collapse it to flat
  * ground, same as a null band. Ambient only -- risk is always also stated in text and a RiskPill.
  *
- * RN has no radial-gradient primitive (web's Aurora uses two CSS radial-gradients); this
- * approximates the same two-blob field with two overlapping linear gradients fading to
- * transparent, angled from the top corners web's version anchors to.
+ * §1: the aurora stops are "never used as fills for components" -- a full-bleed, full-opacity
+ * gradient covering the whole viewport IS a fill, and reads as a saturated tinted app rather
+ * than atmosphere over the cool ground. This is a single gradient (not two overlapping layers
+ * whose opacities compound where they overlap), one opacity multiplier applied once, blooming
+ * from the top and fading to transparent well before mid-page -- a bloom in the corner of the
+ * room, not colored paper under the glass panels.
  */
 export function Aurora({ band }: AuroraProps) {
   const reducedMotion = useReducedMotion();
@@ -30,25 +33,20 @@ export function Aurora({ band }: AuroraProps) {
   const [a, b] = stops;
 
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.container]}>
       <LinearGradient
-        colors={[a, "transparent"]}
-        start={{ x: 0.05, y: 0 }}
-        end={{ x: 0.75, y: 0.65 }}
-        style={[StyleSheet.absoluteFill, styles.blob]}
-      />
-      <LinearGradient
-        colors={[b, "transparent"]}
-        start={{ x: 0.95, y: 0 }}
-        end={{ x: 0.3, y: 0.6 }}
-        style={[StyleSheet.absoluteFill, styles.blob]}
+        colors={[a, b, "transparent"]}
+        locations={[0, 0.3, 0.6]}
+        start={{ x: 0.5, y: 0 }}
+        end={{ x: 0.5, y: 0.5 }}
+        style={StyleSheet.absoluteFill}
       />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  blob: {
-    opacity: 0.55,
+  container: {
+    opacity: 0.35,
   },
 });

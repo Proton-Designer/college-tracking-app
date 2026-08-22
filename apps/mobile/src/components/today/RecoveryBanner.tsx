@@ -35,12 +35,15 @@ function itemLabel(item: MvdCandidateItem, tasksById: Map<number, Task>, eventsB
   return task?.title ?? KIND_LABEL[item.kind];
 }
 
-/** §2 -- glass-base, the same tier as a Panel, but with `riskHigh` standing in for the
- *  neutral tint's identity: this is a real alert, and washing it out to the same white glass
- *  every other card uses would lose the one thing this surface exists to signal. The tint is
- *  painted as an ordinary background on GlassSurface's own content wrapper (not a separate
- *  absolutely-positioned overlay), so it sits behind its own children the normal way -- no
- *  extra position/zIndex bookkeeping needed, per the stacking lesson from FOLLOWUPS/§2.2. */
+/** §2 -- glass-base, the same tier and `glassEdge` border as every other card (a hard
+ *  solid-color border was the first attempt and it read as v1: flat, no depth, visibly a
+ *  different design language from the intervention cards beside it). The alert identity
+ *  lives in the eyebrow ("Recovery Mode active", already `riskHigh`) and a *low*-alpha
+ *  riskHigh tint on top of the neutral glass -- not a border override, not an opaque fill.
+ *  The tint is painted as an ordinary background on GlassSurface's own content wrapper (not
+ *  a separate absolutely-positioned overlay), so it sits behind its own children the normal
+ *  way -- no extra position/zIndex bookkeeping needed, per the stacking lesson from
+ *  FOLLOWUPS/§2.2. */
 function tintWithAlpha(hex: string, alpha: number): string {
   const a = Math.round(alpha * 255).toString(16).padStart(2, "0");
   return `${hex}${a}`;
@@ -66,8 +69,8 @@ export function RecoveryBanner({
     <View style={styles.shadowWrap}>
       <GlassSurface
         tier="base"
-        style={[styles.clip, { borderColor: color.riskHigh, borderTopColor: color.riskHigh }]}
-        contentStyle={[styles.content, { backgroundColor: tintWithAlpha(color.riskHigh, 0.12) }]}
+        style={styles.clip}
+        contentStyle={[styles.content, { backgroundColor: tintWithAlpha(color.riskHigh, 0.07) }]}
       >
         <Text style={textStyle("label", color.riskHigh)}>Recovery Mode active</Text>
         <Text style={[textStyle("body", color.ink), styles.intro]}>
