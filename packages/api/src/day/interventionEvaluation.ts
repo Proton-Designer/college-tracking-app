@@ -45,8 +45,22 @@ export async function evaluateUpcomingBlockNotifications(
   if (taskError) return dataErr(mapDataError(taskError));
   if (screenError) return dataErr(mapDataError(screenError));
 
+  // Batched dedupe: one query for the whole day rather than one per task. Identical rule,
+  // one round trip instead of N. /today was issuing 45 PostgREST round trips against 17 for
+  // the next-heaviest screen (docs/L11_HARDENING.md) -- invisible locally at ~1ms each, but
+  // 30-50ms each against cloud Supabase.
+  const { data: firedRows, error: firedError } = await client
+    .from('interventions')
+    .select('related_task_id')
+    .eq('user_id', userId)
+    .eq('kind', 'exception_notification')
+    .eq('local_date', today);
+  if (firedError) return dataErr(mapDataError(firedError));
+  const alreadyFired = new Set((firedRows ?? []).map((r) => r.related_task_id));
+
   const created: InterventionRow[] = [];
   for (const task of tasks ?? []) {
+    if (alreadyFired.has(task.id)) continue;
     const decision = evaluateUpcomingBlockNotification({
       now,
       plannedStartAt: new Date(task.planned_start_at!),
@@ -54,17 +68,6 @@ export async function evaluateUpcomingBlockNotifications(
       screenTimeMinutesToday: screenDaily?.distracting_min ?? null,
     });
     if (!decision.shouldFire) continue;
-
-    const { data: existing, error: existingError } = await client
-      .from('interventions')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('related_task_id', task.id)
-      .eq('kind', 'exception_notification')
-      .eq('local_date', today)
-      .maybeSingle();
-    if (existingError) return dataErr(mapDataError(existingError));
-    if (existing) continue;
 
     const result = await createIntervention(client, userId, {
       kind: 'exception_notification',
@@ -104,29 +107,38 @@ export async function evaluateDeviationPrompts(
     .not('status', 'in', '(completed,cancelled)');
   if (taskError) return dataErr(mapDataError(taskError));
 
+  // Two batched reads replacing two per-task queries: which tasks already have a session,
+  // and which already fired today. Same rules, two round trips instead of 2N.
+  const taskIds = (tasks ?? []).map((t) => t.id);
+  const startedTaskIds = new Set<number>();
+  const alreadyFired = new Set<number | null>();
+  if (taskIds.length > 0) {
+    const [{ data: sessionRows, error: sessionError }, { data: firedRows, error: firedError }] = await Promise.all([
+      client.from('task_sessions').select('task_id').in('task_id', taskIds),
+      client
+        .from('interventions')
+        .select('related_task_id')
+        .eq('user_id', userId)
+        .eq('kind', 'deviation_prompt')
+        .eq('local_date', today),
+    ]);
+    if (sessionError) return dataErr(mapDataError(sessionError));
+    if (firedError) return dataErr(mapDataError(firedError));
+    for (const row of sessionRows ?? []) if (row.task_id != null) startedTaskIds.add(row.task_id);
+    for (const row of firedRows ?? []) alreadyFired.add(row.related_task_id);
+  }
+
   const created: InterventionRow[] = [];
   for (const task of tasks ?? []) {
-    const { data: sessions, error: sessionError } = await client.from('task_sessions').select('id').eq('task_id', task.id).limit(1);
-    if (sessionError) return dataErr(mapDataError(sessionError));
+    if (alreadyFired.has(task.id)) continue;
 
     const decision = evaluateDeviationPrompt({
       now,
       plannedStartAt: new Date(task.planned_start_at!),
       taskTitle: task.title,
-      sessionStarted: (sessions ?? []).length > 0,
+      sessionStarted: startedTaskIds.has(task.id),
     });
     if (!decision.shouldFire) continue;
-
-    const { data: existing, error: existingError } = await client
-      .from('interventions')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('related_task_id', task.id)
-      .eq('kind', 'deviation_prompt')
-      .eq('local_date', today)
-      .maybeSingle();
-    if (existingError) return dataErr(mapDataError(existingError));
-    if (existing) continue;
 
     const result = await createIntervention(client, userId, {
       kind: 'deviation_prompt',
@@ -258,21 +270,31 @@ export async function evaluateStaleTaskPrompts(client: TypedSupabaseClient, user
   const { data: tasks, error: taskError } = await client.from('tasks').select('id, title, planned_date').eq('user_id', userId).not('status', 'in', '(completed,cancelled)');
   if (taskError) return dataErr(mapDataError(taskError));
 
+  // Batched dedupe. Note the rule here is per staleness EPISODE, not per day -- an existing
+  // prompt only counts if its local_date is on or after the task's current planned_date, so
+  // re-planning a task forward legitimately allows a new prompt later. That comparison moves
+  // into memory; it is not relaxed.
+  const { data: firedRows, error: firedError } = await client
+    .from('interventions')
+    .select('related_task_id, local_date')
+    .eq('user_id', userId)
+    .eq('kind', 'stale_task_prompt');
+  if (firedError) return dataErr(mapDataError(firedError));
+  const firedForTask = new Map<number, string[]>();
+  for (const row of firedRows ?? []) {
+    if (row.related_task_id == null) continue;
+    const dates = firedForTask.get(row.related_task_id) ?? [];
+    dates.push(row.local_date);
+    firedForTask.set(row.related_task_id, dates);
+  }
+
   const created: InterventionRow[] = [];
   for (const task of tasks ?? []) {
     const decision = evaluateStaleTaskPrompt({ today, plannedDate: task.planned_date, taskTitle: task.title });
     if (!decision.shouldFire) continue;
 
-    const { data: existing, error: existingError } = await client
-      .from('interventions')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('related_task_id', task.id)
-      .eq('kind', 'stale_task_prompt')
-      .gte('local_date', task.planned_date)
-      .maybeSingle();
-    if (existingError) return dataErr(mapDataError(existingError));
-    if (existing) continue;
+    const priorDates = firedForTask.get(task.id) ?? [];
+    if (priorDates.some((d) => d >= task.planned_date)) continue;
 
     const result = await createIntervention(client, userId, {
       kind: 'stale_task_prompt',

@@ -92,9 +92,39 @@ dedupe) — but it means those round trips are serial rather than parallel. Each
 re-queries `tasks` separately when one shared read would serve all four, and each does a per-task
 dedupe lookup that could be a single batched query.
 
-**Recommended, not yet done:** one shared task read for the sweep; batch the per-task dedupe checks
-into one query per evaluator; keep the sequential ordering. Measure again after — the target is
-`/today` in line with `/insights`.
+**Attempted, and it did not work — recorded because the wrong conclusion is worth more than a
+silent revert.** I batched the sweep's per-task dedupe lookups and its per-task session lookup into
+single queries per evaluator, kept the sequential ordering, rebuilt, and re-measured. **`/today` was
+still 45 round trips.** The change is a genuine improvement — it removes a real per-task N+1 that
+would bite an account where many tasks fire at once — but on this data few tasks fire, so those
+queries were barely executing and were never the cost. **My diagnosis was wrong.**
+
+(A first re-measurement showed a spectacular "45 → 0 round trips, 106 ms → 22 ms". That was a **307
+redirect to /login** — the minted session had expired — i.e. measuring nothing at all. Always check
+the status code before believing an improvement.)
+
+**Where the 45 actually come from,** by table, one render:
+
+```
+calendar_events   ×5      deliverables      ×3      interventions    ×3
+courses           ×2      grade_categories  ×2      grade_items      ×2
+daily_checkins    ×2      daily_reviews     ×3      kill_events      ×2
+… plus ~20 more tables at ×1
+```
+
+It is not one function looping. It is **many domain functions each independently re-reading the same
+tables**: `computeRiskAssessment`, `computeTodayRecoveryMode`, `buildTodayWorkloadItems`,
+`composeMvdPlanForToday` and `computeCapacityHorizon` all fetch their own `calendar_events`, their own
+`deliverables`, their own `courses`. Each is individually correct and independently testable — which
+is exactly why it was never noticed — and together they cost five round trips for one table.
+
+**The real fix is structural, not local:** a per-request read cache, or threading shared reads into the
+domain functions rather than letting each fetch its own. That is a real refactor with real risk to a
+well-tested layer, and it should not be done casually at this stage. **Filed, not attempted.**
+
+Priority judgement: this is invisible locally (131 ms) and only bites against cloud Supabase. It
+should be measured again **after the first cloud deploy**, against real RTT, before deciding how much
+it is worth.
 
 ---
 
