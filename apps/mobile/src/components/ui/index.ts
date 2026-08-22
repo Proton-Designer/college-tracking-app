@@ -30,6 +30,8 @@ export { RiskPill } from "./RiskPill";
 export type { RiskBand, RiskPillProps } from "./RiskPill";
 export { SegmentedControl } from "./SegmentedControl";
 export type { SegmentedControlProps } from "./SegmentedControl";
+export { Select } from "./Select";
+export type { SelectOption, SelectProps } from "./Select";
 export { Skeleton } from "./Skeleton";
 export type { SkeletonProps } from "./Skeleton";
 export { TabScreenScrollView } from "./TabScreenScrollView";
