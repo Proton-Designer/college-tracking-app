@@ -1,7 +1,7 @@
 import type { BrightspaceFeedRow, IcsEventExtractionRow, IntegrationStatus, OAuthProvider } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
 import { useState } from "react";
-import { Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { textStyle } from "../../design/typography";
 import { confirmIcsEventAction, connectBrightspaceFeedAction, disconnectBrightspaceFeedAction, disconnectIntegrationAction } from "../../lib/settingsActions";
 import { Badge, Button, Checkbox, Panel, Input } from "../ui";
@@ -92,10 +92,18 @@ function PendingIcsEventsCard({ events }: { events: IcsEventExtractionRow[] }) {
         <Text style={textStyle("bodyS", color.inkFaint)}>Every staged deadline has been reviewed.</Text>
       ) : (
         <View style={{ gap: space[3] }}>
-          {remaining.map((event) => {
+          {remaining.map((event, i) => {
             const isPending = pendingId === event.id;
             return (
-              <View key={event.id} style={{ gap: space[2], borderRadius: 6, borderWidth: 1, borderColor: color.border, padding: space[3] }}>
+              <View
+                key={event.id}
+                style={{
+                  gap: space[2],
+                  paddingTop: i === 0 ? 0 : space[3],
+                  borderTopWidth: i === 0 ? 0 : StyleSheet.hairlineWidth,
+                  borderTopColor: color.hairline,
+                }}
+              >
                 <Text style={textStyle("bodyS", color.ink)}>{event.summary}</Text>
                 <Text style={textStyle("caption", color.inkFaint)}>
                   {event.is_all_day ? new Date(event.start_at).toISOString().slice(0, 10) : new Date(event.start_at).toLocaleString()}
