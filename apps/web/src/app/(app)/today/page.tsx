@@ -194,12 +194,14 @@ export default async function TodayPage({
     <MitFocusProvider initialItems={mitItems}>
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-8 px-8 py-10">
       <Aurora band={dayBand} />
-      <TodayHeader today={dayView.today} health={dayView.todayHealth} sleepBaselineHours={dayView.profile.sleep_baseline_hours} />
 
       {/* §8 — the one thing this screen exists to tell the user, at displayL+, in the header
           where a lead statement actually leads (not two-thirds down the page inside a card --
           RecoveryBanner's own "Recovery mode active" label is detail now, not the lead).
-          Cross-platform match: mobile's recovery header states "Recovery day" the same way. */}
+          Cross-platform match: mobile's recovery header states "Recovery day" the same way.
+          TodayHeader (the date) renders AFTER this, not before -- two stacked eyebrows above
+          the headline was the bug: the headline gets the top slot, the date supports it
+          underneath, same order as mobile. */}
       {mode === "normal" ? (
         <TodayFocusHeadline />
       ) : mode === "recovery" ? (
@@ -208,6 +210,8 @@ export default async function TodayPage({
           <h1 className="font-sans text-display-l font-semibold tracking-[-0.025em] text-ink">Recovery day</h1>
         </div>
       ) : null}
+
+      <TodayHeader today={dayView.today} health={dayView.todayHealth} sleepBaselineHours={dayView.profile.sleep_baseline_hours} />
 
       <DayTrace
         today={dayView.today}

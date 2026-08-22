@@ -1,4 +1,6 @@
+import { color } from "@collegeos/design";
 import Link from "next/link";
+import { tintWithAlpha } from "@/lib/colorAlpha";
 import { AddAssignmentModal } from "@/components/courses/AddAssignmentModal";
 import { AssignmentsTable } from "@/components/courses/AssignmentsTable";
 import { CourseRiskPanel } from "@/components/courses/CourseRiskPanel";
@@ -83,10 +85,18 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
       </div>
 
       {weightSumIssue ? (
-        <p className="rounded-md border border-risk-high bg-risk-high-wash px-4 py-3 text-body-s text-risk-high">
-          {weightSumIssue.message} — category weights are never silently normalized, so this course&apos;s grade
-          math is provisional until the weights add up to 100.
-        </p>
+        // §2: glass edge, not a hard riskHigh border -- same v1 idiom fixed in RecoveryBanner
+        // (and on mobile first). Alert identity carried by the text color + a low-alpha tint
+        // layered on the neutral glass, not an opaque wash + solid-color border.
+        <div className="glass overflow-hidden rounded-md">
+          <p
+            className="px-4 py-3 text-body-s text-risk-high"
+            style={{ backgroundColor: tintWithAlpha(color.riskHigh, 0.07) }}
+          >
+            {weightSumIssue.message} — category weights are never silently normalized, so this course&apos;s grade
+            math is provisional until the weights add up to 100.
+          </p>
+        </div>
       ) : null}
 
       <GradeCategoriesSection courseId={courseId} categories={categories} />

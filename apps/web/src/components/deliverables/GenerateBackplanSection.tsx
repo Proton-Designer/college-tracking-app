@@ -1,11 +1,13 @@
 "use client";
 
+import { color } from "@collegeos/design";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { BackplanChain } from "@/components/courses/BackplanChain";
 import { Button, Panel } from "@/components/ui";
 import { useToast } from "@/components/ui/ToastProvider";
 import { generateBackplanAction } from "@/app/(app)/deliverables/[id]/actions";
+import { tintWithAlpha } from "@/lib/colorAlpha";
 import type { BackplanChain as BackplanChainData } from "@/lib/loadBackplanChains";
 
 export function GenerateBackplanSection({ deliverableId, chain }: { deliverableId: number; chain: BackplanChainData | undefined }) {
@@ -39,7 +41,11 @@ export function GenerateBackplanSection({ deliverableId, chain }: { deliverableI
         <>
           <BackplanChain chain={chain} />
           {confirmingForce ? (
-            <div className="flex flex-col gap-2 rounded-md border border-risk-high bg-risk-high-wash p-3">
+            // §2: glass-sunken (a nested well inside the panel), not a hard riskHigh border --
+            // same fix as RecoveryBanner and the grade-weight warning. Alert identity in the
+            // text color + a low-alpha tint, not an opaque wash + solid-color border.
+            <div className="glass-sunken flex flex-col gap-2 overflow-hidden rounded-md">
+              <div className="flex flex-col gap-2 p-3" style={{ backgroundColor: tintWithAlpha(color.riskHigh, 0.07) }}>
               <p className="text-body-s text-risk-high">
                 This plan has milestones already marked done. Regenerating replaces the whole plan and discards that progress.
               </p>
@@ -50,6 +56,7 @@ export function GenerateBackplanSection({ deliverableId, chain }: { deliverableI
                 <Button variant="ghost" onClick={() => setConfirmingForce(false)} disabled={isPending}>
                   Cancel
                 </Button>
+              </div>
               </div>
             </div>
           ) : (
