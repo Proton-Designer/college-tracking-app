@@ -188,6 +188,15 @@ Recovery-Mode assertions, apparently because seed data is anchored to **relative
 whenever it was seeded** and those offsets no longer produce the intended scenario as real time
 advances. **Not yet root-caused** — recorded as observed rather than explained.
 
+**Measured by the Lead on a clean tree, 2026-08-22:** `npm run test:integration -w packages/api` →
+**4 failed · 82 passed (86 total), 3 failed files.** Not estimated, not relayed — run.
+
+Note which test catches B4: `focusSessions.itest.ts` → *"a completed session actually appears on the
+Day Trace end-to-end — **not just written, but read back** through `getDayView`."* That assertion
+exists precisely because verifying a write is not the same as verifying a read, and it is the one
+test in the suite positioned to notice that the session vanishes from the window. The discipline
+paid for itself.
+
 **Separately and more importantly:** this means **the integration suite is currently red — 4
 failures counting B4's.** `npm run verify` does not run the itests (they need a live DB), so *"verify
 is green"* has been simultaneously true and not the whole picture, for an unknown length of time.
