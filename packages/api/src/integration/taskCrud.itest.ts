@@ -71,6 +71,34 @@ describe('task update/delete against a dedicated throwaway user', () => {
     }
   });
 
+  it('turning on proof-of-work requires a type, and turning it off clears both the type and any submitted content', async () => {
+    const taskId = await makeTask();
+
+    const missingType = await updateTask(client, userId, taskId, { requiresProofOfWork: true });
+    expect(missingType.ok).toBe(false);
+    if (!missingType.ok) expect(missingType.error.code).toBe('validation');
+
+    const enabled = await updateTask(client, userId, taskId, { requiresProofOfWork: true, proofOfWorkType: 'summary_text' });
+    expect(enabled.ok).toBe(true);
+    if (enabled.ok) {
+      expect(enabled.data.requires_proof_of_work).toBe(true);
+      expect(enabled.data.proof_of_work_type).toBe('summary_text');
+    }
+
+    // Simulate real submitted content, then confirm turning the requirement off wipes it
+    // -- a task can't be left claiming a since-removed requirement was satisfied by
+    // evidence for a requirement that no longer exists.
+    await client.from('tasks').update({ proof_of_work_content: 'Finished section 2, see attached notes.' }).eq('id', taskId);
+
+    const disabled = await updateTask(client, userId, taskId, { requiresProofOfWork: false });
+    expect(disabled.ok).toBe(true);
+    if (disabled.ok) {
+      expect(disabled.data.requires_proof_of_work).toBe(false);
+      expect(disabled.data.proof_of_work_type).toBeNull();
+      expect(disabled.data.proof_of_work_content).toBeNull();
+    }
+  });
+
   it('never touches status/completed_at -- that stays updateTaskStatus\'s job', async () => {
     const taskId = await makeTask({ status: 'completed', completed_at: new Date().toISOString() });
     const updated = await updateTask(client, userId, taskId, { title: 'Edited a completed task' });

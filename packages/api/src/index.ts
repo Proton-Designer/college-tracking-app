@@ -28,7 +28,7 @@ export type { Profile, ProfileUpdate } from "./data/profiles";
 export { createCourse, getCourse, listCourses, updateCourse } from "./data/courses";
 export type { Course, CourseInsert, UpdateCourseInput } from "./data/courses";
 export { createTask, deleteTask, listOverdueTasks, listTasksForDate, updateTask, updateTaskStatus } from "./data/tasks";
-export type { Task, TaskInsert, TaskStatus, UpdateTaskInput } from "./data/tasks";
+export type { Task, TaskInsert, TaskStatus, TaskProofOfWorkType, UpdateTaskInput } from "./data/tasks";
 export { getCheckinForDate, upsertCheckin } from "./data/dailyCheckins";
 export type { DailyCheckin, DailyCheckinInsert } from "./data/dailyCheckins";
 export { getReviewForDate, upsertReview } from "./data/dailyReviews";

@@ -7,6 +7,9 @@ import { mapDataError } from './errors';
 export type Task = Database['public']['Tables']['tasks']['Row'];
 export type TaskInsert = Database['public']['Tables']['tasks']['Insert'];
 export type TaskStatus = Task['status'];
+/** Migration 0005's own check constraint -- not a real Postgres enum, so the generated
+ *  types don't carry this union; declared by hand here to match it exactly. */
+export type TaskProofOfWorkType = 'confirmation_attachment' | 'practice_question_count' | 'git_commit' | 'summary_text' | 'whoop_workout';
 
 export async function listTasksForDate(
   client: TypedSupabaseClient,
@@ -89,6 +92,14 @@ export interface UpdateTaskInput {
    *  (updateTaskStatus, the morning check-in's MIT selection). */
   plannedStartAt?: string | null;
   plannedLocation?: string | null;
+  /** Migration 0005's own constraint: requires_proof_of_work=true requires a non-null
+   *  proofOfWorkType. Checked here too for a real error message rather than a raw
+   *  constraint violation -- same reasoning as gradeStructure.ts's weight-budget check.
+   *  Turning proof-of-work OFF (requiresProofOfWork: false) also clears the type and
+   *  any content already submitted, so a task can't be left claiming a since-removed
+   *  requirement was satisfied by evidence for a requirement that no longer exists. */
+  requiresProofOfWork?: boolean;
+  proofOfWorkType?: TaskProofOfWorkType | null;
 }
 
 export async function updateTask(
@@ -97,6 +108,10 @@ export async function updateTask(
   taskId: number,
   input: UpdateTaskInput,
 ): Promise<DataResult<Task>> {
+  if (input.requiresProofOfWork === true && input.proofOfWorkType == null) {
+    return dataErr({ code: 'validation', message: 'Pick what kind of proof this task requires.' });
+  }
+
   const { data, error } = await client
     .from('tasks')
     .update({
@@ -108,6 +123,9 @@ export async function updateTask(
       ...(input.deliverableId !== undefined ? { deliverable_id: input.deliverableId } : {}),
       ...(input.plannedStartAt !== undefined ? { planned_start_at: input.plannedStartAt } : {}),
       ...(input.plannedLocation !== undefined ? { planned_location: input.plannedLocation } : {}),
+      ...(input.requiresProofOfWork !== undefined ? { requires_proof_of_work: input.requiresProofOfWork } : {}),
+      ...(input.requiresProofOfWork === false ? { proof_of_work_type: null, proof_of_work_content: null } : {}),
+      ...(input.requiresProofOfWork !== false && input.proofOfWorkType !== undefined ? { proof_of_work_type: input.proofOfWorkType } : {}),
     })
     .eq('id', taskId)
     .eq('user_id', userId)
