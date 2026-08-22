@@ -241,3 +241,23 @@ expected and harmless: the runtime injects `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
 model half of `nightly-analysis` will still fail. That is correct and expected — but with the runtime
 up you can now prove it is the *model call* failing rather than the function being unreachable, which
 is a materially different claim to be able to make.
+
+## Tailwind v4 only generates `z-*` utilities from a `--z-index-*` namespace
+
+`@theme { --z-modal: 400 }` compiles to **nothing**. The utility must be declared as
+`--z-index-modal: 400` for Tailwind v4's engine to emit a `z-modal` class. A `z-modal` written
+against the wrong namespace silently resolves to `z-index: auto` — no build error, no lint error,
+no visual difference until something else creates a stacking context.
+
+**Why it stayed invisible for the whole v1 build:** nothing in a flat UI ever created a competing
+stacking context, so `z-index: auto` was accidentally correct everywhere. `backdrop-filter`
+promotes an element to its own stacking context, so the moment the v2 glass panels existed, a
+panel later in DOM order began painting over a fixed modal and swallowing clicks on its footer
+buttons.
+
+**The revamp did not introduce the bug. It removed the condition that was hiding it.** Expect more
+of this shape while converting screens: anything that was silently relying on a flat,
+single-stacking-context page is now live.
+
+Found by ATLAS during the v2 primitive pass, from a symptom ("modal footer buttons don't respond")
+that points at event handling or `pointer-events`, not at a design-token name.
