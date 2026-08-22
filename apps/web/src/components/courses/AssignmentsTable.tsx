@@ -39,7 +39,7 @@ export function AssignmentsTable({
   const categoryById = new Map(categories.map((c) => [c.id, c]));
 
   return (
-    <div className="overflow-x-auto">
+    <div className="max-w-[820px] overflow-x-auto">
       <table className="w-full min-w-[640px] border-collapse">
         <thead>
           <tr className="border-b border-hairline text-left font-mono text-label uppercase tracking-[0.1em] text-ink-muted">
