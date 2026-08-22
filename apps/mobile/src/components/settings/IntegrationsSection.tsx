@@ -1,10 +1,10 @@
-import type { BrightspaceFeedRow, IntegrationStatus, OAuthProvider } from "@collegeos/api";
+import type { BrightspaceFeedRow, IcsEventExtractionRow, IntegrationStatus, OAuthProvider } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
 import { useState } from "react";
 import { Text, View } from "react-native";
 import { textStyle } from "../../design/typography";
-import { connectBrightspaceFeedAction, disconnectBrightspaceFeedAction, disconnectIntegrationAction } from "../../lib/settingsActions";
-import { Badge, Button, Input, Panel } from "../ui";
+import { confirmIcsEventAction, connectBrightspaceFeedAction, disconnectBrightspaceFeedAction, disconnectIntegrationAction } from "../../lib/settingsActions";
+import { Badge, Button, Checkbox, Panel, Input } from "../ui";
 import { useToast } from "../ui/ToastProvider";
 
 const PROVIDER_LABEL: Record<OAuthProvider, string> = {
@@ -29,18 +29,97 @@ export function IntegrationsSection({
   userId,
   integrationStatuses,
   brightspaceFeed,
+  pendingIcsEvents,
 }: {
   userId: string;
   integrationStatuses: IntegrationStatus[];
   brightspaceFeed: Pick<BrightspaceFeedRow, "id" | "last_synced_at"> | null;
+  pendingIcsEvents: IcsEventExtractionRow[];
 }) {
   return (
     <View style={{ gap: space[3] }}>
       <BrightspaceCard userId={userId} feed={brightspaceFeed} />
+      {pendingIcsEvents.length > 0 ? <PendingIcsEventsCard events={pendingIcsEvents} /> : null}
       {integrationStatuses.map((status) => (
         <OAuthProviderCard key={status.provider} userId={userId} status={status} />
       ))}
     </View>
+  );
+}
+
+/** Mirrors apps/web/src/components/settings/IntegrationsSection.tsx's PendingIcsEventsCard
+ *  exactly, including the "Couldn't save that decision: <reason>." error-wrapping fix from
+ *  item 5's web pass -- never a bare SDK error string. */
+function PendingIcsEventsCard({ events }: { events: IcsEventExtractionRow[] }) {
+  const toast = useToast();
+  const [decidedIds, setDecidedIds] = useState<Set<number>>(new Set());
+  const [isClassMeetingById, setIsClassMeetingById] = useState<Record<number, boolean>>({});
+  const [pendingId, setPendingId] = useState<number | null>(null);
+
+  async function decide(event: IcsEventExtractionRow, decision: "confirmed" | "rejected") {
+    setPendingId(event.id);
+    try {
+      const result = await confirmIcsEventAction(
+        event.id,
+        decision,
+        isClassMeetingById[event.id] ?? false,
+        event.course_id ?? undefined,
+      );
+      if (!result.ok) {
+        toast.show(`Couldn't save that decision: ${result.error ?? "unknown error"}.`, "error");
+        return;
+      }
+      setDecidedIds((prev) => new Set(prev).add(event.id));
+      toast.show(decision === "confirmed" ? "Added to your calendar." : "Rejected.", "success");
+    } catch (err) {
+      toast.show(`Couldn't save that decision: ${err instanceof Error ? err.message : "unknown error"}.`, "error");
+    } finally {
+      setPendingId(null);
+    }
+  }
+
+  const remaining = events.filter((e) => !decidedIds.has(e.id));
+
+  return (
+    <Panel style={{ gap: space[3] }}>
+      <Text style={textStyle("body", color.ink)}>
+        Pending Brightspace deadlines{remaining.length > 0 ? ` (${remaining.length})` : ""}
+      </Text>
+      <Text style={textStyle("caption", color.inkFaint)}>
+        Staged from your synced feed. Nothing here is on your real calendar until you confirm it.
+      </Text>
+      {remaining.length === 0 ? (
+        <Text style={textStyle("bodyS", color.inkFaint)}>Every staged deadline has been reviewed.</Text>
+      ) : (
+        <View style={{ gap: space[3] }}>
+          {remaining.map((event) => {
+            const isPending = pendingId === event.id;
+            return (
+              <View key={event.id} style={{ gap: space[2], borderRadius: 6, borderWidth: 1, borderColor: color.border, padding: space[3] }}>
+                <Text style={textStyle("bodyS", color.ink)}>{event.summary}</Text>
+                <Text style={textStyle("caption", color.inkFaint)}>
+                  {event.is_all_day ? new Date(event.start_at).toISOString().slice(0, 10) : new Date(event.start_at).toLocaleString()}
+                  {event.location ? ` · ${event.location}` : ""}
+                </Text>
+                <Checkbox
+                  label="This is a class meeting (counts toward attendance)"
+                  checked={isClassMeetingById[event.id] ?? false}
+                  onValueChange={(checked) => setIsClassMeetingById((prev) => ({ ...prev, [event.id]: checked }))}
+                />
+                <View style={{ flexDirection: "row", gap: space[3] }}>
+                  <Button variant="secondary" onPress={() => decide(event, "confirmed")} loading={isPending} disabled={isPending}>
+                    Confirm
+                  </Button>
+                  <Button variant="ghost" onPress={() => decide(event, "rejected")} disabled={isPending}>
+                    Reject
+                  </Button>
+                </View>
+              </View>
+            );
+          })}
+        </View>
+      )}
+    </Panel>
   );
 }
 

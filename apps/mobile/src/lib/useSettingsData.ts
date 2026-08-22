@@ -4,7 +4,9 @@ import {
   getOwnProfile,
   listIntegrationStatuses,
   listKillHabits,
+  listPendingIcsEvents,
   type BrightspaceFeedRow,
+  type IcsEventExtractionRow,
   type IntegrationStatus,
   type KillHabitRow,
   type LlmMonthlySpend,
@@ -20,6 +22,7 @@ export interface SettingsData {
   killHabits: KillHabitRow[];
   integrationStatuses: IntegrationStatus[];
   brightspaceFeed: Pick<BrightspaceFeedRow, "id" | "last_synced_at"> | null;
+  pendingIcsEvents: IcsEventExtractionRow[];
   monthlySpend: LlmMonthlySpend;
   hasEverCalledModel: boolean;
 }
@@ -45,29 +48,42 @@ export function useSettingsData() {
       listKillHabits(client, userId, false),
       listIntegrationStatuses(client, userId),
       getBrightspaceFeedStatus(client),
+      listPendingIcsEvents(client),
       getMonthlySpend(client, userId, new Date()),
       client.from("agent_reports").select("id").eq("user_id", userId).neq("model", "deterministic").limit(1).maybeSingle(),
-    ]).then(([profileResult, killHabitsResult, integrationStatusesResult, brightspaceFeedResult, monthlySpendResult, modelUsageRow]) => {
-      if (cancelled) return;
-      if (!profileResult.ok) return setFetchState({ status: "error", error: profileResult.error.message });
-      if (!killHabitsResult.ok) return setFetchState({ status: "error", error: killHabitsResult.error.message });
-      if (!integrationStatusesResult.ok) return setFetchState({ status: "error", error: integrationStatusesResult.error.message });
-      if (!brightspaceFeedResult.ok) return setFetchState({ status: "error", error: brightspaceFeedResult.error.message });
-      if (!monthlySpendResult.ok) return setFetchState({ status: "error", error: monthlySpendResult.error.message });
+    ]).then(
+      ([
+        profileResult,
+        killHabitsResult,
+        integrationStatusesResult,
+        brightspaceFeedResult,
+        pendingIcsEventsResult,
+        monthlySpendResult,
+        modelUsageRow,
+      ]) => {
+        if (cancelled) return;
+        if (!profileResult.ok) return setFetchState({ status: "error", error: profileResult.error.message });
+        if (!killHabitsResult.ok) return setFetchState({ status: "error", error: killHabitsResult.error.message });
+        if (!integrationStatusesResult.ok) return setFetchState({ status: "error", error: integrationStatusesResult.error.message });
+        if (!brightspaceFeedResult.ok) return setFetchState({ status: "error", error: brightspaceFeedResult.error.message });
+        if (!pendingIcsEventsResult.ok) return setFetchState({ status: "error", error: pendingIcsEventsResult.error.message });
+        if (!monthlySpendResult.ok) return setFetchState({ status: "error", error: monthlySpendResult.error.message });
 
-      setFetchState({
-        status: "ready",
-        data: {
-          userId,
-          profile: profileResult.data,
-          killHabits: killHabitsResult.data,
-          integrationStatuses: integrationStatusesResult.data,
-          brightspaceFeed: brightspaceFeedResult.data,
-          monthlySpend: monthlySpendResult.data,
-          hasEverCalledModel: modelUsageRow.data != null,
-        },
-      });
-    });
+        setFetchState({
+          status: "ready",
+          data: {
+            userId,
+            profile: profileResult.data,
+            killHabits: killHabitsResult.data,
+            integrationStatuses: integrationStatusesResult.data,
+            brightspaceFeed: brightspaceFeedResult.data,
+            pendingIcsEvents: pendingIcsEventsResult.data,
+            monthlySpend: monthlySpendResult.data,
+            hasEverCalledModel: modelUsageRow.data != null,
+          },
+        });
+      },
+    );
 
     return () => {
       cancelled = true;

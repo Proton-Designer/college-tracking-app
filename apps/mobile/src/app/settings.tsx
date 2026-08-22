@@ -56,6 +56,7 @@ export default function SettingsScreen() {
               userId={result.data.userId}
               integrationStatuses={result.data.integrationStatuses}
               brightspaceFeed={result.data.brightspaceFeed}
+              pendingIcsEvents={result.data.pendingIcsEvents}
             />
           </Section>
 

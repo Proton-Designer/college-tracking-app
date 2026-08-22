@@ -1,4 +1,5 @@
 import {
+  confirmIcsEvent,
   connectBrightspaceFeed,
   createKillHabit,
   deactivateKillHabit,
@@ -84,6 +85,23 @@ export async function connectBrightspaceFeedAction(userId: string, icsUrl: strin
 export async function disconnectBrightspaceFeedAction(userId: string): Promise<ActionResult> {
   const client = getMobileSupabaseClient();
   const result = await disconnectBrightspaceFeed(client, userId);
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true };
+}
+
+export async function confirmIcsEventAction(
+  extractionId: number,
+  decision: "confirmed" | "rejected",
+  isClassMeeting?: boolean,
+  courseId?: number,
+): Promise<ActionResult> {
+  const client = getMobileSupabaseClient();
+  const result = await confirmIcsEvent(client, {
+    extractionId,
+    decision,
+    ...(isClassMeeting != null ? { isClassMeeting } : {}),
+    ...(courseId != null ? { courseId } : {}),
+  });
   if (!result.ok) return { ok: false, error: result.error.message };
   return { ok: true };
 }
