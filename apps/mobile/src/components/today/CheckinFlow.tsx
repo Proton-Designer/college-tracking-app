@@ -3,7 +3,7 @@ import { localTimeToInstant } from "@collegeos/core";
 import { color, radius, space } from "@collegeos/design/native";
 import { useMemo, useState, useTransition, type ReactNode } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
-import { Button, ChipGroup, Panel, SegmentedControl } from "../ui";
+import { Button, ChipGroup, GlassSurface, Panel, SegmentedControl } from "../ui";
 import { textStyle } from "../../design/typography";
 import { submitCheckin } from "../../lib/todayActions";
 
@@ -270,24 +270,28 @@ export function CheckinFlow({
 
                     {box.revealed ? (
                       <View style={styles.timeboxRow}>
-                        <TextInput
-                          value={box.time}
-                          onChangeText={(text) => updateTimebox(taskId, { time: text })}
-                          placeholder="HH:MM"
-                          placeholderTextColor={color.inkFaint}
-                          keyboardType="numbers-and-punctuation"
-                          maxLength={5}
-                          accessibilityLabel={`When for ${task?.title ?? "this task"}`}
-                          style={[styles.timeInput, textStyle("caption", color.ink)]}
-                        />
-                        <TextInput
-                          value={box.location}
-                          onChangeText={(text) => updateTimebox(taskId, { location: text })}
-                          placeholder="Where? (optional)"
-                          placeholderTextColor={color.inkFaint}
-                          accessibilityLabel={`Where for ${task?.title ?? "this task"}`}
-                          style={[styles.locationInput, textStyle("bodyS", color.ink)]}
-                        />
+                        <GlassSurface tier="sunken" style={styles.timeInputClip}>
+                          <TextInput
+                            value={box.time}
+                            onChangeText={(text) => updateTimebox(taskId, { time: text })}
+                            placeholder="HH:MM"
+                            placeholderTextColor={color.inkFaint}
+                            keyboardType="numbers-and-punctuation"
+                            maxLength={5}
+                            accessibilityLabel={`When for ${task?.title ?? "this task"}`}
+                            style={[styles.timeInput, textStyle("caption", color.ink)]}
+                          />
+                        </GlassSurface>
+                        <GlassSurface tier="sunken" style={styles.locationInputClip}>
+                          <TextInput
+                            value={box.location}
+                            onChangeText={(text) => updateTimebox(taskId, { location: text })}
+                            placeholder="Where? (optional)"
+                            placeholderTextColor={color.inkFaint}
+                            accessibilityLabel={`Where for ${task?.title ?? "this task"}`}
+                            style={[styles.locationInput, textStyle("bodyS", color.ink)]}
+                          />
+                        </GlassSurface>
                         {box.time === "" && box.location === "" ? (
                           <TextLink onPress={() => updateTimebox(taskId, { revealed: false })}>
                             <Text style={textStyle("caption", color.inkFaint)}>Cancel</Text>
@@ -442,11 +446,9 @@ const styles = StyleSheet.create({
   },
   mitCard: {
     gap: space[2],
-    borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: color.border,
-    paddingHorizontal: space[4],
-    paddingVertical: space[3],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: color.hairline,
+    paddingTop: space[3],
   },
   mitRow: {
     flexDirection: "row",
@@ -459,23 +461,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: space[2],
   },
-  timeInput: {
+  timeInputClip: {
     width: 64,
     height: 32,
     borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: color.border,
-    backgroundColor: color.surface,
-    paddingHorizontal: space[2],
   },
-  locationInput: {
+  timeInput: {
+    height: 32,
+    paddingHorizontal: space[2],
+    backgroundColor: "transparent",
+  },
+  locationInputClip: {
     flex: 1,
     height: 32,
     borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: color.border,
-    backgroundColor: color.surface,
+  },
+  locationInput: {
+    height: 32,
     paddingHorizontal: space[2],
+    backgroundColor: "transparent",
   },
   addTimeButton: {
     alignSelf: "flex-start",

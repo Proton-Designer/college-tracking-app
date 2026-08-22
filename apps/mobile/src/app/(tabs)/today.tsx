@@ -40,6 +40,20 @@ function buildMitItems(dayView: DayView, courses: Record<number, Course>): MitIt
   });
 }
 
+/** §8's ratified headline rule: the top *outstanding* MIT's title, "All N done" once nothing
+ *  is, or nothing at all when the list itself is empty (the caller decides the fallback for
+ *  that case). Always resolved from the exact array MitList renders, post-filtering -- the
+ *  headline and the list it summarizes must never read from different data. */
+function computeHeadline(items: MitItem[]): { headline: string | null; progressLine: string | null } {
+  if (items.length === 0) return { headline: null, progressLine: null };
+  const doneCount = items.filter((i) => i.completed).length;
+  const outstanding = items.find((i) => !i.completed);
+  if (!outstanding) {
+    return { headline: `All ${items.length} done`, progressLine: null };
+  }
+  return { headline: outstanding.title, progressLine: `${doneCount} of ${items.length} priorities done` };
+}
+
 function buildFocusBlock(dayView: DayView, courses: Record<number, Course>): FocusBlock | null {
   const top = dayView.suggestedMits[0];
   if (!top) return null;
@@ -232,14 +246,31 @@ function TodayReady({
 }) {
   const { dayView, courses, mode, killHabits, activeFocusSession, interventions } = data;
   const hasAnyData = dayView.todayTasks.length > 0 || dayView.todayCalendarEvents.length > 0 || dayView.upcomingDeliverables.length > 0;
-  const mitItems = buildMitItems(dayView, courses);
+  // MitList owns optimistic completion state for its own checkboxes (instant feedback, no
+  // round-trip wait); this mirrors that same optimistic value up so the headline -- computed
+  // from this exact array -- never lags a checkbox the user just ticked. Rolled back by
+  // MitList's own onToggle(taskId, previous) call if the server request fails.
+  const [completionOverrides, setCompletionOverrides] = useState<Record<number, boolean>>({});
+  function handleMitToggle(taskId: number, completed: boolean) {
+    setCompletionOverrides((prev) => ({ ...prev, [taskId]: completed }));
+  }
+  function withOverrides(items: MitItem[]): MitItem[] {
+    return items.map((item) =>
+      item.taskId in completionOverrides ? { ...item, completed: completionOverrides[item.taskId] as boolean } : item,
+    );
+  }
+  const mitItems = withOverrides(buildMitItems(dayView, courses));
   const focusBlock = buildFocusBlock(dayView, courses);
-  const recoveryMitItems = buildRecoveryMitItems(dayView, courses);
+  const recoveryMitItems = withOverrides(buildRecoveryMitItems(dayView, courses));
   const recoveryFocusBlock = buildRecoveryFocusBlock(dayView, courses);
-  // §8's headline -- the day's #1 MIT, already computed above, never invented here. Recovery
-  // mode without a kept MIT still falls back to a real state (the mode itself), not the date --
-  // "today is scaled down" outranks a timestamp on a day that's already been recomputed as one.
-  const focusTitle = mode === "recovery" ? (recoveryMitItems[0]?.title ?? "Recovery day") : (mitItems[0]?.title ?? null);
+  // §8's ratified headline -- top outstanding MIT, "All N done", or a mode fallback, resolved
+  // from the exact same array MitList renders below (mitItems vs recoveryMitItems by mode), so
+  // the headline and the list can never contradict each other. Recovery mode without a kept MIT
+  // still falls back to a real state (the mode itself), not the date -- "today is scaled down"
+  // outranks a timestamp on a day that's already been recomputed as one.
+  const activeMitItems = mode === "recovery" ? recoveryMitItems : mitItems;
+  const { headline: mitHeadline, progressLine } = computeHeadline(activeMitItems);
+  const headline = mitHeadline ?? (mode === "recovery" ? "Recovery day" : null);
 
   if (mode === "onboarding") {
     return (
@@ -248,7 +279,8 @@ function TodayReady({
           today={dayView.today}
           health={dayView.todayHealth}
           sleepBaselineHours={dayView.profile.sleep_baseline_hours}
-          focusTitle={null}
+          headline={null}
+          progressLine={null}
         />
         <OnboardingGate onCreated={onInterventionChanged} />
       </View>
@@ -263,7 +295,7 @@ function TodayReady({
         </Text>
       ) : null}
       <Section title="Top 3" action={<QuickAddTaskModal userId={userId} today={dayView.today} courses={courses} onAdded={onInterventionChanged} />}>
-        <MitList items={mitItems} />
+        <MitList items={mitItems} onToggle={handleMitToggle} />
       </Section>
       <Section title="Workload">
         <WorkloadBand workload={dayView.workload} />
@@ -287,7 +319,8 @@ function TodayReady({
         today={dayView.today}
         health={dayView.todayHealth}
         sleepBaselineHours={dayView.profile.sleep_baseline_hours}
-        focusTitle={focusTitle}
+        headline={headline}
+        progressLine={progressLine}
       />
 
       <DayTrace
@@ -314,7 +347,7 @@ function TodayReady({
           />
           {recoveryMitItems.length > 0 ? (
             <Section title="Today's minimum">
-              <MitList items={recoveryMitItems} />
+              <MitList items={recoveryMitItems} onToggle={handleMitToggle} />
             </Section>
           ) : null}
           <FocusLauncher userId={dayView.profile.id} block={recoveryFocusBlock} activeSession={activeFocusSession} />

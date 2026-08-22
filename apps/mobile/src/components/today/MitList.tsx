@@ -26,7 +26,17 @@ const CONFIDENCE_BORDER: Record<Confidence, ConfidenceLineStyle> = {
   insufficient: "dotted",
 };
 
-export function MitList({ items }: { items: MitItem[] }) {
+export function MitList({
+  items,
+  onToggle,
+}: {
+  items: MitItem[];
+  /** Mirrors this list's own optimistic completion state up to the caller -- the header's
+   *  headline/progress-line are computed from the same array this list renders, and would
+   *  silently disagree with a checkbox the user just ticked if they didn't share it. Called
+   *  again with the rolled-back value if the server call fails, same as this list's own undo. */
+  onToggle?: (taskId: number, completed: boolean) => void;
+}) {
   const [completedIds, setCompletedIds] = useState<Set<number>>(
     () => new Set(items.filter((i) => i.completed).map((i) => i.taskId)),
   );
@@ -45,6 +55,7 @@ export function MitList({ items }: { items: MitItem[] }) {
       next.delete(taskId);
       return next;
     });
+    onToggle?.(taskId, checked);
 
     startTransition(async () => {
       const result = await toggleTaskCompletion(taskId, checked ? "completed" : "pending");
@@ -56,6 +67,7 @@ export function MitList({ items }: { items: MitItem[] }) {
           return next;
         });
         setFailedIds((prev) => new Set(prev).add(taskId));
+        onToggle?.(taskId, !checked);
       }
     });
   }
