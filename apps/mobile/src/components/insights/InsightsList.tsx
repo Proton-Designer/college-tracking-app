@@ -5,7 +5,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { runExperiment } from "../../lib/insightsActions";
 import type { InsightsByTier } from "../../lib/useInsightsData";
 import { textStyle } from "../../design/typography";
-import { Button, ConfidenceRule, type ConfidenceLineStyle, Input, Select, Textarea } from "../ui";
+import { Button, ConfidenceRule, type ConfidenceLineStyle, Input, Panel, Select, Textarea } from "../ui";
 
 const TIER_LINE: Record<keyof InsightsByTier, ConfidenceLineStyle> = {
   high: "solid",
@@ -138,7 +138,7 @@ function RunExperimentForm({
   }
 
   return (
-    <View style={styles.form}>
+    <Panel style={styles.form}>
       <Textarea label="Hypothesis" value={hypothesis} onChangeText={setHypothesis} rows={2} />
       <Textarea label="What will you measure, and how" value={protocol} onChangeText={setProtocol} rows={2} placeholder="e.g. log minutes distracted each day" />
       {/* U9: without a measurable, a baseline and a predicted direction, getExperimentOutcome
@@ -172,7 +172,7 @@ function RunExperimentForm({
           Cancel
         </Button>
       </View>
-    </View>
+    </Panel>
   );
 }
 
@@ -195,11 +195,6 @@ const styles = StyleSheet.create({
   },
   form: {
     gap: space[3],
-    borderRadius: 6,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: color.hairline,
-    backgroundColor: color.surface,
-    padding: space[4],
   },
   formRow: {
     flexDirection: "row",

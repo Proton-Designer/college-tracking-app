@@ -1,6 +1,7 @@
 import { LENS_NAMES } from "@collegeos/api";
 import type { AgentReport, DeterministicNightlyReport, Intervention, LensName, NightlyAgentReportPayload } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
+import { deriveDayBand } from "@collegeos/core";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,7 +9,7 @@ import { FrictionDistributionSection } from "../../components/insights/FrictionD
 import { PlanningExecutionQuadrant } from "../../components/insights/PlanningExecutionQuadrant";
 import { claimsWithEvidence, EvidenceClaimList } from "../../components/review/EvidenceClaimList";
 import { ReportHistoryList } from "../../components/review/ReportHistoryList";
-import { Button, Metric, NavLink, RiskPill, Skeleton } from "../../components/ui";
+import { Aurora, Button, Metric, NavLink, RiskPill, Skeleton } from "../../components/ui";
 import { serifBodyStyle, textStyle } from "../../design/typography";
 import { useReviewReportData } from "../../lib/useReviewReportData";
 
@@ -51,10 +52,12 @@ function ReviewReportInvalidDate() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   return (
-    <ScrollView style={styles.flex} contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}>
-      <NavLink label="Review" direction="back" onPress={() => router.back()} />
-      <Text style={textStyle("body", color.inkMuted)}>Not a valid date.</Text>
-    </ScrollView>
+    <View style={styles.screen}>
+      <ScrollView style={styles.flex} contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}>
+        <NavLink label="Review" direction="back" onPress={() => router.back()} />
+        <Text style={textStyle("body", color.inkMuted)}>Not a valid date.</Text>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -62,31 +65,44 @@ function ReviewReportForDate({ date }: { date: string }) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const result = useReviewReportData(date);
+  // The band this screen shows is the one recorded FOR THIS DATE, never today's -- a
+  // report is an archival record of a moment, and painting today's atmosphere behind a
+  // three-week-old report would be the visual equivalent of rewriting the record.
+  // riskAssessment.deliverableRisks is already part of the persisted report payload this
+  // screen fetches (see DeterministicSections' "Course risk" section below), so this
+  // costs no new query -- it's the same payload, read a second way.
+  const dayBand =
+    result.status === "ready" && result.data.payload
+      ? deriveDayBand(result.data.payload.deterministic.riskAssessment.deliverableRisks)
+      : null;
 
   return (
-    <ScrollView style={styles.flex} contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}>
-      <NavLink label="Review" direction="back" onPress={() => router.back()} />
+    <View style={styles.screen}>
+      <Aurora band={dayBand} />
+      <ScrollView style={styles.flex} contentContainerStyle={[styles.content, { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] }]}>
+        <NavLink label="Review" direction="back" onPress={() => router.back()} />
 
-      {result.status === "loading" ? (
-        <View style={{ gap: space[4] }}>
-          <Skeleton height={40} width={220} />
-          <Skeleton height={80} radius="lg" />
-          <Skeleton height={160} radius="lg" />
-        </View>
-      ) : null}
+        {result.status === "loading" ? (
+          <View style={{ gap: space[4] }}>
+            <Skeleton height={40} width={220} />
+            <Skeleton height={80} radius="lg" />
+            <Skeleton height={160} radius="lg" />
+          </View>
+        ) : null}
 
-      {result.status === "error" ? (
-        <View style={styles.errorBox}>
-          <Text style={textStyle("label", color.riskCritical)}>Couldn&apos;t load this report</Text>
-          <Text style={textStyle("body", color.inkMuted)}>{result.error}</Text>
-          <Button variant="secondary" onPress={result.refetch}>
-            Try again
-          </Button>
-        </View>
-      ) : null}
+        {result.status === "error" ? (
+          <View style={styles.errorBox}>
+            <Text style={textStyle("label", color.riskCritical)}>Couldn&apos;t load this report</Text>
+            <Text style={textStyle("body", color.inkMuted)}>{result.error}</Text>
+            <Button variant="secondary" onPress={result.refetch}>
+              Try again
+            </Button>
+          </View>
+        ) : null}
 
-      {result.status === "ready" ? <ReportBody date={date} payload={result.data.payload} history={result.data.history} /> : null}
-    </ScrollView>
+        {result.status === "ready" ? <ReportBody date={date} payload={result.data.payload} history={result.data.history} /> : null}
+      </ScrollView>
+    </View>
   );
 }
 
@@ -342,9 +358,13 @@ function DeterministicSections({ report }: { report: DeterministicNightlyReport 
 }
 
 const styles = StyleSheet.create({
-  flex: {
+  screen: {
     flex: 1,
     backgroundColor: color.ground,
+  },
+  flex: {
+    flex: 1,
+    backgroundColor: "transparent",
   },
   content: {
     paddingHorizontal: space[5],
