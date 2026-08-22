@@ -1,3 +1,4 @@
+import { deriveDayBand } from "@collegeos/core";
 import { color, space } from "@collegeos/design/native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
@@ -6,7 +7,7 @@ import { CapacityStrip } from "../../components/calendar/CapacityStrip";
 import { ThisWeekView } from "../../components/calendar/ThisWeekView";
 import { AddCourseModal } from "../../components/courses/AddCourseModal";
 import { BackplanChain } from "../../components/courses/BackplanChain";
-import { Button, EmptyState, RiskPill, Skeleton, TabScreenScrollView } from "../../components/ui";
+import { Aurora, Button, EmptyState, RiskPill, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { textStyle } from "../../design/typography";
 import { type CalendarObligation, useCalendarData } from "../../lib/useCalendarData";
 import { type CoursesIndexRow, useCoursesIndexData } from "../../lib/useCoursesIndexData";
@@ -46,24 +47,30 @@ export default function CoursesScreen() {
   const thisWeek = useThisWeekData();
 
   const showHeaderAddCourse = view === "courses" && courses.status === "ready" && courses.data.rows.length > 0;
+  // §6.1 -- /courses' band is deriveDayBand over every course's deliverables (distinct from
+  // /courses/[id], which uses that one course's own CourseRiskSummary.result.band).
+  const dayBand = courses.status === "ready" ? deriveDayBand(courses.data.deliverableRisks) : null;
 
   return (
-    <TabScreenScrollView>
-      <View style={styles.headerRow}>
-        <Text style={textStyle("displayM", color.ink)}>{VIEW_TITLE[view]}</Text>
-        {showHeaderAddCourse ? <AddCourseModal onCreated={courses.refetch} /> : null}
-      </View>
+    <View style={styles.screen}>
+      <Aurora band={dayBand} />
+      <TabScreenScrollView transparent>
+        <View style={styles.headerRow}>
+          <Text style={textStyle("displayM", color.ink)}>{VIEW_TITLE[view]}</Text>
+          {showHeaderAddCourse ? <AddCourseModal onCreated={courses.refetch} /> : null}
+        </View>
 
-      <View accessibilityRole="tablist" style={styles.segmentRow}>
-        <SegmentTab label="Courses" active={view === "courses"} onPress={() => setView("courses")} />
-        <SegmentTab label="This week" active={view === "week"} onPress={() => setView("week")} />
-        <SegmentTab label="Horizon" active={view === "horizon"} onPress={() => setView("horizon")} />
-      </View>
+        <View accessibilityRole="tablist" style={styles.segmentRow}>
+          <SegmentTab label="Courses" active={view === "courses"} onPress={() => setView("courses")} />
+          <SegmentTab label="This week" active={view === "week"} onPress={() => setView("week")} />
+          <SegmentTab label="Horizon" active={view === "horizon"} onPress={() => setView("horizon")} />
+        </View>
 
-      {view === "courses" ? <CoursesView state={courses} /> : null}
-      {view === "week" ? <ThisWeekSection userId={session?.user.id} state={thisWeek} /> : null}
-      {view === "horizon" ? <CalendarView state={calendar} /> : null}
-    </TabScreenScrollView>
+        {view === "courses" ? <CoursesView state={courses} /> : null}
+        {view === "week" ? <ThisWeekSection userId={session?.user.id} state={thisWeek} /> : null}
+        {view === "horizon" ? <CalendarView state={calendar} /> : null}
+      </TabScreenScrollView>
+    </View>
   );
 }
 
@@ -273,6 +280,10 @@ function ObligationRow({
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: color.ground,
+  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",

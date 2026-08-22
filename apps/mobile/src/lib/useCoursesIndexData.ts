@@ -7,7 +7,7 @@ import {
   type Course,
   type CourseRiskSummary,
 } from "@collegeos/api";
-import type { CourseGradeResult } from "@collegeos/core";
+import type { CourseGradeResult, DeliverableRisk } from "@collegeos/core";
 import { useCallback, useEffect, useState } from "react";
 import { getMobileSupabaseClient } from "./supabase/client";
 import { useAuthSession } from "./useAuthSession";
@@ -22,7 +22,7 @@ export interface CoursesIndexRow {
 export type CoursesFetchState =
   | { status: "loading" }
   | { status: "error"; error: string }
-  | { status: "ready"; data: { rows: CoursesIndexRow[]; today: string } };
+  | { status: "ready"; data: { rows: CoursesIndexRow[]; today: string; deliverableRisks: DeliverableRisk[] } };
 
 /** Mirrors apps/web/src/app/(app)/courses/data.ts's loadCoursesIndex exactly — same
  *  sources, same "earliest open deliverable per course" next-deadline pick, same
@@ -89,7 +89,7 @@ export function useCoursesIndexData() {
             }));
             rows.sort((a, b) => (b.courseRisk?.result.score ?? 0) - (a.courseRisk?.result.score ?? 0));
 
-            setFetchState({ status: "ready", data: { rows, today } });
+            setFetchState({ status: "ready", data: { rows, today, deliverableRisks: risk.deliverableRisks } });
           });
         });
       });
