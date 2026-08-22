@@ -21,7 +21,7 @@ export function PageHeader({ title, context, actions, className, titleTestId }: 
   return (
     <div className={cn("flex flex-wrap items-baseline justify-between gap-x-6 gap-y-2", className)}>
       <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
-        <h1 data-testid={titleTestId} className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">
+        <h1 data-testid={titleTestId} className="font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">
           {title}
         </h1>
         {context ? <p className="font-mono text-body-s tabular-nums text-ink-muted">{context}</p> : null}

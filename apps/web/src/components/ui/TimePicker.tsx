@@ -41,7 +41,7 @@ export function TimePicker({ label, value, onValueChange, disabled, error, requi
           aria-required={required || undefined}
           onChange={(e) => onValueChange(e.target.value === "" ? null : e.target.value)}
           className={cn(
-            "h-10 flex-1 rounded-md border bg-surface-sunken px-3",
+            "glass-sunken h-10 flex-1 rounded-md border px-3",
             "font-mono text-body-s tabular-nums text-ink",
             "outline-none transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)]",
             error ? "border-risk-critical" : "border-border",

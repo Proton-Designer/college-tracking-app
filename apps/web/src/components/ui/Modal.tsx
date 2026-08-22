@@ -17,8 +17,8 @@ export interface ModalProps {
 
 /** A centered dialog, not a sheet -- mobile's Modal slides up from the bottom edge (the
  *  design system defines a dedicated "sheet" spring for exactly that motion); desktop has no
- *  edge to slide from, so this fades in centered with the one documented "overlay" shadow
- *  this system allows on a genuinely floating element. */
+ *  edge to slide from, so this fades in centered as raised glass (DESIGN_LANGUAGE_V2 §2's
+ *  `glassRaised` tier -- modals/sheets/popovers), with `radius.xl` matching the island. */
 export function Modal({ open, onClose, title, children, footer, dismissable = true, className }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -57,8 +57,8 @@ export function Modal({ open, onClose, title, children, footer, dismissable = tr
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          "modal-fade-in relative flex max-h-[85vh] w-full max-w-[480px] flex-col gap-4",
-          "overflow-y-auto rounded-lg bg-surface p-6 shadow-overlay",
+          "modal-fade-in glass-raised relative flex max-h-[85vh] w-full max-w-[480px] flex-col gap-4",
+          "overflow-y-auto rounded-xl p-6",
           "outline-none focus-visible:[outline:2px_solid_var(--color-accent)] focus-visible:outline-offset-2",
           className,
         )}

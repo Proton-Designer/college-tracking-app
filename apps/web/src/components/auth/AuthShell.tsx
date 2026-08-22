@@ -15,10 +15,10 @@ export function AuthShell({
   return (
     <main className="flex min-h-full flex-1 items-center justify-center px-5 py-16">
       <div className="w-full max-w-sm">
-        <Link href="/" className="font-serif text-title font-semibold text-ink">
+        <Link href="/" className="font-sans text-title font-semibold text-ink">
           CollegeOS
         </Link>
-        <h1 className="mt-8 font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">
+        <h1 className="mt-8 font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">
           {title}
         </h1>
         {subtitle ? <p className="mt-2 text-body text-ink-muted">{subtitle}</p> : null}

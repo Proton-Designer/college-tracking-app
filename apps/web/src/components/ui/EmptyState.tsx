@@ -16,7 +16,7 @@ export interface EmptyStateProps {
 /** States what the screen is for and gives one action. Never an illustration, never a mood. */
 export function EmptyState({ title, description, actionLabel, onAction, action }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-start gap-3 rounded-lg border border-dashed border-hairline p-8">
+    <div className="glass-sunken flex flex-col items-start gap-3 rounded-lg border border-dashed border-border/60 p-8">
       <h3 className="font-sans text-title font-semibold text-ink">{title}</h3>
       <p className="text-body text-ink-muted">{description}</p>
       {action ? (

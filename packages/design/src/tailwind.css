@@ -120,14 +120,18 @@
   --container-report: 720px;
 
   /* Z-index. `island` sits above sticky content but below modals — a modal must be able to
-     cover the dock. */
-  --z-dropdown: 100;
-  --z-sticky: 200;
-  --z-island: 250;
-  --z-overlay: 300;
-  --z-modal: 400;
-  --z-toast: 500;
-  --z-tooltip: 600;
+     cover the dock. Namespace is `--z-index-*`, not `--z-*` -- Tailwind v4's engine only
+     auto-generates a named `z-*` utility from that exact prefix. `--z-*` alone compiles to
+     nothing: found when a fixed modal's `z-modal` silently resolved to `z-index: auto` and a
+     glass panel later in DOM order (itself promoted to a stacking context by backdrop-filter)
+     painted over it, swallowing clicks on the modal's own footer buttons. */
+  --z-index-dropdown: 100;
+  --z-index-sticky: 200;
+  --z-index-island: 250;
+  --z-index-overlay: 300;
+  --z-index-modal: 400;
+  --z-index-toast: 500;
+  --z-index-tooltip: 600;
 }
 
 @layer base {

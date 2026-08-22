@@ -59,7 +59,7 @@ export default async function ReviewReportPage({ params }: { params: Promise<{ d
       <div className="min-w-0 flex-1">
         {!payload ? (
           <div className="max-w-report flex flex-col gap-3">
-            <h1 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">{formatFullDate(date)}</h1>
+            <h1 className="font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">{formatFullDate(date)}</h1>
             <p className="text-body text-ink-muted">No report was generated for this date.</p>
           </div>
         ) : (
@@ -85,9 +85,9 @@ function ReportBody({ payload }: { payload: NightlyAgentReportPayload }) {
 
   return (
     <article className="flex max-w-report flex-col gap-8">
-      <h1 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">{headline}</h1>
+      <h1 className="font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">{headline}</h1>
 
-      <p className="text-body-l font-serif text-ink">{objectiveSummary}</p>
+      <p className="text-body-l font-sans text-ink">{objectiveSummary}</p>
       {!analysis && note ? <p className="font-mono text-caption text-ink-faint">{note}</p> : null}
 
       {analysis && claimsWithEvidence(analysis.wins).length > 0 ? (
@@ -136,7 +136,7 @@ function ReportBody({ payload }: { payload: NightlyAgentReportPayload }) {
             {activeLenses.map((lens) => (
               <li key={lens.name} className="flex flex-col gap-1">
                 <span className="font-mono text-label uppercase tracking-[0.1em] text-ink-faint">{LENS_LABEL[lens.name]}</span>
-                <p className="text-body-l font-serif text-ink">{lens.text}</p>
+                <p className="text-body-l font-sans text-ink">{lens.text}</p>
               </li>
             ))}
           </ul>

@@ -21,7 +21,7 @@ export default async function SettingsPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-8 px-8 py-10">
-      <h1 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">Settings</h1>
+      <h1 className="font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">Settings</h1>
 
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Profile &amp; timezone</h2>

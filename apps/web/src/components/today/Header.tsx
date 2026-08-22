@@ -42,7 +42,7 @@ export function TodayHeader({
 
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-      <h1 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">{dateLabel}</h1>
+      <h1 className="font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">{dateLabel}</h1>
       {readoutParts.length > 0 ? (
         <p className="font-mono text-body-s tabular-nums text-ink-muted">{readoutParts.join(" · ")}</p>
       ) : null}

@@ -14,7 +14,7 @@ export default function LandingPage() {
         <AuthCodeRedirect />
       </Suspense>
       <header className="mx-auto flex w-full max-w-app items-center justify-between px-6 pt-8 sm:px-10">
-        <span className="font-serif text-title font-semibold text-ink">CollegeOS</span>
+        <span className="font-sans text-title font-semibold text-ink">CollegeOS</span>
         <Link href="/login" className="text-body-s text-ink-muted underline-offset-2 hover:text-ink hover:underline">
           Sign in
         </Link>
@@ -26,7 +26,7 @@ export default function LandingPage() {
         </p>
         <h1
           data-testid="app-heading"
-          className="max-w-3xl font-serif text-display-xl font-semibold tracking-[-0.02em] text-ink"
+          className="max-w-3xl font-sans text-display-xl font-semibold tracking-[-0.02em] text-ink"
         >
           The day you planned. The day you had.
         </h1>
@@ -57,7 +57,7 @@ export default function LandingPage() {
           <div className="flex flex-wrap items-center gap-x-2 gap-y-3">
             {LOOP.map((step, i) => (
               <div key={step} className="flex items-center gap-2">
-                <span className="font-serif text-title font-semibold text-ink">{step}</span>
+                <span className="font-sans text-title font-semibold text-ink">{step}</span>
                 {i < LOOP.length - 1 ? <span className="text-ink-faint">→</span> : null}
               </div>
             ))}
@@ -97,7 +97,7 @@ export default function LandingPage() {
           <p className="mb-5 font-mono text-label uppercase tracking-[0.1em] text-ink-faint">
             The report speaks — nightly analysis, skeptic
           </p>
-          <p className="font-serif text-display-m leading-[1.35] tracking-[-0.01em] text-ink">
+          <p className="font-sans text-display-m leading-[1.35] tracking-[-0.01em] text-ink">
             You&apos;ll probably call today a wash — the study block started late, and the gym
             never happened. But you sat through both classes on schedule, and once you actually
             opened the material, you stayed with it for the full session. The record doesn&apos;t
@@ -108,7 +108,7 @@ export default function LandingPage() {
 
       <section className="border-t border-hairline">
         <div className="mx-auto flex w-full max-w-app flex-col items-start gap-4 px-6 py-16 sm:px-10">
-          <h2 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">
+          <h2 className="font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">
             Start the semester with a system that keeps score honestly.
           </h2>
           <Link href="/signup" className={buttonClassName("primary")}>

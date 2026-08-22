@@ -36,7 +36,7 @@ export function Toggle({ checked, onChange, label, disabled = false }: TogglePro
           aria-hidden
           className={cn(
             "pointer-events-none absolute inset-0 rounded-pill border transition-colors duration-150",
-            checked ? "border-accent bg-accent" : "border-border bg-surface-sunken",
+            checked ? "border-accent bg-accent" : "glass-sunken border-border",
             "peer-focus-visible:[outline:2px_solid_var(--color-accent)] peer-focus-visible:outline-offset-2",
             disabled && (checked ? "border-ink-faint bg-ink-faint" : "border-hairline bg-surface-sunken"),
           )}

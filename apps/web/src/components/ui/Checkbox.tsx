@@ -39,7 +39,7 @@ export function Checkbox({ checked, onChange, label, disabled = false, error }: 
             className={cn(
               "pointer-events-none h-5 w-5 rounded-sm border transition-colors duration-90",
               "flex items-center justify-center",
-              checked ? "border-accent bg-accent" : "border-border bg-surface-sunken",
+              checked ? "border-accent bg-accent" : "glass-sunken border-border",
               !disabled && !checked && "peer-hover:border-ink-muted",
               "peer-focus-visible:[outline:2px_solid_var(--color-accent)] peer-focus-visible:outline-offset-2",
               disabled && (checked ? "border-ink-faint bg-ink-faint" : "border-hairline bg-surface-sunken"),

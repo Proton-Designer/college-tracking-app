@@ -1,26 +1,19 @@
-import { IBM_Plex_Mono, IBM_Plex_Sans, IBM_Plex_Serif } from "next/font/google";
+import { Geist_Mono, Instrument_Sans } from "next/font/google";
 
-// Self-hosted via next/font — no layout shift, no request to Google at runtime. Weights are
-// pinned to exactly what docs/DESIGN_SYSTEM.md §3's type scale uses; add a weight here only if a
-// new type step needs one.
+// Self-hosted via next/font — no layout shift, no request to Google at runtime.
+// v2 ("Aurora", docs/DESIGN_LANGUAGE_V2.md §3) replaces Instrument's IBM Plex trio entirely:
+// Instrument Sans carries display + UI, Geist Mono carries data + eyebrows. There is no serif face.
 
-export const plexSerif = IBM_Plex_Serif({
+export const instrumentSans = Instrument_Sans({
   subsets: ["latin"],
-  weight: ["600"],
-  variable: "--font-plex-serif",
+  weight: ["400", "500", "600"],
+  variable: "--font-instrument-sans",
   display: "swap",
 });
 
-export const plexSans = IBM_Plex_Sans({
-  subsets: ["latin"],
-  weight: ["400", "600"],
-  variable: "--font-plex-sans",
-  display: "swap",
-});
-
-export const plexMono = IBM_Plex_Mono({
+export const geistMono = Geist_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
-  variable: "--font-plex-mono",
+  variable: "--font-geist-mono",
   display: "swap",
 });

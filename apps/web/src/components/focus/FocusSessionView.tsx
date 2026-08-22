@@ -70,7 +70,7 @@ export function FocusSessionView({ session, task, course }: { session: TaskSessi
   if (mode === "completing") {
     return (
       <main className="mx-auto flex w-full max-w-report flex-1 flex-col justify-center gap-6 px-8 py-12">
-        <h1 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">How did that go?</h1>
+        <h1 className="font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">How did that go?</h1>
         <Panel className="flex flex-col gap-5">
           <Textarea label="Actual output" value={output} onChange={(e) => setOutput(e.target.value)} rows={2} />
           <SegmentedControl label="Focus" value={focusRating} onChange={setFocusRating} min={1} max={5} />
@@ -89,7 +89,7 @@ export function FocusSessionView({ session, task, course }: { session: TaskSessi
         <p className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">
           {course ? `${course.code} focus` : "Focus"}
         </p>
-        <h1 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">{task.title}</h1>
+        <h1 className="font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">{task.title}</h1>
         {session.location ? <p className="text-body-s text-ink-faint">{session.location}</p> : null}
       </div>
 

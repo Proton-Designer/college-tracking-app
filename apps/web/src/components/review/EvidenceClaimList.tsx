@@ -17,7 +17,7 @@ export function EvidenceClaimList({ claims }: { claims: EvidenceClaim[] }) {
     <ul className="flex flex-col gap-4">
       {withEvidence.map((claim, i) => (
         <li key={i} className="flex flex-col gap-1.5">
-          <p className="text-body-l font-serif text-ink">{claim.claim}</p>
+          <p className="text-body-l font-sans text-ink">{claim.claim}</p>
           <ul className="flex flex-col gap-0.5 pl-3">
             {claim.evidence.map((e, j) => (
               <li key={j} className="font-mono text-caption text-ink-faint before:mr-2 before:content-['·']">

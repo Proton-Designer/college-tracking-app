@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { ToastProvider } from "@/components/ui/ToastProvider";
-import { plexMono, plexSans, plexSerif } from "./fonts";
+import { geistMono, instrumentSans } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,11 +10,8 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="en"
-      className={`h-full ${plexSerif.variable} ${plexSans.variable} ${plexMono.variable}`}
-    >
-      <body className="min-h-full flex flex-col font-sans text-body text-ink">
+    <html lang="en" className={`h-full ${instrumentSans.variable} ${geistMono.variable}`}>
+      <body className="min-h-full flex flex-col font-sans text-body text-ink bg-ground">
         <ToastProvider>{children}</ToastProvider>
       </body>
     </html>

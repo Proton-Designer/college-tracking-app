@@ -10,7 +10,7 @@ export function HeaderReadout({ dateLabel, sleepHours, whoopRecoveryPct }: Heade
 
   return (
     <div className="flex flex-wrap items-baseline justify-between gap-2">
-      <h1 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">{dateLabel}</h1>
+      <h1 className="font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">{dateLabel}</h1>
       {hasHealth ? (
         <p className="font-mono text-body-s tabular-nums text-ink-muted">
           {sleepHours != null ? `Sleep ${Math.floor(sleepHours)}h ${Math.round((sleepHours % 1) * 60)}m` : null}

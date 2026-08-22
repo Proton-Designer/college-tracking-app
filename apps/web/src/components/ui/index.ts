@@ -1,3 +1,5 @@
+export { Aurora } from "./Aurora";
+export type { AuroraProps } from "./Aurora";
 export { Badge } from "./Badge";
 export type { BadgeProps, BadgeTone } from "./Badge";
 export { Button } from "./Button";

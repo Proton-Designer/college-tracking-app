@@ -38,7 +38,7 @@ export function Textarea({
         aria-invalid={Boolean(error) || undefined}
         aria-required={required || undefined}
         className={cn(
-          "rounded-md border bg-surface-sunken px-3 py-2",
+          "glass-sunken rounded-md border px-3 py-2",
           "font-sans text-body text-ink placeholder:text-ink-faint",
           "outline-none transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)]",
           "resize-none",

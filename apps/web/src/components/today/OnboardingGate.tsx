@@ -11,7 +11,7 @@ export function OnboardingGate() {
   return (
     <Panel className="flex flex-col items-start gap-4 py-10">
       <div className="flex flex-col gap-1.5">
-        <h2 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">Start with a course</h2>
+        <h2 className="font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">Start with a course</h2>
         <p className="max-w-[52ch] text-body text-ink-muted">
           Today plans around your actual courses and what&apos;s due — add your first course to get a real
           semester in here. It takes under a minute: code, name, and term.

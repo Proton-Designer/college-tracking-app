@@ -9,9 +9,9 @@ export interface ToastProps {
 }
 
 const VARIANT_CLASSES: Record<ToastVariant, string> = {
-  default: "border-hairline",
-  success: "border-risk-low",
-  error: "border-risk-critical",
+  default: "",
+  success: "border-l-2 border-l-risk-low",
+  error: "border-l-2 border-l-risk-critical",
 };
 
 export function Toast({ variant = "default", message, onDismiss }: ToastProps) {
@@ -19,7 +19,7 @@ export function Toast({ variant = "default", message, onDismiss }: ToastProps) {
     <div
       role="status"
       className={cn(
-        "flex items-center gap-3 rounded-md border bg-surface px-4 py-3 shadow-popover",
+        "glass-raised flex items-center gap-3 rounded-md px-4 py-3",
         VARIANT_CLASSES[variant],
       )}
     >

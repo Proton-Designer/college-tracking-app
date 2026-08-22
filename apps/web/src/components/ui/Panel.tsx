@@ -4,8 +4,8 @@ import { cn } from "./cn";
 export type PanelTone = "surface" | "sunken";
 
 const TONE_CLASS: Record<PanelTone, string> = {
-  surface: "bg-surface",
-  sunken: "bg-surface-sunken",
+  surface: "glass",
+  sunken: "glass-sunken",
 };
 
 export interface PanelProps extends HTMLAttributes<HTMLDivElement> {
@@ -14,14 +14,12 @@ export interface PanelProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
 }
 
-/** A readout panel sitting on the ground. No shadow — ever. Hairline + surface (or the
- *  `sunken` tone, for a readout nested a level deeper than its parent) do the work. */
+/** A readout panel floating on the ground. Glass, not a flat hairline box — `shadowGlass`
+ *  is what makes it float (v1's "no shadow" rule is reversed in Aurora, DESIGN_LANGUAGE_V2 §4).
+ *  `sunken` tone is for a readout nested a level deeper than its parent (a well). */
 export function Panel({ title, tone = "surface", className, children, ...rest }: PanelProps) {
   return (
-    <div
-      className={cn("rounded-lg border border-hairline p-5", TONE_CLASS[tone], className)}
-      {...rest}
-    >
+    <div className={cn("rounded-lg p-5", TONE_CLASS[tone], className)} {...rest}>
       {title ? (
         <h3 className="mb-3 font-sans text-title font-semibold tracking-[-0.01em] text-ink">
           {title}
@@ -45,10 +43,10 @@ export function PanelButton({ title, tone = "surface", className, children, ...r
     <button
       type="button"
       className={cn(
-        "w-full rounded-lg border border-hairline p-5 text-left",
-        "transition-colors duration-150 ease-[cubic-bezier(0.2,0,0,1)]",
+        "w-full rounded-lg p-5 text-left",
+        "transition-[filter] duration-150 ease-[cubic-bezier(0.2,0,0,1)]",
         TONE_CLASS[tone],
-        "hover:bg-surface-sunken active:bg-surface-sunken",
+        "hover:brightness-[1.03] active:brightness-[0.98]",
         "outline-none focus-visible:[outline:2px_solid_var(--color-accent)] focus-visible:outline-offset-2",
         "disabled:pointer-events-none disabled:opacity-40",
         className,
