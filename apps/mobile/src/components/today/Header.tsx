@@ -15,14 +15,22 @@ function formatDelta(hours: number, baselineHours: number): string {
   return `${arrow}${Math.abs(diff).toFixed(1)}h vs baseline`;
 }
 
+/** §8 -- the date was never the point of Today, and burying the real answer ("what do I do
+ *  today") under it read as if a timestamp were the headline. `focusTitle` (the day's #1 MIT,
+ *  a real computed value from the caller -- this component invents nothing) leads at
+ *  `displayL` when one exists; the date demotes to supporting context alongside health. A day
+ *  with nothing to focus on yet (onboarding, a brand-new account) falls back to the date as
+ *  the headline -- still real, just not competing with a MIT that doesn't exist. */
 export function TodayHeader({
   today,
   health,
   sleepBaselineHours,
+  focusTitle,
 }: {
   today: string;
   health: TodayHealth | null;
   sleepBaselineHours: number | null;
+  focusTitle: string | null;
 }) {
   const dateLabel = new Intl.DateTimeFormat("en-US", {
     weekday: "long",
@@ -43,11 +51,14 @@ export function TodayHeader({
     readoutParts.push(`Recovery ${Math.round(health.whoopRecoveryPct)}`);
   }
 
+  const contextParts = focusTitle ? [dateLabel, ...readoutParts] : readoutParts;
+
   return (
     <View style={styles.container}>
-      <Text style={textStyle("displayM", color.ink)}>{dateLabel}</Text>
-      {readoutParts.length > 0 ? (
-        <Text style={textStyle("bodyS", color.inkMuted)}>{readoutParts.join(" · ")}</Text>
+      {focusTitle ? <Text style={textStyle("label", color.inkMuted)}>TODAY&apos;S FOCUS</Text> : null}
+      <Text style={textStyle("displayL", color.ink)}>{focusTitle ?? dateLabel}</Text>
+      {contextParts.length > 0 ? (
+        <Text style={textStyle("bodyS", color.inkMuted)}>{contextParts.join(" · ")}</Text>
       ) : null}
     </View>
   );

@@ -1,10 +1,12 @@
 import type { Course, DayView, InterventionRow, KillHabitRow, TaskSessionRow } from "@collegeos/api";
 import { signOut } from "@collegeos/api";
+import { deriveDayBand } from "@collegeos/core";
 import { color, space } from "@collegeos/design/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { LogOut, Settings as SettingsIcon } from "lucide-react-native";
 import { useState, type ReactNode } from "react";
-import { RefreshControl, StyleSheet, Text, View } from "react-native";
-import { Button, Skeleton, TabScreenScrollView } from "../../components/ui";
+import { ActivityIndicator, Pressable, RefreshControl, StyleSheet, Text, View } from "react-native";
+import { Aurora, Button, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { CheckinFlow } from "../../components/today/CheckinFlow";
 import { DayTrace } from "../../components/today/DayTrace";
 import { InterventionsSection } from "../../components/today/InterventionsSection";
@@ -117,50 +119,92 @@ export default function TodayScreen() {
     router.replace("/login");
   }
 
+  // §6.1 -- /today's band is deriveDayBand over the live dayView's deliverable risks. Only
+  // ready once real data exists; loading/error/onboarding get no band, same as a brand-new
+  // account with zero deliverables -- null is honest in all of those, never a guess.
+  const dayBand = result.status === "ready" ? deriveDayBand(result.data.dayView.risk.deliverableRisks) : null;
+
   return (
-    <TabScreenScrollView
-      refreshControl={result.status === "ready" ? <RefreshControl refreshing={false} onRefresh={result.refetch} /> : undefined}
-    >
-      <View style={styles.topBar}>
-        <Text style={textStyle("title", color.ink)}>CollegeOS</Text>
-        <View style={styles.topBarRight}>
-          <Text testID="today-user-email" style={textStyle("bodyS", color.inkMuted)}>
+    <View style={styles.screen}>
+      <Aurora band={dayBand} />
+      <TabScreenScrollView
+        transparent
+        refreshControl={result.status === "ready" ? <RefreshControl refreshing={false} onRefresh={result.refetch} /> : undefined}
+      >
+        {/* §8 -- account identity/actions are not what Today is for; demoted to a slim,
+            icon-first row instead of the wordmark + full-width buttons + raw email cluster
+            that used to sit above the content the screen exists to show. */}
+        <View style={styles.topBar}>
+          <Text testID="today-user-email" style={textStyle("caption", color.inkFaint)}>
             {session?.user.email}
           </Text>
           <View style={styles.topBarActions}>
-            <Button testID="settings-link" variant="secondary" onPress={() => router.push("/settings")}>
-              Settings
-            </Button>
-            <Button testID="sign-out" variant="ghost" loading={signingOut} onPress={handleSignOut}>
-              Sign out
-            </Button>
+            <HeaderIconButton testID="settings-link" icon={SettingsIcon} label="Settings" onPress={() => router.push("/settings")} />
+            <HeaderIconButton testID="sign-out" icon={LogOut} label="Sign out" loading={signingOut} onPress={handleSignOut} />
           </View>
         </View>
-      </View>
 
-      {result.status === "loading" ? <TodayLoading /> : null}
+        {result.status === "loading" ? <TodayLoading /> : null}
 
-      {result.status === "error" ? (
-        <View style={styles.errorBox}>
-          <Text style={textStyle("label", color.riskCritical)}>Couldn&apos;t load Today</Text>
-          <Text style={textStyle("body", color.inkMuted)}>{result.error}</Text>
-          <Button variant="secondary" onPress={result.refetch}>
-            Try again
-          </Button>
-        </View>
-      ) : null}
+        {result.status === "error" ? (
+          <View style={styles.errorBox}>
+            <Text style={textStyle("label", color.riskCritical)}>Couldn&apos;t load Today</Text>
+            <Text style={textStyle("body", color.inkMuted)}>{result.error}</Text>
+            <Button variant="secondary" onPress={result.refetch}>
+              Try again
+            </Button>
+          </View>
+        ) : null}
 
-      {result.status === "ready" && session?.user.id ? (
-        <TodayReady
-          data={result.data}
-          dismissedCheckin={dismissedCheckin}
-          onCheckinDone={() => { setDismissedCheckin(true); result.refetch(); }}
-          onCheckinSkip={() => setDismissedCheckin(true)}
-          userId={session.user.id}
-          onInterventionChanged={result.refetch}
-        />
-      ) : null}
-    </TabScreenScrollView>
+        {result.status === "ready" && session?.user.id ? (
+          <TodayReady
+            data={result.data}
+            dismissedCheckin={dismissedCheckin}
+            onCheckinDone={() => { setDismissedCheckin(true); result.refetch(); }}
+            onCheckinSkip={() => setDismissedCheckin(true)}
+            userId={session.user.id}
+            onInterventionChanged={result.refetch}
+          />
+        ) : null}
+      </TabScreenScrollView>
+    </View>
+  );
+}
+
+/** A small, quiet icon-only control for the demoted account-chrome row -- ghost-styled,
+ *  44x44 minimum tap target regardless of the visual icon size, same convention as the
+ *  island's inactive items. */
+function HeaderIconButton({
+  icon: Icon,
+  label,
+  onPress,
+  loading = false,
+  testID,
+}: {
+  icon: typeof SettingsIcon;
+  label: string;
+  onPress: () => void;
+  loading?: boolean;
+  testID?: string;
+}) {
+  const [focused, setFocused] = useState(false);
+  return (
+    <Pressable
+      testID={testID}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      disabled={loading}
+      onPress={onPress}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={({ pressed }) => [
+        styles.headerIconButton,
+        { opacity: pressed ? 0.6 : 1 },
+        focused ? styles.headerIconButtonFocusRing : null,
+      ]}
+    >
+      {loading ? <ActivityIndicator size="small" color={color.inkMuted} /> : <Icon size={18} color={color.inkMuted} strokeWidth={2} />}
+    </Pressable>
   );
 }
 
@@ -192,11 +236,20 @@ function TodayReady({
   const focusBlock = buildFocusBlock(dayView, courses);
   const recoveryMitItems = buildRecoveryMitItems(dayView, courses);
   const recoveryFocusBlock = buildRecoveryFocusBlock(dayView, courses);
+  // §8's headline -- the day's #1 MIT, already computed above, never invented here. Recovery
+  // mode without a kept MIT still falls back to a real state (the mode itself), not the date --
+  // "today is scaled down" outranks a timestamp on a day that's already been recomputed as one.
+  const focusTitle = mode === "recovery" ? (recoveryMitItems[0]?.title ?? "Recovery day") : (mitItems[0]?.title ?? null);
 
   if (mode === "onboarding") {
     return (
       <View style={styles.sectionGap}>
-        <TodayHeader today={dayView.today} health={dayView.todayHealth} sleepBaselineHours={dayView.profile.sleep_baseline_hours} />
+        <TodayHeader
+          today={dayView.today}
+          health={dayView.todayHealth}
+          sleepBaselineHours={dayView.profile.sleep_baseline_hours}
+          focusTitle={null}
+        />
         <OnboardingGate onCreated={onInterventionChanged} />
       </View>
     );
@@ -230,7 +283,12 @@ function TodayReady({
 
   return (
     <View style={styles.sectionGap}>
-      <TodayHeader today={dayView.today} health={dayView.todayHealth} sleepBaselineHours={dayView.profile.sleep_baseline_hours} />
+      <TodayHeader
+        today={dayView.today}
+        health={dayView.todayHealth}
+        sleepBaselineHours={dayView.profile.sleep_baseline_hours}
+        focusTitle={focusTitle}
+      />
 
       <DayTrace
         today={dayView.today}
@@ -317,19 +375,32 @@ function TodayLoading() {
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    flex: 1,
+    backgroundColor: color.ground,
+  },
   topBar: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
-  topBarRight: {
-    alignItems: "flex-end",
-    gap: space[2],
-  },
   topBarActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space[2],
+    gap: space[1],
+  },
+  headerIconButton: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 999,
+  },
+  headerIconButtonFocusRing: {
+    outlineWidth: 2,
+    outlineColor: color.accent,
+    outlineOffset: 2,
+    outlineStyle: "solid",
   },
   errorBox: {
     gap: space[3],

@@ -5,6 +5,7 @@
   "private": true,
   "dependencies": {
     "@collegeos/api": "*",
+    "@collegeos/core": "*",
     "@collegeos/design": "*",
     "@expo-google-fonts/geist-mono": "^0.4.3",
     "@expo-google-fonts/instrument-sans": "^0.4.2",

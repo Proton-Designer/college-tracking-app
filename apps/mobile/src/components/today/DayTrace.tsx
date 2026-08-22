@@ -1,8 +1,9 @@
 import type { CalendarEvent, Task, TaskSession } from "@collegeos/api";
-import { color, space } from "@collegeos/design/native";
+import { color, radius, space } from "@collegeos/design/native";
 import { useState } from "react";
 import { StyleSheet, Text, View, type LayoutChangeEvent } from "react-native";
 import { textStyle } from "../../design/typography";
+import { GlassSurface } from "../ui/GlassSurface";
 
 // RN's `borderStyle: 'dashed'` frequently renders as solid on iOS once `borderRadius > 0` —
 // a long-standing platform bug, not a styling mistake. Since the confidence line-style
@@ -233,6 +234,15 @@ export function DayTrace({
         </View>
 
         <View style={[styles.timeline, { height: TIMELINE_H }]} onLayout={handleTimelineLayout}>
+          {/* §6's Day Ribbon: two parallel glass lanes, rendered even when empty so an
+              unplanned day shows an honestly-empty lane rather than nothing at all. Plan is a
+              ghost lane -- an outline, no fill, per "unfilled" in the spec's own words. Actual
+              is the solid lane -- a real glass-sunken well the accent-filled blocks sit inside. */}
+          <View style={[styles.planLane, { top: PLANNED_TOP, height: ROW_H }]} />
+          <GlassSurface tier="sunken" style={[styles.actLane, { top: ACTUAL_TOP, height: ROW_H }]}>
+            {null}
+          </GlassSurface>
+
           {deviations.map((d, i) => (
             <View
               key={`dev-${i}`}
@@ -359,6 +369,20 @@ const styles = StyleSheet.create({
   timeline: {
     flex: 1,
     position: "relative",
+  },
+  planLane: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    borderRadius: radius.sm,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: color.inkFaint,
+  },
+  actLane: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    borderRadius: radius.sm,
   },
   deviation: {
     position: "absolute",
