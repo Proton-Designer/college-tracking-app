@@ -18,8 +18,11 @@ export function AuthShell({
     <main className="flex min-h-full flex-1 items-center justify-center px-5 py-16">
       {/* §6.0 -- no signed-in user yet on any of these five screens, so there's never a band to
           derive; the resting wash (Aurora's default with no band/stops) is what keeps them from
-          reading as a flatter, plainer app than the rest of the product. */}
-      <Aurora />
+          reading as a flatter, plainer app than the rest of the product.
+          `reach` is wider here than anywhere else in the product on purpose -- see Aurora's
+          prop doc. This is the one screen with nothing else on it to protect, and the one the
+          reference itself renders as full-bleed iridescence behind a single floating card. */}
+      <Aurora reach={1.8} />
       <div className="w-full max-w-sm">
         <Link href="/" className="font-sans text-title font-semibold text-ink">
           CollegeOS

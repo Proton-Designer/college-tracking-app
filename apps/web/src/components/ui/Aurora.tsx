@@ -28,6 +28,18 @@ export interface AuroraProps {
    *  "contained" fills its nearest positioned ancestor instead -- for a showcase/preview box
    *  that needs to demonstrate the field without covering the page. */
   variant?: "fixed" | "contained";
+  /**
+   * Multiplies the ellipse size, default 1. The base size is tuned for a screen with other
+   * content to protect -- a dashboard whose panels the field must never swallow. That reach
+   * limit isn't binding on a screen with nothing else on it. The ONLY sanctioned use is
+   * AuthShell: the one surface in the product built like the reference's own sign-in panel
+   * (full-bleed iridescence behind a single floating card), and the one screen where a
+   * stranger's first impression is riding on the match. Never reach for this to compensate
+   * for a screen that's merely sparse -- calendar/insights/settings stay at the base reach
+   * on purpose, per the "upper third" ceiling the Lead signed off on for screens with real
+   * panels to protect.
+   */
+  reach?: number;
 }
 
 function subscribe(query: string) {
@@ -58,7 +70,7 @@ function usePrefersReduced(query: string): boolean {
  * Renders once per navigation -- it never animates, pulses, or breathes. `prefers-reduced-motion`
  * and `prefers-reduced-transparency` both collapse it to flat ground, no exceptions.
  */
-export function Aurora({ band = null, stops: fixedStops, variant = "fixed" }: AuroraProps) {
+export function Aurora({ band = null, stops: fixedStops, variant = "fixed", reach = 1 }: AuroraProps) {
   const reducedMotion = usePrefersReduced("(prefers-reduced-motion: reduce)");
   const reducedTransparency = usePrefersReduced("(prefers-reduced-transparency: reduce)");
 
@@ -68,6 +80,8 @@ export function Aurora({ band = null, stops: fixedStops, variant = "fixed" }: Au
   const stops = derivedStops ?? RESTING_STOPS;
   const opacity = derivedStops ? AURORA_OPACITY : RESTING_OPACITY;
   const [a, b] = stops;
+  const width = 65 * reach;
+  const height = 45 * reach;
 
   return (
     <div
@@ -85,9 +99,10 @@ export function Aurora({ band = null, stops: fixedStops, variant = "fixed" }: Au
         // breaks glass too -- a panel only reads as glass when there's something behind it to
         // refract. Landed between: both top corners bloom symmetrically (not one pooling more
         // than the other), colour stays visible across the upper third, falls off by ~62%. Same
-        // shape for the resting wash, just dialed down to RESTING_OPACITY.
-        background: `radial-gradient(ellipse 65% 45% at 10% -10%, ${a} 0%, transparent 62%),
-          radial-gradient(ellipse 65% 45% at 90% -10%, ${b} 0%, transparent 62%)`,
+        // shape for the resting wash, just dialed down to RESTING_OPACITY. `reach` scales this
+        // base size uniformly -- see the prop doc for why only AuthShell is allowed to use it.
+        background: `radial-gradient(ellipse ${width}% ${height}% at 10% -10%, ${a} 0%, transparent 62%),
+          radial-gradient(ellipse ${width}% ${height}% at 90% -10%, ${b} 0%, transparent 62%)`,
         opacity,
       }}
     />
