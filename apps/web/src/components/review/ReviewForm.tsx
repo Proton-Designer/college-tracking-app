@@ -2,8 +2,9 @@
 
 import type { DailyPredictionRow, NightReviewDraft, Task } from "@collegeos/api";
 import { useState, useTransition } from "react";
-import { Button, Panel, Textarea } from "@/components/ui";
+import { Button, Panel } from "@/components/ui";
 import { submitReview } from "@/app/(app)/review/actions";
+import { DictatedTextarea } from "./DictatedTextarea";
 import { FrictionPicker } from "./FrictionPicker";
 import { ReviewDraft } from "./ReviewDraft";
 
@@ -68,23 +69,12 @@ export function ReviewForm({
       ) : null}
 
       <Panel className="flex flex-col gap-5">
-        <Textarea
-          label="What went well"
-          value={proudText}
-          onChange={(e) => setProudText(e.target.value)}
-          rows={3}
-        />
-        <Textarea
-          label="What went wrong"
-          value={wentWrongText}
-          onChange={(e) => setWentWrongText(e.target.value)}
-          rows={3}
-        />
-        <Textarea
+        <DictatedTextarea label="What went well" value={proudText} onValueChange={setProudText} />
+        <DictatedTextarea label="What went wrong" value={wentWrongText} onValueChange={setWentWrongText} />
+        <DictatedTextarea
           label="Anything important"
           value={importantNoteText}
-          onChange={(e) => setImportantNoteText(e.target.value)}
-          rows={3}
+          onValueChange={setImportantNoteText}
         />
         {error ? <p className="text-body-s text-risk-critical">{error}</p> : null}
         <div>
