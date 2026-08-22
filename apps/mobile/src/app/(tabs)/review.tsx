@@ -66,7 +66,7 @@ function ReviewSaved({ review, prediction }: { review: DailyReview; prediction: 
         MITs {review.mits_completed}/{review.mits_planned} ·{" "}
         {review.deep_work_actual_min != null ? `${review.deep_work_actual_min} min deep work` : "no session data"}
       </Text>
-      {prediction && prediction.actual_completion_pct != null ? (
+      {prediction && prediction.predicted_completion_pct != null && prediction.actual_completion_pct != null ? (
         <Text style={textStyle("caption", color.inkFaint)}>
           Predicted {Math.round(prediction.predicted_completion_pct)}% · actual {Math.round(prediction.actual_completion_pct)}%
         </Text>

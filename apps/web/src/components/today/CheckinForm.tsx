@@ -16,6 +16,8 @@ const DERAILMENT_OPTIONS = [
   { value: "other", label: "Other" },
 ];
 
+const COMPLETION_OPTIONS = [0, 20, 40, 60, 80, 100].map((pct) => ({ value: String(pct), label: `${pct}%` }));
+
 function formatSleep(hours: number): string {
   const h = Math.floor(hours);
   const m = Math.round((hours - h) * 60);
@@ -73,7 +75,10 @@ export function CheckinForm({
   const [selectedIds, setSelectedIds] = useState<number[]>(() => suggestedMits.map((m) => m.taskId).slice(0, 3));
   const [energy, setEnergy] = useState<number | null>(null);
   const [mood, setMood] = useState<number | null>(null);
-  const [predictedCompletionPct, setPredictedCompletionPct] = useState(80);
+  // No default: a completion prediction is a claim about work, and a pre-set value that
+  // submits unchanged is indistinguishable from a real answer. null (never answered) is
+  // only allowed to reach submit when there are no MITs to predict against at all.
+  const [predictedCompletionPct, setPredictedCompletionPct] = useState<number | null>(null);
   const [derailment, setDerailment] = useState<string | null>(null);
   const [swapTarget, setSwapTarget] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -102,6 +107,10 @@ export function CheckinForm({
   function handleSubmit() {
     if (energy == null || mood == null) {
       setError("Energy and mood are required.");
+      return;
+    }
+    if (selectedIds.length > 0 && predictedCompletionPct == null) {
+      setError("Pick how much of today you'll actually finish.");
       return;
     }
     setError(null);
@@ -258,23 +267,14 @@ export function CheckinForm({
         ) : null}
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <Label>How much of today will you actually finish?</Label>
-        <div className="flex items-center gap-3">
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={5}
-            value={predictedCompletionPct}
-            onChange={(e) => setPredictedCompletionPct(Number(e.target.value))}
-            className="h-2 w-full accent-[var(--color-accent)]"
-          />
-          <span className="w-12 shrink-0 text-right font-mono text-body-s tabular-nums text-ink">
-            {predictedCompletionPct}%
-          </span>
-        </div>
-      </div>
+      {selectedIds.length > 0 ? (
+        <ChipGroup
+          label="How much of today will you actually finish?"
+          options={COMPLETION_OPTIONS}
+          value={predictedCompletionPct != null ? String(predictedCompletionPct) : null}
+          onChange={(v) => setPredictedCompletionPct(Number(v))}
+        />
+      ) : null}
 
       <ChipGroup label="Most likely to derail you" options={DERAILMENT_OPTIONS} value={derailment} onChange={setDerailment} />
 

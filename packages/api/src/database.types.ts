@@ -518,7 +518,7 @@ export type Database = {
           id: number
           likely_failure_mode: string | null
           local_date: string
-          predicted_completion_pct: number
+          predicted_completion_pct: number | null
           scored_at: string | null
           user_id: string
         }
@@ -530,7 +530,7 @@ export type Database = {
           id?: never
           likely_failure_mode?: string | null
           local_date: string
-          predicted_completion_pct: number
+          predicted_completion_pct?: number | null
           scored_at?: string | null
           user_id: string
         }
@@ -542,7 +542,7 @@ export type Database = {
           id?: never
           likely_failure_mode?: string | null
           local_date?: string
-          predicted_completion_pct?: number
+          predicted_completion_pct?: number | null
           scored_at?: string | null
           user_id?: string
         }

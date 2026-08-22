@@ -1,7 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { getNightReviewDraft, submitNightReview } from '../day/submitReview';
-import { getPredictionForDate } from '../day/predictions';
+import { getPredictionForDate, scorePredictionForDate } from '../day/predictions';
 import { submitMorningCheckin } from '../day/submitCheckin';
 import { createConfirmedUser, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
@@ -101,13 +101,29 @@ describe('night review draft: a read that exists independently of the write', ()
     expect(beforeCheckin.ok).toBe(true);
     if (beforeCheckin.ok) expect(beforeCheckin.data).toBeNull();
 
+    // A real MIT is required for a real prediction to be stored -- see the sibling test
+    // below for the zero-MIT case, which is deliberately different (no prediction at all).
+    const { data: task, error } = await client
+      .from('tasks')
+      .insert({
+        user_id: userId,
+        title: 'night-draft-prediction-test-task',
+        category: 'testing',
+        estimated_minutes: 30,
+        planned_date: predictedDate,
+        status: 'pending',
+      })
+      .select('id')
+      .single();
+    expect(error).toBeNull();
+
     const checkin = await submitMorningCheckin(client, {
       userId,
       localDate: predictedDate,
       energy: 7,
       mood: 6,
       predictedCompletionPct: 80,
-      topMitTaskIds: [],
+      topMitTaskIds: [task!.id],
     });
     expect(checkin.ok).toBe(true);
 
@@ -118,5 +134,40 @@ describe('night review draft: a read that exists independently of the write', ()
     expect(afterCheckin.data!.predicted_completion_pct).toBe(80);
     // Not yet scored -- that only happens when a night review runs for that date.
     expect(afterCheckin.data!.actual_completion_pct).toBeNull();
+  });
+
+  it('a zero-MIT check-in stores no prediction at all -- never a fabricated default (E0)', async () => {
+    const emptyDate = new Date(Date.now() + 2 * 86_400_000).toISOString().slice(0, 10); // day after tomorrow, unused elsewhere
+
+    // predictedCompletionPct is deliberately supplied here (as a stale client might still
+    // send) -- the server must force it to null regardless, not trust the caller.
+    const checkin = await submitMorningCheckin(client, {
+      userId,
+      localDate: emptyDate,
+      energy: 7,
+      mood: 6,
+      predictedCompletionPct: 80,
+      topMitTaskIds: [],
+    });
+    expect(checkin.ok).toBe(true);
+
+    const prediction = await getPredictionForDate(client, userId, emptyDate);
+    expect(prediction.ok).toBe(true);
+    if (!prediction.ok) return;
+    expect(prediction.data).not.toBeNull();
+    expect(prediction.data!.predicted_completion_pct).toBeNull();
+
+    // Scoring must be a genuine no-op against a null prediction -- no calibration row
+    // fabricated from a day that had nothing to predict.
+    const scored = await scorePredictionForDate(client, userId, emptyDate, 0);
+    expect(scored.ok).toBe(true);
+    if (scored.ok) expect(scored.data).toBeNull();
+
+    const afterScore = await getPredictionForDate(client, userId, emptyDate);
+    expect(afterScore.ok).toBe(true);
+    if (afterScore.ok) {
+      expect(afterScore.data!.predicted_completion_pct).toBeNull();
+      expect(afterScore.data!.actual_completion_pct).toBeNull();
+    }
   });
 });

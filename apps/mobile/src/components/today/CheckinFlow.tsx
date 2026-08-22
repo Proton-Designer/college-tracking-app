@@ -109,13 +109,33 @@ export function CheckinFlow({
     setTimeboxes((prev) => ({ ...prev, [taskId]: { ...timeboxFor(taskId), ...patch } }));
   }
   const [selectedIds, setSelectedIds] = useState<number[]>(() => suggestedMits.map((m) => m.taskId).slice(0, 3));
-  const [predictedCompletionPct, setPredictedCompletionPct] = useState(80);
+  // No default: a completion prediction is a claim about work, and a pre-set value that
+  // submits unchanged is indistinguishable from a real answer. Stays null (never
+  // answered) whenever there are no MITs to predict against -- goNext/goBack skip the
+  // "completion" step entirely in that case, so this never blocks submission.
+  const [predictedCompletionPct, setPredictedCompletionPct] = useState<number | null>(null);
   const [derailment, setDerailment] = useState<string | null>(null);
   const [showTaskPicker, setShowTaskPicker] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const remainingTasks = availableTasks.filter((t) => !selectedIds.includes(t.id));
+
+  // Zero MITs means there's no work to predict against, so the "completion" step is
+  // skipped in both directions rather than asked-and-ignored -- steps stays a static
+  // array (buildSteps doesn't depend on selectedIds) so this only ever adjusts which
+  // index goNext/goBack land on, never resizes the array under an in-flight stepIndex.
+  function nextLandableIndex(from: number): number {
+    let i = from;
+    while (i < steps.length && steps[i] === "completion" && selectedIds.length === 0) i += 1;
+    return i;
+  }
+
+  function prevLandableIndex(from: number): number {
+    let i = from;
+    while (i > 0 && steps[i] === "completion" && selectedIds.length === 0) i -= 1;
+    return i;
+  }
 
   function goNext() {
     setError(null);
@@ -127,8 +147,13 @@ export function CheckinFlow({
       setError("Pick a mood.");
       return;
     }
-    if (stepIndex < steps.length - 1) {
-      setStepIndex((i) => i + 1);
+    if (step === "completion" && selectedIds.length > 0 && predictedCompletionPct == null) {
+      setError("Pick how much of today you'll actually finish.");
+      return;
+    }
+    const next = nextLandableIndex(stepIndex + 1);
+    if (next < steps.length) {
+      setStepIndex(next);
     } else {
       handleSubmit();
     }
@@ -136,7 +161,7 @@ export function CheckinFlow({
 
   function goBack() {
     setError(null);
-    setStepIndex((i) => Math.max(0, i - 1));
+    setStepIndex((i) => prevLandableIndex(Math.max(0, i - 1)));
   }
 
   function handleSubmit() {

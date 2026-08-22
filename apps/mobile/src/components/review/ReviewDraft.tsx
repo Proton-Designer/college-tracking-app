@@ -47,7 +47,7 @@ export function ReviewDraft({
       {draft.killListTotal > 0 ? (
         <ReadoutRow label="Kill list" value={`${draft.killListSuccessCount}/${draft.killListTotal} resisted`} />
       ) : null}
-      {prediction ? (
+      {prediction && prediction.predicted_completion_pct != null ? (
         <ReadoutRow
           label="Prediction"
           value={`predicted ${Math.round(prediction.predicted_completion_pct)}% · so far ${Math.round(draftCompletionPct)}%`}

@@ -29,7 +29,14 @@ export async function getPredictionForDate(
 /**
  * Scores the same-day morning prediction against the night's actuals — this is the
  * calibration training signal for the user's own self-assessment (predicted vs actual
- * MIT completion). A no-op (not an error) if no prediction was made that morning.
+ * MIT completion). A no-op (not an error, and no row is written) whenever there is no
+ * real prediction to score: either no daily_predictions row exists at all, or one exists
+ * but predicted_completion_pct is null (zero MITs were planned that morning, so nothing
+ * was predicted). "No prediction was recorded" -- keyed off the stored null, not a
+ * fresh MIT-count check here -- is the single definition both submitCheckin.ts and this
+ * function agree on, so the two sides can't independently drift on what an empty day
+ * means. Scoring a null prediction against a real actual would otherwise manufacture a
+ * calibration miss the user never actually made.
  */
 export async function scorePredictionForDate(
   client: TypedSupabaseClient,
@@ -39,12 +46,12 @@ export async function scorePredictionForDate(
 ): Promise<DataResult<DailyPredictionRow | null>> {
   const { data: existing, error: fetchError } = await client
     .from('daily_predictions')
-    .select('id')
+    .select('id, predicted_completion_pct')
     .eq('user_id', userId)
     .eq('local_date', localDate)
     .maybeSingle();
   if (fetchError) return dataErr(mapDataError(fetchError));
-  if (!existing) return dataOk(null);
+  if (!existing || existing.predicted_completion_pct == null) return dataOk(null);
 
   const { data, error } = await client
     .from('daily_predictions')

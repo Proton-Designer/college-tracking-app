@@ -29,7 +29,11 @@ export interface SubmitMorningCheckinInput {
   energy: number;
   mood: number;
   derailmentReason?: string;
-  predictedCompletionPct: number;
+  /** A claim about work -- with zero MITs planned there is no work and no claim, so this
+   *  is always written as null in that case regardless of what's passed here (never
+   *  trusted from the caller, same discipline as the recovery_coach lens enforcement).
+   *  Omit/undefined and null are equivalent inputs; both mean "no prediction." */
+  predictedCompletionPct?: number | null;
   expectedEnergyTonight?: number;
   likelyFailureMode?: string;
   hardestTaskId?: number;
@@ -106,13 +110,18 @@ export async function submitMorningCheckin(
     .single();
   if (checkinError) return dataErr(mapDataError(checkinError));
 
+  // Zero MITs planned means there is no work to predict against -- force null
+  // regardless of what the caller sent, rather than trusting a client that might not be
+  // running the version of the UI that stopped defaulting this to 80.
+  const predictedCompletionPct = input.topMitTaskIds.length > 0 ? (input.predictedCompletionPct ?? null) : null;
+
   const { data: prediction, error: predictionError } = await client
     .from('daily_predictions')
     .upsert(
       {
         user_id: input.userId,
         local_date: input.localDate,
-        predicted_completion_pct: input.predictedCompletionPct,
+        predicted_completion_pct: predictedCompletionPct,
         expected_energy_tonight: input.expectedEnergyTonight ?? null,
         likely_failure_mode: input.likelyFailureMode ?? null,
         hardest_task_id: input.hardestTaskId ?? null,

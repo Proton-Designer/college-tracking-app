@@ -47,7 +47,7 @@ export default async function ReviewPage() {
             MITs {existingReview.mits_completed}/{existingReview.mits_planned} ·{" "}
             {existingReview.deep_work_actual_min != null ? `${existingReview.deep_work_actual_min} min deep work` : "no session data"}
           </p>
-          {prediction && prediction.actual_completion_pct != null ? (
+          {prediction && prediction.predicted_completion_pct != null && prediction.actual_completion_pct != null ? (
             <p className="font-mono text-caption text-ink-faint">
               Predicted {Math.round(prediction.predicted_completion_pct)}% · actual {Math.round(prediction.actual_completion_pct)}%
             </p>
