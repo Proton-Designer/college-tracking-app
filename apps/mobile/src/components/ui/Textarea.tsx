@@ -12,6 +12,18 @@ export interface TextareaProps extends Omit<TextInputProps, "style" | "multiline
   rows?: number;
 }
 
+/**
+ * This is the mobile half of the night review's voice input (FOLLOWUPS V1). It works by
+ * doing nothing: the OS soft keyboard already provides a dictation key, so a plain
+ * multiline TextInput *is* a voice field — with better accuracy than anything we could
+ * wire up, and no dependency or custom dev build. Web needs an explicit control only
+ * because browsers offer no equivalent inside a <textarea>.
+ *
+ * So do not set `keyboardType`, `textContentType`, `secureTextEntry` or
+ * `contextMenuHidden` here without checking what it does to the dictation key — several
+ * of those hide it, which would silently delete a brief-specified feature with no visible
+ * sign that anything broke. Verified 2026-08-22: this component passes none of them.
+ */
 export function Textarea({ label, error, required, editable = true, rows = 4, ...rest }: TextareaProps) {
   const [focused, setFocused] = useState(false);
   const disabled = !editable;
