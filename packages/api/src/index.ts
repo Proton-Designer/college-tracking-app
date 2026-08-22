@@ -183,7 +183,9 @@ export {
   evaluateEscalations,
   evaluateStaleTaskPrompts,
   respondToStaleTaskPrompt,
+  runInterventionSweep,
 } from "./day/interventionEvaluation";
+export type { InterventionSweepResult } from "./day/interventionEvaluation";
 
 export { connectBrightspaceFeed, disconnectBrightspaceFeed, getBrightspaceFeedStatus, listPendingIcsEvents, confirmIcsEvent } from "./data/brightspaceFeeds";
 export type { BrightspaceFeedRow, IcsEventExtractionRow, ConfirmIcsEventInput, ConfirmIcsEventResult } from "./data/brightspaceFeeds";

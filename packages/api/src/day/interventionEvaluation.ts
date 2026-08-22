@@ -315,3 +315,58 @@ export async function respondToStaleTaskPrompt(
 
   return responded;
 }
+
+/**
+ * U1 — runs every intervention evaluator for a user's day, in one call.
+ *
+ * Until this existed, none of the four evaluators had a caller anywhere in the repo:
+ * `evaluateUpcomingBlockNotifications`, `evaluateDeviationPrompts`, `evaluateEscalations`
+ * and `evaluateStaleTaskPrompts` were all built and tested and never once ran in the real
+ * request path. So no intervention was ever created, delivered, or responded to, and
+ * **"Intervene" — a step of the product's core loop — had never executed.** The demo
+ * account had zero intervention rows of any kind.
+ *
+ * Safe to call on every Today load: each evaluator dedupes against what already exists
+ * (per day for notifications, deviations and escalations; per *staleness episode* for
+ * stale tasks, which is the subtler and more correct rule). Re-running produces nothing
+ * new rather than a duplicate.
+ *
+ * Evaluators run sequentially rather than in parallel on purpose — they each read and then
+ * write the same `interventions` table, and their dedupe checks are read-then-insert. Racing
+ * them against each other is how you get the duplicates the dedupe exists to prevent.
+ *
+ * A failing evaluator does NOT abort the sweep. Interventions are advisory: losing one
+ * category because another had a bad day should not cost the user the rest, and it must
+ * never take down the Today screen that hosts them. Errors are collected and returned so a
+ * caller can surface or log them rather than have them vanish.
+ */
+export interface InterventionSweepResult {
+  created: InterventionRow[];
+  /** Evaluators that failed, by name. Empty on a clean sweep. Never thrown -- see above. */
+  failed: string[];
+}
+
+export async function runInterventionSweep(
+  client: TypedSupabaseClient,
+  userId: string,
+  today: LocalDate,
+  now: Date,
+): Promise<InterventionSweepResult> {
+  const created: InterventionRow[] = [];
+  const failed: string[] = [];
+
+  const steps: Array<[string, () => Promise<DataResult<InterventionRow[]>>]> = [
+    ['upcomingBlockNotifications', () => evaluateUpcomingBlockNotifications(client, userId, today, now)],
+    ['deviationPrompts', () => evaluateDeviationPrompts(client, userId, today, now)],
+    ['escalations', () => evaluateEscalations(client, userId, today, now)],
+    ['staleTaskPrompts', () => evaluateStaleTaskPrompts(client, userId, today)],
+  ];
+
+  for (const [name, run] of steps) {
+    const result = await run();
+    if (result.ok) created.push(...result.data);
+    else failed.push(name);
+  }
+
+  return { created, failed };
+}
