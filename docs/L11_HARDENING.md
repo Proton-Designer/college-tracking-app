@@ -36,6 +36,72 @@ Record real numbers in this file. A number without a build type is meaningless.
 
 ---
 
+### MEASURED — 2026-08-22, Lead. Production build (`next build` + `next start`), not dev.
+
+**Bundle.** `npm run build -w apps/web` succeeds; 18 routes.
+
+| | |
+|---|---|
+| Total client JS, all routes | **1,260 KB raw · 348 KB gzipped** |
+| Largest chunk | 252 KB raw / 66 KB gz |
+| Second | 224 KB raw / 70 KB gz |
+
+348 KB gzipped across the whole app is lean for eighteen routes. **No action needed.**
+
+**Bundle audit — the three things §1 asks for, all clean:**
+- **`react-native` in the web bundle (the D11 bug class): NOT present.** One chunk matches the
+  string, and it is a false positive — `@supabase/supabase-js`'s own runtime detection
+  (`navigator.product === "ReactNative"` → `runtime=react-native` telemetry label). Verified by
+  reading the match context rather than trusting the grep.
+- **No `SUPABASE_SERVICE_ROLE_KEY` or `service_role` in any client chunk.** The barrel guard covers
+  the mechanism; this confirms the outcome.
+- **No `date-fns`/`zod` duplication** — neither reaches a client bundle at all.
+
+**Server timings.** Production server, warm, 3-run average, real authenticated session, local Postgres:
+
+| Route | Time | HTML |
+|---|---|---|
+| `/today` | **106 ms** | 34 KB |
+| `/calendar` | 67 ms | 24 KB |
+| `/insights` | 65 ms | 45 KB |
+| `/courses` | 63 ms | 27 KB |
+| `/settings` | 52 ms | 35 KB |
+| `/review` | 50 ms | 18 KB |
+
+**N+1 audit — the real finding.** Query counts via `pg_stat_statements`, one render each. There is
+**no classic N+1** (no domain query repeats more than twice). What there is instead is a
+**request-level fan-out**: each `supabase-js` call is one HTTP round trip to PostgREST, each of which
+emits its own `set_config`, so counting those counts round trips.
+
+| Route | PostgREST round trips |
+|---|---|
+| **`/today`** | **45** |
+| `/insights` | 17 |
+| `/calendar` | 14 |
+| `/courses` | 10 |
+| `/settings` | 9 |
+| `/review/[date]` | 2 |
+
+**`/today` is a 3× outlier on the most-visited screen in the product.** At ~1 ms per local round trip
+this is invisible (106 ms total). **Against cloud Supabase it will not be** — at a 30–50 ms RTT,
+serial round trips cost 30–50 ms *each*.
+
+The riskiest part is mine: **`runInterventionSweep` runs its four evaluators sequentially**, which was
+a deliberate correctness choice (they read-then-write the same table, so racing them defeats their own
+dedupe) — but it means those round trips are serial rather than parallel. Each evaluator also
+re-queries `tasks` separately when one shared read would serve all four, and each does a per-task
+dedupe lookup that could be a single batched query.
+
+**Recommended, not yet done:** one shared task read for the sweep; batch the per-task dedupe checks
+into one query per evaluator; keep the sequential ordering. Measure again after — the target is
+`/today` in line with `/insights`.
+
+---
+
+
+
+---
+
 ## 2. Accessibility
 
 - **Keyboard-only pass on web**: every interactive element reachable, visible focus ring, no traps.
