@@ -1,5 +1,6 @@
+import { deriveDayBand } from "@collegeos/core";
 import Link from "next/link";
-import { EmptyState, PageHeader, RiskPill } from "@/components/ui";
+import { Aurora, EmptyState, PageHeader, RiskPill } from "@/components/ui";
 import { AddCourseModal } from "@/components/courses/AddCourseModal";
 import { daysRemainingLabel } from "@/lib/dates";
 import { loadCoursesIndex, type CoursesIndexRow } from "./data";
@@ -23,10 +24,14 @@ export default async function CoursesPage() {
     );
   }
 
-  const { rows, today } = result.data;
+  const { rows, today, deliverableRisks } = result.data;
+  // §6 -- an instrument reading, not decoration. Empty (a fresh account with no deliverables
+  // yet) is the honest case: no history, no atmosphere, flat ground.
+  const dayBand = deriveDayBand(deliverableRisks);
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-6 px-8 py-10">
+      <Aurora band={dayBand} />
       <PageHeader title="Courses" actions={rows.length > 0 ? <AddCourseModal /> : null} />
 
       {rows.length === 0 ? (
@@ -36,16 +41,16 @@ export default async function CoursesPage() {
           action={<AddCourseModal />}
         />
       ) : (
-        <div className="overflow-x-auto">
+        <div className="glass overflow-x-auto rounded-lg">
           <table className="w-full min-w-[720px] border-collapse">
             <thead>
               <tr className="border-b border-hairline text-left font-mono text-label uppercase tracking-[0.1em] text-ink-muted">
-                <th className="py-2 pr-4 font-normal">Course</th>
-                <th className="py-2 pr-4 font-normal">Risk</th>
-                <th className="py-2 pr-4 font-normal">Current</th>
-                <th className="py-2 pr-4 font-normal">Target</th>
-                <th className="py-2 pr-4 font-normal">Next deadline</th>
-                <th className="py-2 w-6" aria-hidden="true" />
+                <th className="py-3 pr-4 pl-5 font-normal">Course</th>
+                <th className="py-3 pr-4 font-normal">Risk</th>
+                <th className="py-3 pr-4 font-normal">Current</th>
+                <th className="py-3 pr-4 font-normal">Target</th>
+                <th className="py-3 pr-4 font-normal">Next deadline</th>
+                <th className="py-3 w-6 pr-5" aria-hidden="true" />
               </tr>
             </thead>
             <tbody>

@@ -213,14 +213,21 @@ export default async function TodayPage({
 
       <TodayHeader today={dayView.today} health={dayView.todayHealth} sleepBaselineHours={dayView.profile.sleep_baseline_hours} />
 
-      <DayTrace
-        today={dayView.today}
-        timezone={dayView.profile.timezone}
-        now={now}
-        calendarEvents={dayView.todayCalendarEvents}
-        taskSessions={dayView.todayTaskSessions}
-        tasks={dayView.todayTasks}
-      />
+      {/* A full max-w-app ribbon for a genuinely empty day (nothing scheduled at all) is a very
+          wide box with two empty lanes -- doesn't earn that much of the fold. Constrains to the
+          same width Recovery's narrower body already uses when there's nothing to draw. Mirrors
+          DayTrace's own hasAnyData exactly (calendar events + task sessions, not upcoming
+          deliverables -- hasAnyData above answers a broader question than "is the ribbon empty"). */}
+      <div className={dayView.todayCalendarEvents.length > 0 || dayView.todayTaskSessions.length > 0 ? undefined : "max-w-[640px]"}>
+        <DayTrace
+          today={dayView.today}
+          timezone={dayView.profile.timezone}
+          now={now}
+          calendarEvents={dayView.todayCalendarEvents}
+          taskSessions={dayView.todayTaskSessions}
+          tasks={dayView.todayTasks}
+        />
+      </div>
 
       {/* U1 sits above the mode-specific body in every mode. An intervention fires because
           something has already gone off-plan, so it outranks whatever the day was otherwise

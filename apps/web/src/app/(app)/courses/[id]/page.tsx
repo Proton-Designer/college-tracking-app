@@ -9,7 +9,7 @@ import { GradeBoundariesSection } from "@/components/courses/GradeBoundariesSect
 import { GradeCategoriesSection } from "@/components/courses/GradeCategoriesSection";
 import { ScenarioPlanner } from "@/components/courses/ScenarioPlanner";
 import { UploadSyllabusModal } from "@/components/courses/UploadSyllabusModal";
-import { Metric, PageHeader, Panel, RiskPill } from "@/components/ui";
+import { Aurora, Metric, PageHeader, Panel, RiskPill } from "@/components/ui";
 import { loadCourseDetail } from "./data";
 
 function formatPct(pct: number | null): string {
@@ -47,8 +47,13 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
   const weightSumIssue = gradeResult?.issues.find((i) => i.kind === "weightSumWarning");
   const categoryNameById = new Map(categories.map((c) => [String(c.id), c.name]));
 
+  // §6.1 -- a single course's own already-computed band, not deriveDayBand (that's the list
+  // view's question -- every course's deliverables -- a different source for a different page).
+  const dayBand = courseRisk?.result.band ?? null;
+
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-8 px-8 py-10">
+      <Aurora band={dayBand} />
       <div className="flex flex-col gap-1">
         <Link href="/courses" className="font-mono text-caption uppercase tracking-[0.08em] text-ink-faint hover:text-ink">
           ← Courses

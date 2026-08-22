@@ -7,6 +7,7 @@ import {
   loadCourseGradeProjections,
   type Course,
   type CourseRiskSummary,
+  type DeliverableRisk,
 } from "@collegeos/api";
 import type { CourseGradeResult } from "@collegeos/core";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
@@ -19,7 +20,7 @@ export interface CoursesIndexRow {
 }
 
 export type CoursesLoadResult =
-  | { ok: true; data: { rows: CoursesIndexRow[]; today: string } }
+  | { ok: true; data: { rows: CoursesIndexRow[]; today: string; deliverableRisks: DeliverableRisk[] } }
   | { ok: false; error: string };
 
 /**
@@ -85,5 +86,7 @@ export async function loadCoursesIndex(): Promise<CoursesLoadResult> {
   // Spec: "Sorted by risk descending."
   rows.sort((a, b) => (b.courseRisk?.result.score ?? 0) - (a.courseRisk?.result.score ?? 0));
 
-  return { ok: true, data: { rows, today } };
+  // §6.1 -- /courses' aurora band is deriveDayBand over every course's deliverables (all of
+  // them, not just one course's), distinct from course detail's single courseRisk.result.band.
+  return { ok: true, data: { rows, today, deliverableRisks: risk.deliverableRisks } };
 }
