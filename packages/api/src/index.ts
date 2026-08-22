@@ -35,8 +35,8 @@ export { getReviewForDate, upsertReview } from "./data/dailyReviews";
 export type { DailyReview, DailyReviewInsert } from "./data/dailyReviews";
 export { listGradeCategories, listGradeItems, listGradeBoundaries } from "./data/gradeStructure";
 export type { GradeCategoryRow, GradeItemRow, GradeBoundaryRow } from "./data/gradeStructure";
-export { listDeliverables } from "./data/deliverables";
-export type { Deliverable } from "./data/deliverables";
+export { listDeliverables, createDeliverable, updateDeliverable, deleteDeliverable } from "./data/deliverables";
+export type { Deliverable, DeliverableType, DeliverableStatus, CreateDeliverableInput, UpdateDeliverableInput } from "./data/deliverables";
 export { uploadSyllabus } from "./data/syllabusUploads";
 export type { SyllabusUpload } from "./data/syllabusUploads";
 
