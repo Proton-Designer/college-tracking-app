@@ -671,6 +671,41 @@ behaviour that makes a report trustworthy; the wrong lesson would be "don't repo
 
 ---
 
+## 🟡 G3 — The exact mechanism behind HANDOFF §7.4: pickers are unreachable under Expo Web
+
+§7.4 records that `@react-native-community/datetimepicker` "does not render under Expo Web, which is
+how most mobile verification was done." Found again during the mobile journey pass, this time with
+the mechanism and the blast radius, which is what makes it actionable:
+
+- `apps/mobile/src/components/ui/DatePicker.tsx` — `open()` (line 55) branches
+  `Platform.OS === "android"` → native picker, `else` → `setIosOpen(true)`. The modal that state
+  drives is gated on `Platform.OS === "ios"` (line 110). **On web, `Platform.OS` is `"web"`, so
+  neither branch fires**: the tap sets state nothing reads, and no picker appears.
+- `TimePicker.tsx` is structurally identical (`open()` at 52, same gate at 101).
+- Blast radius: `AddAssignmentModal`, `EditDeliverableModal`, `DeliverableTasksSection`.
+
+**Not a user-facing defect.** `CLAUDE.md` defines `apps/mobile` as an **iOS/Android** app, and the
+web product is the separate `apps/web`. On both shipping platforms a branch fires and the picker
+works. The `"web": { "output": "static" }` block in `app.json` is Expo's default scaffold, not a
+declared product surface.
+
+**It is a verification-integrity problem, and that is the point.** Expo Web is the path nearly all
+mobile verification ran through this session, and it structurally cannot reach:
+1. any date/time picker submit path (this item), and
+2. auth confirmation — local Supabase's redirect allowlist permits `exp://127.0.0.1:8081/**` and
+   `collegeos://**` only, so a confirmation link cannot complete through a browser preview port.
+
+Two whole classes of interaction our verification path cannot test. Everything else verified through
+Expo Web remains valid — neither class is touched by ordinary screen rendering — but **anything on
+those two paths needs a simulator or device before it can be claimed.**
+
+Note the symmetry with **J1** on web: the add-assignment due-date field there is a plain
+`<input type="date">` rather than the `DatePicker` primitive, on the one field where a wrong default
+is most costly. Both platforms carry an unverified weak spot on *the same field of the same form*.
+That is not coincidence — it is the field nobody can easily test.
+
+---
+
 ## 🟡 G1 — On Android, `expo-blur` never blurs; the glass effect does not exist there
 
 Found by NOVA reading `expo-blur`'s actual platform sources during the v2 revamp, in response to a
