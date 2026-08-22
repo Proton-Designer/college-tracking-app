@@ -56,33 +56,50 @@ export function ReviewForm({
 
   return (
     <div className="flex flex-col gap-6">
+      {/* R2: the review leads with what the record already says, and only then asks for
+          prose. This screen's job is not to collect a journal -- it's to let the measured
+          day argue with the remembered one. So the numbers come first, the friction capture
+          for what actually didn't happen comes second, and free text is explicitly framed as
+          the residue: the part the instruments couldn't see. */}
       <ReviewDraft draft={draft} draftCompletionPct={draftCompletionPct} prediction={prediction} />
 
       {incompleteMits.length > 0 ? (
-        <Panel title="What got in the way?">
-          <div className="flex flex-col gap-4">
-            {incompleteMits.map((task) => (
-              <FrictionPicker key={task.id} task={task} />
-            ))}
-          </div>
-        </Panel>
+        <section className="flex flex-col gap-3 border-t border-hairline pt-6">
+          <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">What got in the way?</h2>
+          <Panel>
+            <div className="flex flex-col gap-4">
+              {incompleteMits.map((task) => (
+                <FrictionPicker key={task.id} task={task} />
+              ))}
+            </div>
+          </Panel>
+        </section>
       ) : null}
 
-      <Panel className="flex flex-col gap-5">
-        <DictatedTextarea label="What went well" value={proudText} onValueChange={setProudText} />
-        <DictatedTextarea label="What went wrong" value={wentWrongText} onValueChange={setWentWrongText} />
-        <DictatedTextarea
-          label="Anything important"
-          value={importantNoteText}
-          onValueChange={setImportantNoteText}
-        />
-        {error ? <p className="text-body-s text-risk-critical">{error}</p> : null}
-        <div>
-          <Button onClick={handleSubmit} loading={isPending}>
-            Save review
-          </Button>
-        </div>
-      </Panel>
+      <section className="flex flex-col gap-3 border-t border-hairline pt-6">
+        <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">
+          In your own words
+        </h2>
+        <p className="text-body-s text-ink-muted">
+          Optional. The numbers above are already recorded — this is for what they can&apos;t see.
+        </p>
+        <Panel className="flex flex-col gap-5">
+          <DictatedTextarea label="What went well" value={proudText} onValueChange={setProudText} rows={2} />
+          <DictatedTextarea label="What went wrong" value={wentWrongText} onValueChange={setWentWrongText} rows={2} />
+          <DictatedTextarea
+            label="Anything important"
+            value={importantNoteText}
+            onValueChange={setImportantNoteText}
+            rows={2}
+          />
+          {error ? <p className="text-body-s text-risk-critical">{error}</p> : null}
+          <div>
+            <Button onClick={handleSubmit} loading={isPending}>
+              Save review
+            </Button>
+          </div>
+        </Panel>
+      </section>
     </div>
   );
 }
