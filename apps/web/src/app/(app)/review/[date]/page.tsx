@@ -2,8 +2,9 @@ import { FrictionDistributionSection } from "@/components/insights/FrictionDistr
 import { PlanningExecutionQuadrant } from "@/components/insights/PlanningExecutionQuadrant";
 import { claimsWithEvidence, EvidenceClaimList } from "@/components/review/EvidenceClaimList";
 import { ReportHistoryList } from "@/components/review/ReportHistoryList";
-import { Metric, RiskPill } from "@/components/ui";
+import { Aurora, Metric, Panel, RiskPill } from "@/components/ui";
 import { loadReviewReport } from "./data";
+import { deriveDayBand } from "@collegeos/core";
 import { LENS_NAMES } from "@collegeos/api";
 import type { DeterministicNightlyReport, Intervention, LensName, NightlyAgentReportPayload } from "@collegeos/api";
 
@@ -48,9 +49,16 @@ export default async function ReviewReportPage({ params }: { params: Promise<{ d
   }
 
   const { payload, history } = result.data;
+  // §6.1 -- the band recorded for that date, not a live re-derivation: this report is an
+  // archival record of a specific night, and deliverableRisks is baked into the payload at
+  // generation time for exactly that reason (see riskAssessment.ts's DeliverableRisk doc).
+  // Null (no report, or a report with no open deliverables that night) falls through to the
+  // resting wash, same as every other screen with no signal to report.
+  const dayBand = payload ? deriveDayBand(payload.deterministic.riskAssessment.deliverableRisks) : null;
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 gap-10 px-8 py-10">
+      <Aurora band={dayBand} />
       <aside className="w-44 shrink-0">
         <p className="mb-3 font-mono text-label uppercase tracking-[0.1em] text-ink-muted">History</p>
         <ReportHistoryList history={history} currentDate={date} />
@@ -191,7 +199,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   return (
     <section className="flex flex-col gap-3">
       <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">{title}</h2>
-      {children}
+      <Panel>{children}</Panel>
     </section>
   );
 }

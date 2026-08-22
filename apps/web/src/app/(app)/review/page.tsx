@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { PageHeader, Panel } from "@/components/ui";
+import { Aurora, PageHeader, Panel } from "@/components/ui";
 import { ReviewForm } from "@/components/review/ReviewForm";
 import { loadReviewData } from "./data";
 
@@ -22,6 +22,10 @@ export default async function ReviewPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-report flex-1 flex-col gap-6 px-8 py-10">
+      {/* §6.0 -- resting wash. Tonight's review has no deliverable-risk data loaded (it's
+          scoped to MITs/friction/prose, not the risk engine), so there's no real band to
+          derive here without adding a query this screen doesn't otherwise need. */}
+      <Aurora />
       <PageHeader
         title="Night review"
         actions={
