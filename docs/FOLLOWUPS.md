@@ -506,6 +506,47 @@ shape — a test that asserted `model !== 'deterministic'` would have caught thi
 
 ---
 
+## 🔴🔴 P1 — Confirming a weekly-plan block produces nothing. Plan never reaches Execute.
+
+Found by Nova during the full manual user journey — the first time anyone walked signup → course →
+assignment → weekly plan → Today as one continuous experience.
+
+**The break:** generate a week's plan, confirm a suggested focus block for *today*, and Today still
+says *"Nothing scheduled yet today."* The Day Trace is empty. The check-in's Top 3 is empty.
+
+Verified independently:
+- `weekly_plan_blocks` carries `deliverable_id` and `course_id` and **no `task_id`**.
+- **Nothing outside the planning module reads the table at all** — `dayView.ts` and `getDayView`
+  never touch it.
+- The block's `status` enum is entirely self-contained. Per `weeklyPlan.ts`'s own doc comment,
+  `confirmed` means only *"don't let a regeneration clobber this block's time."*
+
+So a user can plan their entire week, confirm every block, and **Today will never reflect any of
+it.** The brief's Sunday session — the feature the product pitch is built around — produces a plan
+that cannot be executed.
+
+**This is the fourth instance of one pattern**, and the first one shipped *knowingly*: T2 (Recovery
+Mode showed the day and removed every action), U9 (start a trial, never score it), U7 (log a
+decision, never score it), and now U6. When approving U6 the Lead wrote that shipping a fourth
+instance of this shape would be "a choice, not an oversight" — and then scoped the pass to
+"confirm / skip / complete" **without asking what confirm does.** Nova raised the scoping question at
+the time and got an answer to a narrower question than he'd asked. **Lead error, recorded as such.**
+
+**Ratified fix:** `weekly_plan_blocks.task_id` (nullable, FK); confirming a block creates a real task
+carrying `planned_date`, `planned_start_at`, `estimated_minutes`, `deliverable_id`/`course_id` and
+stores its id on the block; re-confirming is idempotent; skipping a confirmed block **cancels** the
+task rather than orphaning or deleting it, because "planned then abandoned" is real data the friction
+engine wants.
+
+Setting `planned_start_at` from the block is what makes **start delay measurable for planned work** —
+the headline metric the brief names by example.
+
+**The generalisable lesson:** every one of these four passed its own tests. What none of them had was
+someone walking the product end to end and asking *"and then what happens?"* A feature that stores
+its own state correctly can still be a dead end.
+
+---
+
 ## Smaller items from the 2026-08-22 live review
 
 | # | Item | Notes |
