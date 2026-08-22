@@ -92,6 +92,36 @@ rectangle:
 - an inner top highlight: `inset 0 1px 0 rgba(255,255,255,0.85)`
 - an outer hairline: `0 0 0 1px rgba(14,18,32,0.06)`
 
+### 2.1 Which things are glass, and which are not
+
+Ruled during the primitive pass. The test is **what the thing is**, not what tier is available:
+
+- **An input is `glass-sunken` and takes no shadow.** A text field *is* the well material the tier
+  table names. Recessed and floating at once contradicts itself.
+- **A primary or destructive button is not glass.** It stays a solid saturated fill. **A decision is
+  not a translucent surface** — the whole point of a commit button is that it is opaque and final.
+  `secondary` is glass (a chip resting on the ground); `ghost` stays transparent.
+- **A modal sheet is `glass-raised` at `radius.xl`**, grouped with the island at that radius, on
+  `shadow-lifted`. Its backdrop derives from `ink`, never an unrelated hardcoded rgba.
+
+### 2.2 Glass introduces layering where a flat UI had none
+
+Two bugs, found independently on both platforms within an hour of each other, both caused by this
+and neither presenting as a styling problem:
+
+- `backdrop-filter` promotes an element to its own **stacking context**, so a glass panel later in
+  DOM order painted over a fixed modal and swallowed clicks on its footer. Symptom: *"buttons don't
+  respond."*
+- RN-web's `<input>` is statically positioned, unlike `View`'s implicit `relative`, so it painted
+  *behind* a sibling BlurView regardless of JSX order and had its own text blurred. Symptom:
+  *"the placeholder looks blurry."*
+
+**Anything that overlaps, floats, or stacks is suspect while converting a surface to glass.** If a
+component looks subtly wrong, suspect stacking before colour. And if a third component needs the
+same one-off `position`/`z-index` patch, that is the signal the structure is wrong — glass should
+paint its blur and tint into a wrapper that content sits on top of, not as siblings that content
+has to out-rank.
+
 **Fallback is mandatory.** `backdrop-filter` fails on older Android WebViews and is disabled by
 some privacy settings. Every glass surface must specify an opaque fallback fill
 (`rgba(255,255,255,0.92)`) behind an `@supports` query on web, and native must degrade to a solid
