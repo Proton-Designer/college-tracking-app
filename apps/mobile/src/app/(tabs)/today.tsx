@@ -1,4 +1,4 @@
-import type { Course, DayView, KillHabitRow, TaskSessionRow } from "@collegeos/api";
+import type { Course, DayView, InterventionRow, KillHabitRow, TaskSessionRow } from "@collegeos/api";
 import { signOut } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -7,6 +7,7 @@ import { RefreshControl, StyleSheet, Text, View } from "react-native";
 import { Button, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { CheckinFlow } from "../../components/today/CheckinFlow";
 import { DayTrace } from "../../components/today/DayTrace";
+import { InterventionsSection } from "../../components/today/InterventionsSection";
 import { DeadlineRadar } from "../../components/today/DeadlineRadar";
 import { type FocusBlock, FocusLauncher } from "../../components/today/FocusLauncher";
 import { TodayHeader } from "../../components/today/Header";
@@ -147,8 +148,15 @@ export default function TodayScreen() {
         </View>
       ) : null}
 
-      {result.status === "ready" ? (
-        <TodayReady data={result.data} dismissedCheckin={dismissedCheckin} onCheckinDone={() => { setDismissedCheckin(true); result.refetch(); }} onCheckinSkip={() => setDismissedCheckin(true)} />
+      {result.status === "ready" && session?.user.id ? (
+        <TodayReady
+          data={result.data}
+          dismissedCheckin={dismissedCheckin}
+          onCheckinDone={() => { setDismissedCheckin(true); result.refetch(); }}
+          onCheckinSkip={() => setDismissedCheckin(true)}
+          userId={session.user.id}
+          onInterventionChanged={result.refetch}
+        />
       ) : null}
     </TabScreenScrollView>
   );
@@ -159,6 +167,8 @@ function TodayReady({
   dismissedCheckin,
   onCheckinDone,
   onCheckinSkip,
+  userId,
+  onInterventionChanged,
 }: {
   data: {
     dayView: DayView;
@@ -166,12 +176,15 @@ function TodayReady({
     mode: "unplanned" | "recovery" | "normal";
     killHabits: KillHabitRow[];
     activeFocusSession: TaskSessionRow | null;
+    interventions: InterventionRow[];
   };
   dismissedCheckin: boolean;
   onCheckinDone: () => void;
   onCheckinSkip: () => void;
+  userId: string;
+  onInterventionChanged: () => void;
 }) {
-  const { dayView, courses, mode, killHabits, activeFocusSession } = data;
+  const { dayView, courses, mode, killHabits, activeFocusSession, interventions } = data;
   const hasAnyData = dayView.todayTasks.length > 0 || dayView.todayCalendarEvents.length > 0 || dayView.upcomingDeliverables.length > 0;
   const mitItems = buildMitItems(dayView, courses);
   const focusBlock = buildFocusBlock(dayView, courses);
@@ -216,6 +229,11 @@ function TodayReady({
         taskSessions={dayView.todayTaskSessions}
         tasks={dayView.todayTasks}
       />
+
+      {/* U1 sits above the mode-specific body in every mode: an intervention fires because
+          something has already gone off-plan, so it outranks whatever the day was otherwise
+          going to show. Renders nothing when there is nothing pending. */}
+      <InterventionsSection interventions={interventions} userId={userId} onChanged={onInterventionChanged} />
 
       {mode === "recovery" ? (
         <>

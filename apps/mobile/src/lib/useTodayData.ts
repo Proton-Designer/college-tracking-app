@@ -3,8 +3,11 @@ import {
   getDayView,
   listCourses,
   listKillHabits,
+  listPendingInterventions,
+  runInterventionSweep,
   type Course,
   type DayView,
+  type InterventionRow,
   type KillHabitRow,
   type TaskSessionRow,
 } from "@collegeos/api";
@@ -23,6 +26,9 @@ export interface TodayData {
   /** Non-null when a focus session is already running — the launcher becomes
    *  "Resume focus" instead of trying (and failing) to start a second one. */
   activeFocusSession: TaskSessionRow | null;
+  /** U1 -- prompts awaiting a decision. Includes `pending` and `delivered`: seeing one
+   *  doesn't answer it, so it stays until responded to or dismissed. Mirrors web. */
+  interventions: InterventionRow[];
 }
 
 export type FetchState =
@@ -82,6 +88,21 @@ export function useTodayData(asOfIso?: string) {
         setFetchState({ status: "error", error: activeFocusSessionResult.error.message });
         return;
       }
+      // U1. Runs AFTER the reads because the sweep writes intervention rows and the listing
+      // has to see what it just created. Every evaluator dedupes, so re-running produces
+      // nothing new. A failed sweep degrades to no prompts rather than an error screen --
+      // interventions are advisory and must never cost the user their Today.
+      void runInterventionSweep(client, userId, dayViewResult.data.today, asOf ?? new Date())
+        .then(() => listPendingInterventions(client, userId))
+        .then((interventionsResult) => {
+          if (cancelled) return;
+          setFetchState((prev) =>
+            prev.status === "ready"
+              ? { ...prev, data: { ...prev.data, interventions: interventionsResult.ok ? interventionsResult.data : [] } }
+              : prev,
+          );
+        });
+
       setFetchState({
         status: "ready",
         data: {
@@ -90,6 +111,7 @@ export function useTodayData(asOfIso?: string) {
           mode: decideMode(dayViewResult.data),
           killHabits: killHabitsResult.data,
           activeFocusSession: activeFocusSessionResult.data,
+          interventions: [],
         },
       });
     });
