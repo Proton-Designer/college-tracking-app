@@ -79,7 +79,22 @@ export async function computeRiskAssessment(
     { data: gradeItems, error: itemError },
     { data: gradeCategories, error: catError },
   ] = await Promise.all([
-    client.from('deliverables').select('*').eq('user_id', userId).neq('status', 'completed'),
+    // Scoped to exactly the courses the caller passed in, not every non-completed
+    // deliverable the user has -- course detail passes a single-course courseFacts, and
+    // listCourses now excludes archived courses (migration 0030), so an unscoped fetch
+    // here handed courseById a deliverable it had no matching course for, hitting the
+    // corrupt-data throw below on entirely valid data. Behavior-preserving for callers
+    // that already pass every course (dayView.ts, weeklyPlan.ts): .in() over the full
+    // id list is equivalent to unscoped.
+    client
+      .from('deliverables')
+      .select('*')
+      .eq('user_id', userId)
+      .neq('status', 'completed')
+      .in(
+        'course_id',
+        courses.map((c) => c.id),
+      ),
     client.from('tasks').select('deliverable_id, status').eq('user_id', userId).not('deliverable_id', 'is', null),
     client.from('calendar_events').select('start_at, end_at').eq('user_id', userId).eq('is_busy', true),
     client

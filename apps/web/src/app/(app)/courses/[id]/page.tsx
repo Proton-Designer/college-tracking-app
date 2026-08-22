@@ -48,7 +48,9 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
         </Link>
         <div className="flex items-center justify-between gap-4">
           <div>
-            <h1 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">{course.code}</h1>
+            <h1 data-testid="course-detail-code" className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">
+              {course.code}
+            </h1>
             <p className="text-body text-ink-muted">
               {course.name} · {course.term}
             </p>
