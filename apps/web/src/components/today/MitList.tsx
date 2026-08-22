@@ -25,22 +25,44 @@ const CONFIDENCE_BORDER: Record<Confidence, string> = {
   insufficient: "border-dotted",
 };
 
-export function MitList({ items }: { items: MitItem[] }) {
-  const [completedIds, setCompletedIds] = useState<Set<number>>(
-    () => new Set(items.filter((i) => i.completed).map((i) => i.taskId)),
-  );
-  const [failedIds, setFailedIds] = useState<Set<number>>(new Set());
-  const [isPending, startTransition] = useTransition();
+export interface MitListProps {
+  items: MitItem[];
+  /**
+   * Controlled mode: a parent that needs to read the same completion state elsewhere (e.g.
+   * /today's headline, which names the top outstanding MIT and states how many are done --
+   * see MitFocus.tsx) owns the state and passes it in, so this list and that other reader can
+   * never disagree. `onToggle` replaces the built-in mutation entirely when provided; omit all
+   * three controlled props for a self-contained list (Recovery's "Today's minimum" usage).
+   */
+  onToggle?: (taskId: number, checked: boolean) => void;
+  failedIds?: Set<number>;
+  isPending?: boolean;
+}
+
+export function MitList({ items, onToggle, failedIds: controlledFailedIds, isPending: controlledIsPending }: MitListProps) {
+  const isControlled = onToggle !== undefined;
+
+  // Uncontrolled mode only: a per-task optimistic override, keyed by taskId rather than a
+  // wholesale re-derived Set, so it never needs to reconcile against a changed `items` array.
+  const [localOverrides, setLocalOverrides] = useState<Map<number, boolean>>(new Map());
+  const [localFailedIds, setLocalFailedIds] = useState<Set<number>>(new Set());
+  const [localIsPending, startTransition] = useTransition();
+
+  const failedIds = controlledFailedIds ?? localFailedIds;
+  const isPending = controlledIsPending ?? localIsPending;
+
+  function isChecked(item: MitItem): boolean {
+    return isControlled ? item.completed : (localOverrides.get(item.taskId) ?? item.completed);
+  }
 
   function handleToggle(taskId: number, checked: boolean) {
-    // Optimistic: flip immediately, roll back on failure.
-    setCompletedIds((prev) => {
-      const next = new Set(prev);
-      if (checked) next.add(taskId);
-      else next.delete(taskId);
-      return next;
-    });
-    setFailedIds((prev) => {
+    if (onToggle) {
+      onToggle(taskId, checked);
+      return;
+    }
+
+    setLocalOverrides((prev) => new Map(prev).set(taskId, checked));
+    setLocalFailedIds((prev) => {
       const next = new Set(prev);
       next.delete(taskId);
       return next;
@@ -49,13 +71,8 @@ export function MitList({ items }: { items: MitItem[] }) {
     startTransition(async () => {
       const result = await toggleTaskCompletion(taskId, checked ? "completed" : "pending");
       if (!result.ok) {
-        setCompletedIds((prev) => {
-          const next = new Set(prev);
-          if (checked) next.delete(taskId);
-          else next.add(taskId);
-          return next;
-        });
-        setFailedIds((prev) => new Set(prev).add(taskId));
+        setLocalOverrides((prev) => new Map(prev).set(taskId, !checked));
+        setLocalFailedIds((prev) => new Set(prev).add(taskId));
       }
     });
   }
@@ -67,7 +84,7 @@ export function MitList({ items }: { items: MitItem[] }) {
   return (
     <ul className="flex flex-col gap-4">
       {items.map((item) => {
-        const completed = completedIds.has(item.taskId);
+        const completed = isChecked(item);
         const failed = failedIds.has(item.taskId);
         return (
           <li

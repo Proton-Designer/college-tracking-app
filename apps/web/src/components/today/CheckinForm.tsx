@@ -155,8 +155,11 @@ export function CheckinForm({
 
   return (
     <Panel className="mx-auto flex w-full max-w-[560px] flex-col gap-6">
+      {/* §8: an unplanned day's lead statement is the invitation to plan it -- there's no
+          computed value to name yet, since that's exactly what this form is about to produce. */}
       <div className="flex flex-col gap-1">
         <p className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Morning check-in</p>
+        <h1 className="font-sans text-display-l font-semibold tracking-[-0.025em] text-ink">Plan today</h1>
         <p className="text-body-s text-ink-faint">About 60 seconds. Pre-filled — you&apos;re mostly correcting, not typing.</p>
       </div>
 
