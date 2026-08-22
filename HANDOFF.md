@@ -1,10 +1,9 @@
 # CollegeOS — Handoff
 
-> **Read this first.** Written at the close of the initial build session. It covers what exists,
-> what was verified and how, what was *not* verified, and exactly what remains before this is
-> production-ready.
+> **Read this first.** It covers what exists, what was verified and *how*, what was **not**
+> verified, and exactly what remains before this is production-ready.
 >
-> Then read, in order: `CLAUDE.md` → `.brain/memory/decisions.md` (D1–D21) → `docs/STATUS.md`.
+> Then read, in order: `CLAUDE.md` → `.brain/memory/decisions.md` (D1–D22) → `docs/STATUS.md`.
 
 ---
 
@@ -19,7 +18,7 @@ Observe → Plan → Execute → Detect deviation → Intervene → Reflect → 
 Three laws that govern every decision in the codebase:
 
 1. **Postgres is the system of record.** Not the LLM, not a third-party app.
-2. **Deterministic code calculates; Claude only interprets.** Every score, grade, average, and
+2. **Deterministic code calculates; Claude only interprets.** Every score, grade, average and
    streak is pure TypeScript in `packages/core`, unit-tested. The model is never asked to do
    arithmetic or to decide what matters.
 3. **Every LLM response is schema-validated typed JSON.** Free-form prose never reaches the UI
@@ -29,215 +28,202 @@ Full product intent: `docs/context/SOURCE_BRIEF.txt`. Architecture: `docs/MASTER
 
 ---
 
-## 2. Current state (measured, not estimated)
+## 2. The finding that defined the last session
 
-**Final verification sweep at session close — every number below was run, not recalled:**
+An earlier handoff described a nearly-finished product. A reachability audit — every exported
+`packages/api` function checked for a caller in the real request path — plus signing in as a
+genuinely empty account found otherwise:
+
+> **The product had no data-entry path.** No way to create a course, a task, or an assignment. No
+> syllabus upload. No way to confirm an imported deadline. A real user signed up and the app was
+> permanently empty, on both platforms.
+
+Worse, the first-run experience was actively nonsensical: a brand-new user was dropped into the
+morning check-in and asked to pick a "Top 3" from nothing, and to predict what percentage of an
+**empty day** they would finish — pre-set to 80%. That fabricated 80% was written to
+`daily_predictions` and later scored against a real 0%, so **a new user's first-ever calibration
+data point was an 80-point miss they never made.**
+
+**Why it was invisible:** every verification ran against the seeded demo account. *"All screens
+render correctly"* was true and proven. *"A user can actually use this"* was never asked.
+
+**This is now fixed and proven** — see §3. The lesson is recorded because it generalises:
+**a demo seed is a rendering fixture, not proof of a usable product.**
+
+---
+
+## 3. Current state (measured, not estimated)
 
 ```
-npm run verify                          exit 0   (4 guards + typecheck + lint + test)
-pgTAP                                   356 / 356
-packages/api integration                 75 / 75   (run twice, per D14)
-Playwright E2E                            17 / 17   (desktop + mobile viewports)
-Deno edge (offline, no API key)          84 / 84
-production web build                    SUCCEEDS  (all 17 routes)
-working tree                            clean
+180 commits · 32 migrations · 46 tables · 0 without RLS · 11 edge functions
+web: 17 routes · mobile: 16 routes · 23 integration-test files · 8 E2E specs
 ```
 
-```
-87 commits · 29 migrations · 46 tables · 0 without RLS · 11 edge functions
-web: 16 routes · mobile: 15 routes · full platform parity
-```
-
-One red surfaced during the sweep and was correctly diagnosed as a **stale test, not a product
-bug**: an assertion described the report payload's pre-unification shape. Fixing the *payload* to
-satisfy it would have reverted a deliberate design decision. Assertion corrected; payload untouched.
-
-| Suite | Count | What it covers |
-|---|---|---|
-| `packages/core` unit | **332** | the entire deterministic engine |
-| pgTAP | **356** | RLS isolation, constraints, triggers, Vault encryption |
-| `packages/api` integration | **70+** | against a real local Postgres, run 2× consecutively |
-| Deno edge | **50+** | LLM gateway, syllabus, integrations — offline, no API key |
-| Web E2E (Playwright) | **17** | real stack, real auth, real Mailpit emails |
+| Suite | Count |
+|---|---|
+| `packages/core` unit | **332** |
+| pgTAP | **459** assertions, 10 files |
+| `packages/api` integration | 100+, run twice (D14) |
+| Deno edge (offline) | 84 |
+| Web E2E (Playwright) | 8 specs incl. the E0 acceptance test |
 
 `npm run verify` → **exit 0**. Four guards run *before* typecheck; **each has caught a real defect**
-that typecheck, lint, and review all missed. Do not disable one to make a build pass.
+that typecheck, lint and review all missed. Do not disable one to make a build pass.
+
+**Production bundle** (measured, `next build` + `next start`): **1,264 KB raw / 348 KB gzipped**
+across 18 routes. No `react-native` leakage, no `service_role` in any client chunk (web *and* a real
+compiled iOS Hermes bundle), no `date-fns`/`zod` duplication.
 
 ---
 
-## 3. What is built
+## 4. What is built
 
-### Backend — complete
-- **`packages/core`** — risk scoring with full explanation traces, grade projection + scenario
-  solver, task-duration calibration, deadline backplanning, bounce-back, Recovery Mode, workload
-  levels (Floor/Target/Stretch), planning-vs-execution quadrant, friction analytics, insight
-  confidence gating, experiment outcome scoring, weekly planning with free-interval math.
-  **Pure functions, no I/O, `now` always injected.**
-- **`packages/api`** — typed data layer, enumeration-safe auth, day assembly, academic, focus
-  sessions, kill loop, friction logging, proof-of-work, interventions, escalation.
-- **11 edge functions** — syllabus extract/confirm, nightly analysis, weekly synthesis, Brightspace
-  sync/confirm, WHOOP OAuth + webhook, RescueTime sync, account export, account delete.
-- **LLM layer** — budget gate proven to block *before* the HTTP call, forced tool-use + Zod
-  validation, retry→deterministic-fallback ladder, seven-lens schema. **Fully tested offline.**
-- **Integrations** — Brightspace iCal (proven end-to-end), WHOOP, RescueTime. Provider-behind-
-  interface, contract-tested against recorded fixtures.
-- **Data export & deletion** — dynamically enumerates all 46 user-scoped tables; deletion also
-  removes Vault secrets and Storage objects that a row cascade would miss.
+### The loop is closed for the first time
+Every step of `Observe → Plan → Execute → Detect deviation → Intervene → Reflect → Learn` now has a
+working surface on both platforms. Previously two steps did not:
 
-### Both platforms (web + mobile)
-Landing/welcome · auth (signup, login, reset, confirm) · **Today** (three engine-decided modes with
-the Day Trace signature element) · morning check-in · night review · Courses · Semester Map ·
-Calendar horizon · Review + `/review/[date]` nightly report · Insights · focus sessions · kill list ·
-Settings · navigation shell.
+- **Intervene** — all four evaluators existed, fully tested, with **no caller anywhere**. Nothing
+  had ever created an intervention in the real request path; the demo account held zero rows. Now
+  swept on every Today load, rendered with real actions, and responses recorded.
+- **Learn** — experiments could be *started* and never measured or scored; decisions could not be
+  logged at all. Both now close.
 
----
+### Data entry & onboarding (the §2 fix)
+Course CRUD · weight categories · grade boundaries · assignment CRUD · deliverable detail with
+backplan generation and proof-of-work config · task quick-add · syllabus upload → extract → confirm ·
+Brightspace ICS pending-deadline confirmation · an onboarding gate that checks for a real course
+rather than a `has_onboarded` flag.
 
-## 4. What was tested, and how
+**Acceptance test, passing on both platforms:** create a brand-new account and, without touching
+psql or the seed, reach a Today screen with a real course, a real deliverable and a real task.
 
-**The standard held throughout: verify the write, not the success state.** Nearly every UI
-verification confirmed the actual database row via psql rather than trusting a success toast. That
-turned out to matter — see §6.
-
-- **Domain engine** — TDD, red confirmed before every implementation. Hand-verified a full
-  four-category syllabus by hand and matched it against the engine.
-- **RLS** — the isolation test **dynamically enumerates** every user-scoped table from `pg_class`
-  rather than a hand-list, so it cannot silently stop covering new tables.
-- **Timezone** — DST spring-forward and fall-back, plus both date-line extremes, proven in pgTAP.
-- **Security** — SSRF guard on the one user-supplied fetch target; Vault ciphertext proven to be
-  ciphertext; cross-user decrypt refused; edge functions reject an anon key (a *public* value) as
-  well as no auth; journal text proven absent from logs and the usage ledger.
-- **Account deletion** — proven against a user with data in **every** table, including Vault
-  secrets and Storage objects.
-- **Auth** — real signup → real Mailpit email → confirm → session, and enumeration-safety proven by
-  asserting byte-identical responses for a nonexistent account vs a wrong password.
-- **Cold start** — a brand-new account walked across all six screens; every empty state degrades
-  honestly rather than showing fabricated zeros.
+### Everything else
+Landing/welcome · auth (5 routes) · Today (four engine-decided modes, Day Trace) · morning check-in
+with optional timeboxing · night review with voice input on web · Courses · course detail · Calendar
+(`This week` / `Horizon`) · weekly planning · Review + `/review/[date]` · Insights (experiments,
+decision journal, calibration, friction, bounce-back, planning-vs-execution) · focus sessions · kill
+list · office hours · Settings · full data export and account deletion.
 
 ---
 
-## 5. What has NOT been tested — read this before trusting anything
+## 5. What was verified, and how
 
-### 5.1 Performance — never measured properly
-The only numbers taken were **dev-mode with Turbopack** and are meaningless. No production build has
-been profiled. **Nothing is known** about first-load JS, LCP, TTI, bundle composition, or query
-efficiency under load. `getDayView` and the report assembly both grew organically and have never had
-an N+1 audit.
+**The standard: verify the write, not the success state.** Nearly every UI verification confirmed
+the actual database row via psql rather than trusting a toast.
 
-### 5.1a The last UI fix is code-complete but not screenshot-verified
-The user's *"buttons are arrows"* report was traced to its literal cause: three root-level mobile
-screens used a bare `<Pressable><Text>← X</Text></Pressable>` as their only back/forward navigation —
-no border, no background, no press feedback, just a floating arrow glyph. Replaced with a `NavLink`
-component (hairline border, padding, minimum tap target, press feedback, mono label). Typechecks and
-lints clean, and the fix was verified by reading the exact code it replaces — but **not confirmed on
-a running simulator**, for the reason in §5.2.
+Highlights where that mattered:
 
-**Not reviewed this pass** (untouched, not known-bad): Insights on both platforms, and Review on web.
-Today and Courses were checked live on web and were already clean — proper `Button`, `RiskPill`, and
-hairline treatment, no bare elements.
-
-**Settings on mobile WAS verified live on-device** (iPhone 16 Pro simulator, real demo account) after
-the handoff was first written — all six checks pass, including the escalation-ceiling wording that
-labels L2–L4 as *"in-app message only, enforcement not yet built."* That consent surface is confirmed
-as shipped, not assumed.
-
-### 5.2 Mobile visual rendering — under-verified
-iOS simulator text injection (`idb ui text`) is **unreliable in this environment** — silent character
-drops, cursor jumps, fields reverting to stale values. It blocks sign-in, which blocks everything
-downstream.
-
-**The fix is designed but unbuilt:** generate a real magic link via Supabase admin `generateLink`,
-deep-link it into the app's existing handler, skip typing entirely. Reuses real auth code, so it
-remains a genuine verification.
-
-**What remains trustworthy:** every verification that confirmed a **database write via psql** is
-valid regardless of input tooling — the DB is ground truth, and corrupted input would have produced
-*wrong* stored values, not right ones.
-
-### 5.3 The model path has never met a live model
-There is no `ANTHROPIC_API_KEY`. The seven-lens rendering and evidence-gating against real `analysis`
-are wired and typecheck clean, with the gating logic proven against a synthetic fixture — but no
-live inference has ever run. **Re-verify this first when a key exists.**
-
-### 5.4 Accessibility — partial
-Specific bugs were found and fixed (a poisoned focus-ring variable that meant *zero* visible keyboard
-focus product-wide; a `"(tabs)"` route-group name leaking as an accessible label). But no systematic
-keyboard-only pass on web and no VoiceOver pass on mobile has been completed.
-
-### 5.5 Sparse, failed, and offline states
-Screens are verified against a rich seeded semester **and** a brand-new account, but **not** against
-three-days-of-history, a mid-request database failure, or offline.
+- **The nightly pipeline ran end-to-end for the first time** (2026-08-22). Every edge function had
+  been returning 503 locally for the entire build because `supabase start` brings up **no
+  edge-runtime container** — nobody had noticed. With it serving: `processed: 1`, a real
+  `agent_reports` row, a real `daily_summaries` row, 5 insights detected, zero failures.
+- **`brightspace-confirm` verified end-to-end** — a real pending ICS event confirmed through the UI,
+  producing a real `calendar_events` row.
+- **Metric filtering on experiments proven with a decoy**: a planted reading of `999` under a second
+  metric name; the rendered verdict was **39.8, not 231.6**.
+- **RLS**: all 46 tables have `relrowsecurity` **and** `relforcerowsecurity`.
+- **Sparse account** (1 course, 1 task, no history): zero `NaN`/`undefined`/`null` in visible text
+  across five routes, and every empty state explains *why* it is empty.
 
 ---
 
-## 6. Before this is production-ready
+## 6. What has NOT been verified — read before trusting anything
 
-### Must fix — security and correctness
-1. **Custom URL scheme (`collegeos://`) is hijackable.** Another app registering the same scheme can
-   intercept an auth callback — on a confirmation or reset link, that means intercepting a session.
-   Fix: Universal Links (iOS) / App Links (Android), domain-verified. Needs a real domain + AASA file.
+### 6.1 The model path has never run
+There is no `ANTHROPIC_API_KEY`. The nightly report is produced by the deterministic fallback
+(`usedModel: false`) and says so on screen. The failure is now provably *the model call* rather than
+an unreachable function — a much narrower gap than before, but still a gap. **Re-verify first when a
+key exists.** If a live response shape differs from a fixture, **update the fixture from reality,
+never patch the test to pass.**
+
+### 6.2 Accessibility — structural only
+A keyboard-only pass on web was done live and found a real invisible-focus bug in `Modal`. Mobile
+had a **structural audit** (static props + the Expo-Web ARIA tree), which found three accessible-name
+leaks including a Checkbox announcing as *"check, No Instagram before 6 PM"*.
+
+**That is not a VoiceOver pass.** A screen reader tests announcement order, whether a live region
+interrupts, and whether a name makes sense *spoken* — none of which a tree can show. **A real
+VoiceOver/TalkBack pass on a physical device is a required pre-launch item.**
+
+### 6.3 Failure and offline states
+All 9 `(app)` routes have explicit error branches, so the shape is right — **but nobody has ever seen
+one fire.** A mid-request database failure was deliberately not tested (two engineers were working
+against the same database). **Offline is unimplemented**: the requirement is last-known data with an
+explicit staleness timestamp, never silently stale.
+
+### 6.4 Native pickers on mobile
+`DatePicker`/`TimePicker` use `@react-native-community/datetimepicker`, which **does not render under
+Expo Web** — the tool used for most mobile verification. Every other mobile surface was verified
+live; the picker submit path was not. Needs a simulator or device pass.
+
+### 6.5 `/today` issues 45 PostgREST round trips
+Invisible locally (131 ms) and **not invisible against cloud Supabase** at 30–50 ms RTT. Not a
+classic N+1 — five domain functions each independently re-read the same tables (`calendar_events` ×5,
+`deliverables` ×3, `courses` ×2). A partial fix is in progress; see `docs/L11_HARDENING.md` §1.
+
+---
+
+## 7. Before this is production-ready
+
+**Must fix — security** (all four still accurate, re-verified 2026-08-22, `docs/SUPABASE_SETUP.md`):
+1. **`collegeos://` is hijackable** — another app registering the scheme can intercept an auth
+   callback. Needs Universal Links / App Links, a real domain and an AASA file.
 2. **Remove `exp://127.0.0.1:8081/**` from the redirect allow-list.** Development only.
-3. **Configure custom SMTP.** The built-in mailer is rate-limited; confirmation emails will silently
-   throttle in production.
-4. **Redirect allow-list must use exact hosts, no wildcards.** A permissive entry turns every
-   password-reset email into a credential-phishing vector.
+3. **Configure custom SMTP.** The built-in mailer is rate-limited and will silently throttle.
+4. **Redirect allow-list must use exact hosts, no wildcards.**
 
-### Must verify
-5. **Cloud deploy** per `docs/SUPABASE_SETUP.md` — ordered runbook; confirm `supabase db diff` is
-   clean, pgTAP passes against cloud, and **every** table shows RLS enabled.
-6. **Anthropic activation** per §7 — including: *if a live response shape differs from a fixture,
-   update the fixture from reality, never patch the test to pass.*
-7. **The full hardening pass** in `docs/L11_HARDENING.md` — performance, accessibility, sparse and
-   broken states, a full regression, and a complete manual journey on both platforms.
+**Must verify:** cloud deploy per `SUPABASE_SETUP.md` · Anthropic activation (§6.1) · a real
+VoiceOver pass (§6.2) · the remaining `L11_HARDENING` items.
 
-### Should complete — features with a finished backend and no UI
-Detailed in `docs/FOLLOWUPS.md` (U1–U8). These are **working, tested code that nothing calls**:
-- **Weekly planning (U6)** — highest value. Complete engine, three tables, zero UI. Ruled to live
-  inside `/calendar` as a "This week" view.
-- **Proof-of-work (U3)** · **Decision journal (U7)** · **Interventions surface (U1)** ·
-  **Office hours (U5)** · **Semester lessons (U8)**
+**Known open items:** `docs/FOLLOWUPS.md` — including S12 (SSRF DNS-rebinding tracked only in a code
+comment), **S13** (journal privacy is currently true *by the feature not existing yet*, and must be
+re-tested the day journal entries ship), and S14.
 
 ---
 
-## 7. Things a future session would otherwise get wrong
+## 8. Things a future session would otherwise get wrong
 
-Read `.brain/memory/decisions.md` in full — 21 durable decisions with their reasoning. The ones most
-likely to be reversed by someone who doesn't know why:
+Read `.brain/memory/decisions.md` in full — **D1–D22**. The ones most likely to be reversed:
 
-- **D4** — all internal packages are source-resolved (no `dist`). A build step reintroduces a
-  stale-dist trap.
-- **D16** — `packages/core` is mirrored into the Deno function directory because the Edge Runtime
-  can't resolve extensionless imports. **The staleness guard is load-bearing**: a stale mirror means
-  edge functions compute risk scores with *different domain logic* than the apps display.
-- **D19** — `private.*` functions need an explicit `public` wrapper to be callable at all. Do not
-  "simplify" this by exposing the private schema.
-- **D20** — a component isn't done until something in the **real request path** calls it. This
-  happened **five times** in one session with correct, fully-tested code.
-- **D21** — a green `npm run verify` says nothing about what is *committed*. In a shared working
-  directory it can mean two people's uncommitted state happens to typecheck.
+- **D4** — internal packages are source-resolved (no `dist`). A build step reintroduces a stale-dist trap.
+- **D16** — `packages/core` is mirrored into the Deno directory; **the staleness guard is
+  load-bearing.** A stale mirror means edge functions compute risk with *different logic* than the apps show.
+- **D19** — `private.*` functions need an explicit `public` wrapper. Don't "simplify" by exposing the schema.
+- **D20** — a component isn't done until something in the **real request path** calls it. This happened
+  repeatedly, and at product scale: an entire *verb* (data entry) was missing.
+- **D21** — a green `verify` says nothing about what is **committed**.
+- **D22** — **in a shared working tree, commit by pathspec** (`git commit -m "…" -- <paths>`). Two agents
+  share one git index, so a bare `git commit` sweeps in whatever a peer has staged. This happened.
 
-Also read `.brain/memory/tooling-gotchas.md` — environment traps that already cost hours (Kong
-holding stale upstreams after a `db reset`; Expo Go deep-link separators; `idb` text corruption).
+Also read `.brain/memory/tooling-gotchas.md` — including the two that cost the most: **edge functions
+return 503 because no runtime container is running** (`supabase functions serve --env-file`), and
+**mobile visual verification works through Expo Web** (`npx expo start --web`), where the simulator's
+text-injection corruption simply doesn't exist.
 
 ---
 
-## 8. How to work here
+## 9. How to work here
 
 ```bash
 npm run db:start          # local Supabase (Docker must be running)
+supabase functions serve --env-file ./.env.local   # edge runtime — NOT part of db:start
 npm run db:reset          # re-apply migrations + seed, and refresh Kong
 npm run verify            # 4 guards → typecheck → lint → test
 npm run test:e2e          # Playwright, real stack
-npm run make:test-user    # throwaway account for verification
-npm run clean:test-users  # remove them
+npm run test:integration --workspace=@collegeos/api
 supabase test db          # pgTAP
+cd apps/mobile && npx expo start --web --port 8082   # mobile, verifiable in a browser
 ```
 
-**Demo account:** `demo@collegeos.app` / `CollegeOS-Demo-2026` — a realistic seeded 10-week semester.
-**Read from it; write against a throwaway.** Its value is that it's stable and screenshot-worthy;
-every test write degrades that.
+**Demo account:** `demo@collegeos.app` / `CollegeOS-Demo-2026` — a realistic seeded semester.
+**Read from it; write against a throwaway** (`npm run make:test-user`).
 
 **Working agreements that earned their keep:**
 - Verify before claiming. Paste real output. Typecheck is not evidence.
-- **Green once is not green** — run new integration tests twice against the same database.
-- Never fabricate a value. `—` or omit, never a placeholder number.
+- **Green once is not green** — run new integration tests twice (D14).
+- **Never fabricate a value.** `—` or omit, never a placeholder number. This applies to layout and to
+  thresholds too: a page that ends where its content ends is not a defect, and "repeatedly" is not a
+  number you get to invent.
+- **A doc row is a claim about the past.** Three entries here turned out stale mid-session. Re-verify
+  against HEAD before acting on one.
 - Behaviour and information may never diverge across platforms; layout and idiom may.
