@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { RiskPill } from "@/components/ui";
+import { EmptyState, PageHeader, RiskPill } from "@/components/ui";
+import { AddCourseModal } from "@/components/courses/AddCourseModal";
 import { daysRemainingLabel } from "@/lib/dates";
 import { loadCoursesIndex, type CoursesIndexRow } from "./data";
 
@@ -26,10 +27,14 @@ export default async function CoursesPage() {
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-6 px-8 py-10">
-      <h1 className="font-serif text-display-m font-semibold tracking-[-0.01em] text-ink">Courses</h1>
+      <PageHeader title="Courses" actions={rows.length > 0 ? <AddCourseModal /> : null} />
 
       {rows.length === 0 ? (
-        <p className="text-body-s text-ink-faint">No courses yet. Add one, or upload a syllabus to get started.</p>
+        <EmptyState
+          title="No courses yet"
+          description="Add your first course to start tracking assignments, grades, and risk."
+          action={<AddCourseModal />}
+        />
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] border-collapse">
