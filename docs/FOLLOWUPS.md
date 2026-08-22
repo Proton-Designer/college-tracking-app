@@ -106,6 +106,24 @@ a usable product.**
 
 ---
 
+## Found in live review, 2026-08-22 (Lead, demo account, web)
+
+Found by actually using the app rather than reading it. All three verified in a live browser.
+
+| # | Item | Evidence | Ruling |
+|---|---|---|---|
+| 🔴 U9 | **The experiment loop can be started but never finished** | `createExperiment` has callers (the "Run an experiment" button works). `logExperimentMeasurement`, `scoreExperiment` and `getExperimentOutcome` have **zero callers on either platform.** So a user can start an experiment and then has no way to record a single measurement or score the outcome. | This is the **Learn** step of the closed loop, and it is a dead end. Belongs on `/insights` with **U7** — identical observe-then-score shape. |
+| 🔴 U9a | **"Day 8 of 7"** | `ActiveExperiments.tsx:23` computes `elapsedDays` from `start_date` and renders it unclamped against `totalDays`. The demo account currently displays *"Day 8 of 7 · no measurements logged yet"* — an experiment past its own window, with no terminal state, counting up forever. | An experiment that has run past its window must reach a state — "ready to score" — not keep counting. Fix with U9; the absurd counter is the symptom, the missing scoring path is the disease. |
+| 🔴 T1 | **Recovery Mode names none of the things it kept** | Today in Recovery Mode renders "KEPT TODAY" as `Class / commitment` three identical times. `RecoveryBanner.itemLabel()` resolves real titles for tasks via `tasksById`, but falls back to the generic `KIND_LABEL` for ids starting with `event-` — and calendar events are never passed to the component, only `todayTasks`. | The one screen whose entire job is to say *"here are the few things that actually matter today"* names none of them. Keep `MvdCandidateItem` pure (`{id, kind, riskScore}`, no display strings — that's correct); do the title join in the UI/api layer. |
+| 🔴 T2 | **Recovery Mode removes every possible action** | `today/page.tsx` (~line 118) branches three ways; in recovery mode it renders *only* `<RecoveryBanner>`. No MitList, no WorkloadBand, no DeadlineRadar, no KillListSection, no FocusLauncher. | **Lead ruling: reducing scope is right, removing agency is wrong.** The state a user is in when they are struggling most is currently the state with zero available actions — they cannot complete a task or start a focus session. Recovery Mode must render the kept MVD items as *actionable*, plus protections, with deferred work still visibly deferred. Narrow the screen; don't blank it. |
+
+**Process note — the fifth gap caught by audit rather than review, and the first caught by simply
+using the product.** E1–E5 came from a reachability audit; U9/T1/T2 came from signing in as the demo
+user and looking. Both are cheap. Neither had been done. *Every screen renders* and *every test
+passes* were both true the whole time.
+
+---
+
 ## Found at session close
 
 | # | Item | Notes |
