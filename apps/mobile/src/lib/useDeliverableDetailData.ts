@@ -26,7 +26,20 @@ export type DeliverableDetailFetchState =
   | { status: "error"; error: string }
   | { status: "ready"; data: DeliverableDetailData };
 
-/** Mirrors apps/web/src/app/(app)/deliverables/[id]/data.ts's loadDeliverableDetail exactly. */
+/** Mirrors apps/web/src/app/(app)/deliverables/[id]/data.ts's loadDeliverableDetail exactly.
+ *
+ *  Deliberately computes no risk data -- DESIGN_LANGUAGE_V2's §6.1 table originally listed
+ *  this screen's Aurora band as "that deliverable's own result.band," corrected after review:
+ *  the only real source for that is computeRiskAssessment (course facts, grade projections,
+ *  sleep baseline, timezone), a heavy call this leaf screen has no other reason to make.
+ *  Paying that cost purely to tint an ambient background inverts the Aurora's own contract
+ *  (§6: ambient only, a colourblind user loses nothing without it) and moves the wrong
+ *  direction on the already-open 45-round-trip finding in HANDOFF.md §7.5. A lighter,
+ *  locally-computed stand-in was considered and rejected: it would be a second definition of
+ *  risk alongside computeRiskAssessment, exactly the class of bug D16's core-mirror guard
+ *  exists to prevent (see B1/B2, B8 in FOLLOWUPS). This screen gets flat ground, same as
+ *  calendar/insights/settings/focus/auth/landing -- "none" is the majority answer in that
+ *  table, not a gap to fill. Do not add a risk query here to close this comment out. */
 export function useDeliverableDetailData(deliverableId: number) {
   const { session, loading: authLoading } = useAuthSession();
   const userId = session?.user.id;
