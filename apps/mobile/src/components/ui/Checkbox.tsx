@@ -35,6 +35,7 @@ export function Checkbox({ checked, onValueChange, label, disabled = false, erro
     <View style={styles.container}>
       <Pressable
         accessibilityRole="checkbox"
+        accessibilityLabel={label}
         accessibilityState={{ checked, disabled }}
         disabled={disabled}
         onPress={() => onValueChange(!checked)}
@@ -53,7 +54,11 @@ export function Checkbox({ checked, onValueChange, label, disabled = false, erro
             focused ? styles.focusRing : null,
           ]}
         >
-          <Animated.Text style={[styles.check, checkStyle]}>✓</Animated.Text>
+          {/* accessibilityState.checked above already conveys this to a screen reader --
+              without hiding it, the checkmark's glyph gets read aloud too ("check, label"). */}
+          <Animated.Text accessibilityElementsHidden importantForAccessibility="no" style={[styles.check, checkStyle]}>
+            ✓
+          </Animated.Text>
         </View>
         <Text style={textStyle("body", disabled ? color.inkFaint : color.ink)}>{label}</Text>
       </Pressable>
