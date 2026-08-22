@@ -48,6 +48,24 @@ Record real numbers in this file. A number without a build type is meaningless.
 
 348 KB gzipped across the whole app is lean for eighteen routes. **No action needed.**
 
+**Re-measured at end of session, after a full day of new UI** (office hours, decision journal,
+interventions surface, weekly-planning views, night-review restructure, the whole L13.1 composition
+pass, and E0–E5 data entry):
+
+| | Baseline | After | Δ |
+|---|---|---|---|
+| Raw | 1,260 KB | 1,264 KB | **+4 KB** |
+| Gzipped | 347.9 KB | 348.5 KB | **+0.6 KB** |
+
+Verified this is a real result and not a build that silently dropped the new code: grepped the
+output for distinctive strings from each new surface — *"Needs a decision"*, *"Log a decision"*,
+*"Speak instead"*, *"Score this trial"*, *"Generate this week"*, *"Office hours"* — and **every one
+appears in both a client chunk and the server output.** The work shipped; it just costs almost
+nothing.
+
+That is the server-components-by-default architecture doing its job: only genuinely interactive
+surfaces ship client JS, so a day of feature work lands as rounding error.
+
 **Bundle audit — the three things §1 asks for, all clean:**
 - **`react-native` in the web bundle (the D11 bug class): NOT present.** One chunk matches the
   string, and it is a false positive — `@supabase/supabase-js`'s own runtime detection
