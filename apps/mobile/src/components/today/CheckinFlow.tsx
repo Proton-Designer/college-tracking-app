@@ -1,9 +1,9 @@
 import type { Course, DayView, MitTimebox, Task } from "@collegeos/api";
 import { localTimeToInstant } from "@collegeos/core";
 import { color, radius, space } from "@collegeos/design/native";
-import { useMemo, useState, useTransition } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { Button, ChipGroup, Label, Panel } from "../ui";
+import { useMemo, useState, useTransition, type ReactNode } from "react";
+import { Pressable, StyleSheet, Text, TextInput, View, type StyleProp, type ViewStyle } from "react-native";
+import { Button, ChipGroup, Panel, SegmentedControl } from "../ui";
 import { textStyle } from "../../design/typography";
 import { submitCheckin } from "../../lib/todayActions";
 
@@ -49,6 +49,16 @@ type StepId = "physio" | "energy" | "mood" | "mits" | "completion" | "derailment
 
 function buildSteps(hasHealth: boolean): StepId[] {
   return hasHealth ? ["physio", "energy", "mood", "mits", "completion", "derailment"] : ["energy", "mood", "mits", "completion", "derailment"];
+}
+
+/** A text-only tap target (Skip, Remove, Cancel, etc.) with a real press acknowledgment --
+ *  these were bare Pressables with zero feedback of any kind. */
+function TextLink({ onPress, style, children }: { onPress: () => void; style?: StyleProp<ViewStyle>; children: ReactNode }) {
+  return (
+    <Pressable onPress={onPress} hitSlop={8} style={({ pressed }) => [style, { opacity: pressed ? 0.6 : 1 }]}>
+      {children}
+    </Pressable>
+  );
 }
 
 export function CheckinFlow({
@@ -180,9 +190,9 @@ export function CheckinFlow({
           <Text style={textStyle("caption", color.inkFaint)}>
             Step {stepIndex + 1} of {steps.length}
           </Text>
-          <Pressable onPress={onSkip} hitSlop={8}>
+          <TextLink onPress={onSkip}>
             <Text style={textStyle("caption", color.inkFaint)}>Skip for today</Text>
-          </Pressable>
+          </TextLink>
         </View>
       </View>
 
@@ -209,9 +219,9 @@ export function CheckinFlow({
             <View style={styles.mitsHeader}>
               <Text style={textStyle("title", color.ink)}>Top 3 for today</Text>
               {selectedIds.length === 0 ? (
-                <Pressable onPress={() => setSelectedIds(suggestedMits.map((m) => m.taskId).slice(0, 3))} hitSlop={8}>
+                <TextLink onPress={() => setSelectedIds(suggestedMits.map((m) => m.taskId).slice(0, 3))}>
                   <Text style={textStyle("caption", color.accent)}>Accept all</Text>
-                </Pressable>
+                </TextLink>
               ) : null}
             </View>
             {selectedIds.length === 0 ? (
@@ -228,12 +238,9 @@ export function CheckinFlow({
                         <Text style={textStyle("bodyS", color.ink)}>{task?.title ?? "Untitled task"}</Text>
                         {c ? <Text style={textStyle("caption", color.inkFaint)}>{c.code}</Text> : null}
                       </View>
-                      <Pressable
-                        onPress={() => setSelectedIds((prev) => prev.filter((id) => id !== taskId))}
-                        hitSlop={8}
-                      >
+                      <TextLink onPress={() => setSelectedIds((prev) => prev.filter((id) => id !== taskId))}>
                         <Text style={textStyle("caption", color.inkFaint)}>Remove</Text>
-                      </Pressable>
+                      </TextLink>
                     </View>
 
                     {box.revealed ? (
@@ -257,15 +264,15 @@ export function CheckinFlow({
                           style={[styles.locationInput, textStyle("bodyS", color.ink)]}
                         />
                         {box.time === "" && box.location === "" ? (
-                          <Pressable onPress={() => updateTimebox(taskId, { revealed: false })} hitSlop={8}>
+                          <TextLink onPress={() => updateTimebox(taskId, { revealed: false })}>
                             <Text style={textStyle("caption", color.inkFaint)}>Cancel</Text>
-                          </Pressable>
+                          </TextLink>
                         ) : null}
                       </View>
                     ) : (
-                      <Pressable onPress={() => updateTimebox(taskId, { revealed: true })} hitSlop={8} style={styles.addTimeButton}>
+                      <TextLink onPress={() => updateTimebox(taskId, { revealed: true })} style={styles.addTimeButton}>
                         <Text style={textStyle("caption", color.inkFaint)}>+ Add time</Text>
-                      </Pressable>
+                      </TextLink>
                     )}
                   </View>
                 );
@@ -273,12 +280,12 @@ export function CheckinFlow({
             )}
             {selectedIds.length < 3 && remainingTasks.length > 0 ? (
               <View>
-                <Pressable onPress={() => setShowTaskPicker((v) => !v)} style={styles.addTaskButton}>
+                <TextLink onPress={() => setShowTaskPicker((v) => !v)} style={styles.addTaskButton}>
                   <Text style={textStyle("bodyS", color.accent)}>+ Add a task</Text>
-                </Pressable>
+                </TextLink>
                 {showTaskPicker
                   ? remainingTasks.map((t) => (
-                      <Pressable
+                      <TextLink
                         key={t.id}
                         onPress={() => {
                           setSelectedIds((prev) => (prev.length >= 3 ? prev : [...prev, t.id]));
@@ -287,7 +294,7 @@ export function CheckinFlow({
                         style={styles.pickerRow}
                       >
                         <Text style={textStyle("bodyS", color.ink)}>{t.title}</Text>
-                      </Pressable>
+                      </TextLink>
                     ))
                   : null}
               </View>
@@ -299,21 +306,14 @@ export function CheckinFlow({
           <View style={styles.stepGap}>
             <Text style={textStyle("title", color.ink)}>How much of today will you actually finish?</Text>
             <View style={styles.percentRow}>
-              {COMPLETION_STEPS.map((pct) => {
-                const selected = predictedCompletionPct === pct;
-                return (
-                  <Pressable
-                    key={pct}
-                    onPress={() => setPredictedCompletionPct(pct)}
-                    style={[
-                      styles.percentCell,
-                      { borderColor: selected ? color.accent : color.border, backgroundColor: selected ? color.accent : color.surfaceSunken },
-                    ]}
-                  >
-                    <Text style={textStyle("bodyS", selected ? "#FFFFFF" : color.ink)}>{pct}%</Text>
-                  </Pressable>
-                );
-              })}
+              {COMPLETION_STEPS.map((pct) => (
+                <PercentCell
+                  key={pct}
+                  pct={pct}
+                  selected={predictedCompletionPct === pct}
+                  onPress={() => setPredictedCompletionPct(pct)}
+                />
+              ))}
             </View>
           </View>
         ) : null}
@@ -343,31 +343,41 @@ export function CheckinFlow({
   );
 }
 
+// Reuses the shared SegmentedControl rather than a local 1-10 cell grid -- this was a bare
+// reimplementation with no press/focus feedback (SegmentedControl already has both).
 function ScaleStep({ title, value, onChange }: { title: string; value: number | null; onChange: (v: number) => void }) {
   return (
     <View style={styles.stepGap}>
       <Text style={textStyle("title", color.ink)}>{title}</Text>
-      <Label>1–10</Label>
-      <View accessibilityRole="radiogroup" style={styles.scaleGrid}>
-        {Array.from({ length: 10 }, (_, i) => i + 1).map((cell) => {
-          const selected = value === cell;
-          return (
-            <Pressable
-              key={cell}
-              accessibilityRole="radio"
-              accessibilityState={{ selected }}
-              onPress={() => onChange(cell)}
-              style={[
-                styles.scaleCell,
-                { borderColor: selected ? color.accent : color.border, backgroundColor: selected ? color.accent : color.surfaceSunken },
-              ]}
-            >
-              <Text style={textStyle("bodyS", selected ? "#FFFFFF" : color.ink)}>{cell}</Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      <SegmentedControl label="1–10" value={value} onValueChange={onChange} />
     </View>
+  );
+}
+
+// Discrete, non-contiguous values (0/20/40/60/80/100) -- SegmentedControl assumes a
+// contiguous 1..max range, so this can't reuse it, but it gets the same press/focus feedback.
+function PercentCell({ pct, selected, onPress }: { pct: number; selected: boolean; onPress: () => void }) {
+  const [focused, setFocused] = useState(false);
+
+  return (
+    <Pressable
+      accessibilityRole="radio"
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={({ pressed }) => [
+        styles.percentCell,
+        {
+          borderColor: selected ? color.accent : color.border,
+          backgroundColor: selected ? color.accent : color.surfaceSunken,
+          opacity: pressed ? 0.85 : 1,
+        },
+        focused ? styles.focusRing : null,
+      ]}
+    >
+      <Text style={textStyle("bodyS", selected ? "#FFFFFF" : color.ink)}>{pct}%</Text>
+    </Pressable>
   );
 }
 
@@ -472,18 +482,11 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: space[3],
   },
-  scaleGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: space[2],
-  },
-  scaleCell: {
-    width: 44,
-    height: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: radius.sm,
-    borderWidth: StyleSheet.hairlineWidth,
+  focusRing: {
+    outlineWidth: 2,
+    outlineColor: color.accent,
+    outlineOffset: 2,
+    outlineStyle: "solid",
   },
   footer: {
     flexDirection: "row",

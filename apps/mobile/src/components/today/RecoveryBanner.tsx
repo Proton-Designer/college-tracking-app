@@ -69,7 +69,10 @@ export function RecoveryBanner({
           ))}
 
           {mvdPlan.deferred.length > 0 ? (
-            <Pressable onPress={() => setExpanded((v) => !v)} style={styles.disclosure}>
+            <Pressable
+              onPress={() => setExpanded((v) => !v)}
+              style={({ pressed }) => [styles.disclosure, { opacity: pressed ? 0.6 : 1 }]}
+            >
               <Text style={textStyle("label", color.accent)}>
                 Rolled forward ({mvdPlan.deferred.length}) {expanded ? "▲" : "▼"}
               </Text>

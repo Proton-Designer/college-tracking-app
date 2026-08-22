@@ -147,7 +147,12 @@ function FocusActive({
         <Button variant="primary" onPress={() => setMode("completing")}>
           End session
         </Button>
-        <Pressable onPress={handleAbandon} disabled={isPending} hitSlop={8}>
+        <Pressable
+          onPress={handleAbandon}
+          disabled={isPending}
+          hitSlop={8}
+          style={({ pressed }) => ({ opacity: isPending ? 0.4 : pressed ? 0.6 : 1 })}
+        >
           <Text style={textStyle("caption", color.inkFaint)}>Abandon without reflecting</Text>
         </Pressable>
       </View>

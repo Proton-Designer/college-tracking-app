@@ -27,7 +27,7 @@ export function ReportHistoryList({ history, currentDate }: { history: AgentRepo
           <Pressable
             key={report.id}
             onPress={() => router.replace(`/review/${report.local_date}`)}
-            style={[styles.row, active ? styles.rowActive : null]}
+            style={({ pressed }) => [styles.row, active ? styles.rowActive : null, { opacity: pressed ? 0.6 : 1 }]}
             hitSlop={4}
           >
             <Text style={textStyle("caption", active ? color.ink : color.inkFaint)}>{formatDate(report.local_date)}</Text>

@@ -175,13 +175,20 @@ function LevelOption({
   label: string;
   description: string;
 }) {
+  const [focused, setFocused] = useState(false);
+
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ checked: selected, disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={{ flexDirection: "row", gap: space[3], opacity: disabled ? 0.6 : 1 }}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      style={({ pressed }) => [
+        { flexDirection: "row", gap: space[3], opacity: disabled ? 0.6 : pressed ? 0.7 : 1 },
+        focused && !disabled ? styles.focusRing : null,
+      ]}
     >
       <View
         style={{
@@ -238,3 +245,12 @@ function NewKillHabitCard({ userId }: { userId: string }) {
     </Panel>
   );
 }
+
+const styles = StyleSheet.create({
+  focusRing: {
+    outlineWidth: 2,
+    outlineColor: color.accent,
+    outlineOffset: 2,
+    outlineStyle: "solid",
+  },
+});
