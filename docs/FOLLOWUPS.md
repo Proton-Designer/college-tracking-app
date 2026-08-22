@@ -466,6 +466,26 @@ than hand-seeded.
 
 ---
 
+## Security-review follow-ups (L14 §4, 2026-08-22)
+
+The review found **no vulnerabilities**. These are three precision items it surfaced that would
+otherwise live only in a code comment or in someone's memory.
+
+| # | Item | Notes |
+|---|---|---|
+| 🟡 S12 | **SSRF guard's DNS-rebinding limitation is tracked only in a code comment** | `ssrfGuard.ts`'s header honestly states that checking the resolved IP *"reduces but does not eliminate"* the risk, and that a full fix (resolve-then-pin, or an egress proxy) is not built. That's the right disclosure in the right place — but it appears **nowhere in this file**, so nobody reviewing the follow-up list would ever learn of it. A limitation that lives only next to the code it limits is invisible to exactly the people who plan work. 13/13 guard tests pass; the gap is tracking, not behaviour. |
+| 🟡 S13 | **"Journal content is never logged" is currently true by absence, not by tested redaction** | Verified precisely rather than generously: `journal_entries` has **zero readers and zero writers** anywhere in the codebase, so the strongest claim available is *the feature does not exist yet*. The actively-used sensitive fields (`daily_reviews.proud_text` / `went_wrong_text` / `important_note_text`) **are** clean — traced to a single consumer that folds them into the sanctioned summary-pyramid compaction, with no `console.log` of content anywhere in `supabase/functions` and no crash-reporting integration in the repo at all. **Re-test the day journal entries are actually built.** A guarantee that holds because a feature is missing stops holding the moment it ships, and that is precisely the kind of thing nobody remembers to re-check. |
+| 🟢 S14 | **`whoop-webhook` returns 500 rather than 401 for unauthenticated calls** | Not a gap — it fails **closed** (`"Server misconfigured: WHOOP webhook environment is incomplete"`) before reaching its HMAC check, because no WHOOP credentials are configured locally. The property that matters holds. But once real credentials exist, a 500 there will read as *"something broke"* rather than *"auth refused"*, and someone will debug the wrong thing. Worth a correct status code at that point. |
+
+**Also confirmed clean, recorded so it isn't re-litigated:** all 46 public tables have
+`relrowsecurity` **and** `relforcerowsecurity` (subject even for the owner role); no `service_role`
+reference in a real `expo export` bundle for **either** web or iOS (compiled Hermes binary grepped
+directly, not inferred from the `EXPO_PUBLIC_` prefix rule); all 11 edge functions reject both an
+absent auth header and an anon-key-only call; and all four of `SUPABASE_SETUP.md`'s
+must-fix-before-launch items are still accurate and still flagged.
+
+---
+
 ## Smaller items from the 2026-08-22 live review
 
 | # | Item | Notes |
