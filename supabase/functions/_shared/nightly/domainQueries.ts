@@ -27,6 +27,7 @@ import {
   computeRecoveryModeTrigger,
   daysBetween,
   addDays,
+  localTimeToInstant,
   type AssignmentRiskInput,
   type BounceBackResult,
   type CauseTrendEntry,
@@ -150,9 +151,12 @@ function sumCalendarHoursInWindow(
   events: Array<{ start_at: string; end_at: string }>,
   today: LocalDate,
   dueDate: LocalDate,
+  timezone: string,
 ): number {
-  const windowStart = new Date(`${today}T00:00:00Z`).getTime();
-  const windowEnd = new Date(`${dueDate}T23:59:59Z`).getTime();
+  // B4 (mirrors packages/api/src/day/risk.ts): the window is the user's real local
+  // days, not UTC midnight -- see CLAUDE.md's "never derive a day boundary from UTC."
+  const windowStart = new Date(localTimeToInstant(today, 0, 0, timezone)).getTime();
+  const windowEnd = new Date(localTimeToInstant(addDays(dueDate, 1), 0, 0, timezone)).getTime();
   let totalMs = 0;
   for (const e of events) {
     const start = Math.max(new Date(e.start_at).getTime(), windowStart);
@@ -169,6 +173,7 @@ export async function computeRiskAssessment(
   courses: CourseFacts[],
   gradeProjections: CourseGradeProjection[],
   sleepBaselineHours: number | null,
+  timezone: string,
 ): Promise<RiskAssessment> {
   const wakingHoursPerDay = wakingHoursPerDayFor(sleepBaselineHours);
   const [
@@ -179,7 +184,20 @@ export async function computeRiskAssessment(
     { data: gradeItems, error: itemError },
     { data: gradeCategories, error: catError },
   ] = await Promise.all([
-    client.from("deliverables").select("*").eq("user_id", userId).neq("status", "completed"),
+    // B1/B2 (packages/api/src/day/risk.ts): scoped to exactly the courses the caller
+    // passed in, not every non-completed deliverable the user has -- this mirror had the
+    // same unscoped fetch and was never updated when the Node side was fixed. Now that
+    // assembleReport.ts's courses query excludes archived courses (migration 0030), an
+    // archived course's own deliverable would otherwise hit the corrupt-data throw below.
+    client
+      .from("deliverables")
+      .select("*")
+      .eq("user_id", userId)
+      .neq("status", "completed")
+      .in(
+        "course_id",
+        courses.map((c) => c.id),
+      ),
     client.from("tasks").select("deliverable_id, status").eq("user_id", userId).not("deliverable_id", "is", null),
     client.from("calendar_events").select("start_at, end_at").eq("user_id", userId).eq("is_busy", true),
     client
@@ -238,7 +256,7 @@ export async function computeRiskAssessment(
     const units = unitsByDeliverable.get(d.id) ?? { planned: 0, completed: 0 };
     const windowDays = Math.max(daysBetween(today, d.local_due_date), 0);
     const availableHours = windowDays * wakingHoursPerDay;
-    const committedHours = sumCalendarHoursInWindow(calendarEvents ?? [], today, d.local_due_date);
+    const committedHours = sumCalendarHoursInWindow(calendarEvents ?? [], today, d.local_due_date, timezone);
     const grade = gradeByCourse.get(d.course_id);
     const weightPct = d.grade_item_id != null ? (weightPctByGradeItemId.get(d.grade_item_id) ?? 0) : 0;
 
@@ -296,9 +314,13 @@ export async function computeTodayRecoveryMode(
   userId: string,
   today: LocalDate,
   sleepBaselineHours: number | null,
+  timezone: string,
 ): Promise<RecoveryModeResult> {
   const yesterday = addDays(today, -1);
-  const deadlineHorizon = new Date(`${today}T00:00:00Z`);
+  // B4 (mirrors packages/api/src/day/recoveryMode.ts): local midnight, not UTC
+  // midnight -- see CLAUDE.md's "never derive a day boundary from UTC."
+  const todayStart = new Date(localTimeToInstant(today, 0, 0, timezone));
+  const deadlineHorizon = new Date(todayStart);
   deadlineHorizon.setUTCHours(deadlineHorizon.getUTCHours() + HARD_DEADLINE_WINDOW_HOURS);
   const overdueLookbackStart = addDays(today, -7); // matches recoveryMode.ts's OVERDUE_TASK_LOOKBACK_DAYS
 
@@ -325,7 +347,7 @@ export async function computeTodayRecoveryMode(
       .eq("user_id", userId)
       .neq("status", "completed")
       .lte("due_at", deadlineHorizon.toISOString())
-      .gte("due_at", new Date(`${today}T00:00:00Z`).toISOString()),
+      .gte("due_at", todayStart.toISOString()),
     client.from("daily_checkins").select("id").eq("user_id", userId).eq("local_date", yesterday).maybeSingle(),
     client.from("tasks").select("id, status").eq("user_id", userId).eq("planned_date", yesterday).not("mit_rank", "is", null),
     client
@@ -333,8 +355,8 @@ export async function computeTodayRecoveryMode(
       .select("start_at, end_at")
       .eq("user_id", userId)
       .eq("is_busy", true)
-      .gte("start_at", `${today}T00:00:00Z`)
-      .lt("start_at", `${addDays(today, 1)}T00:00:00Z`),
+      .gte("start_at", todayStart.toISOString())
+      .lt("start_at", localTimeToInstant(addDays(today, 1), 0, 0, timezone)),
     client
       .from("deliverable_backplans")
       .select("id, deliverables!inner(status)")

@@ -79,7 +79,7 @@ describe('computeRiskAssessment: deliverables must be scoped to the courses actu
   });
 
   it('course-detail shape: courseFacts scoped to one course must not throw just because another course has a deliverable', async () => {
-    const result = await computeRiskAssessment(client, userId, today, [courseFacts(courseAId, 'BME 301')], [], null);
+    const result = await computeRiskAssessment(client, userId, today, [courseFacts(courseAId, 'BME 301')], [], null, 'America/Indiana/Indianapolis');
     expect(result.deliverableRisks.length).toBeGreaterThanOrEqual(1);
     expect(result.deliverableRisks.every((r) => r.courseId === courseAId)).toBe(true);
     expect(result.deliverableRisks.some((r) => r.title === 'A1 problem set')).toBe(true);
@@ -91,7 +91,7 @@ describe('computeRiskAssessment: deliverables must be scoped to the courses actu
   it('archive shape: an archived course\'s deliverable must not crash risk assessment for the courses that remain', async () => {
     // Simulates listCourses' migration-0030 archived_at exclusion: the caller only has
     // course A in hand because B is archived, but B's deliverable row still exists.
-    const result = await computeRiskAssessment(client, userId, today, [courseFacts(courseAId, 'BME 301')], [], null);
+    const result = await computeRiskAssessment(client, userId, today, [courseFacts(courseAId, 'BME 301')], [], null, 'America/Indiana/Indianapolis');
     expect(result.deliverableRisks.every((r) => r.courseId === courseAId)).toBe(true);
   });
 
@@ -103,13 +103,14 @@ describe('computeRiskAssessment: deliverables must be scoped to the courses actu
       [courseFacts(courseAId, 'BME 301'), courseFacts(courseBId, 'CS 180')],
       [],
       null,
+      'America/Indiana/Indianapolis',
     );
     const titles = result.deliverableRisks.map((r) => r.title).sort();
     expect(titles).toEqual(['A1 problem set', 'B1 project']);
   });
 
   it('E0: a brand-new user with zero courses resolves cleanly to an empty result -- the .in() filter must not choke on an empty id list', async () => {
-    const result = await computeRiskAssessment(client, userId, today, [], [], null);
+    const result = await computeRiskAssessment(client, userId, today, [], [], null, 'America/Indiana/Indianapolis');
     expect(result.deliverableRisks).toEqual([]);
     expect(result.courseRisks).toEqual([]);
   });
@@ -122,7 +123,7 @@ describe('computeRiskAssessment: deliverables must be scoped to the courses actu
       .single();
     expect(error).toBeNull();
 
-    const result = await computeRiskAssessment(client, userId, today, [courseFacts(emptyCourse!.id, 'PHYS 241')], [], null);
+    const result = await computeRiskAssessment(client, userId, today, [courseFacts(emptyCourse!.id, 'PHYS 241')], [], null, 'America/Indiana/Indianapolis');
     expect(result.deliverableRisks).toEqual([]);
     expect(result.courseRisks).toEqual([]);
   });

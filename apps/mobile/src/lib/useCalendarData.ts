@@ -78,9 +78,9 @@ export function useCalendarData() {
           if (cancelled) return;
 
           Promise.all([
-            computeRiskAssessment(client, userId, today, courseFacts, gradeProjections, profile.sleep_baseline_hours),
+            computeRiskAssessment(client, userId, today, courseFacts, gradeProjections, profile.sleep_baseline_hours, profile.timezone),
             Promise.all(courses.map((c) => listDeliverables(client, c.id))),
-            computeCapacityHorizon(client, userId, today, addDays(today, CAPACITY_HORIZON_DAYS), profile.sleep_baseline_hours),
+            computeCapacityHorizon(client, userId, today, addDays(today, CAPACITY_HORIZON_DAYS), profile.sleep_baseline_hours, profile.timezone),
           ]).then(([risk, deliverablesByCourse, capacityResult]) => {
             if (cancelled) return;
 

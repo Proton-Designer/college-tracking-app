@@ -30,7 +30,7 @@ export async function assembleDeterministicNightlyReport(
 
   const { data: profile, error: profileError } = await client
     .from("profiles")
-    .select("sleep_baseline_hours")
+    .select("sleep_baseline_hours, timezone")
     .eq("id", userId)
     .single();
   if (profileError) throw profileError;
@@ -58,9 +58,9 @@ export async function assembleDeterministicNightlyReport(
   if (!reviewRow) dataGaps.push("No night review recorded for this day -- MITs/deep-work totals are unavailable.");
 
   const [recoveryMode, planningExecution, riskAssessment] = await Promise.all([
-    computeTodayRecoveryMode(client, userId, localDate, profile.sleep_baseline_hours),
+    computeTodayRecoveryMode(client, userId, localDate, profile.sleep_baseline_hours, profile.timezone),
     computePlanningExecutionForDate(client, userId, localDate),
-    computeRiskAssessment(client, userId, localDate, courses ?? [], gradeProjections, profile.sleep_baseline_hours),
+    computeRiskAssessment(client, userId, localDate, courses ?? [], gradeProjections, profile.sleep_baseline_hours, profile.timezone),
   ]);
   if (!planningExecution) dataGaps.push("Planning-vs-execution diagnosis unavailable (no review to compare against).");
 

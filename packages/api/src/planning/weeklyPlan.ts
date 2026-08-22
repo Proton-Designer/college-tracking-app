@@ -3,6 +3,7 @@ import {
   buildWeeklyPlan,
   clipIntervalsToCapacity,
   computeCapacityMinutes,
+  daysBetween,
   findFreeIntervals,
   intervalMinutes,
   localTimeToInstant,
@@ -170,9 +171,23 @@ export async function generateAndPersistWeeklyPlan(
   if (coursesError) return dataErr(mapDataError(coursesError));
 
   const gradeProjections = await loadCourseGradeProjections(client, userId);
-  const riskAssessment = await computeRiskAssessment(client, userId, planStart, courses as Course[], gradeProjections, profile.sleep_baseline_hours);
+  const riskAssessment = await computeRiskAssessment(
+    client,
+    userId,
+    planStart,
+    courses as Course[],
+    gradeProjections,
+    profile.sleep_baseline_hours,
+    profile.timezone,
+  );
 
   const openDeliverableIds = riskAssessment.deliverableRisks.map((d) => d.deliverableId);
+
+  // B4: the user's real local week, not UTC midnight -- see CLAUDE.md's "never derive a
+  // day boundary from UTC." localTimeToInstant is already used correctly 90 lines below
+  // in this same file (the day-capacity loop); it just wasn't reached for here.
+  const weekWindowStart = localTimeToInstant(planStart, 0, 0, profile.timezone);
+  const weekWindowEnd = localTimeToInstant(addDays(weekEnd, 1), 0, 0, profile.timezone);
 
   const [{ data: openTasks, error: openTasksError }, { data: deliverableRows, error: deliverableRowsError }, { data: calendarEvents, error: calendarError }, { data: timeboxedTasks, error: timeboxedError }] =
     await Promise.all([
@@ -180,14 +195,14 @@ export async function generateAndPersistWeeklyPlan(
         ? client.from('tasks').select('deliverable_id, estimated_minutes').eq('user_id', userId).in('deliverable_id', openDeliverableIds).not('status', 'in', '(completed,cancelled)')
         : Promise.resolve({ data: [], error: null }),
       openDeliverableIds.length > 0 ? client.from('deliverables').select('id, estimated_minutes').in('id', openDeliverableIds) : Promise.resolve({ data: [], error: null }),
-      client.from('calendar_events').select('start_at, end_at').eq('user_id', userId).eq('is_busy', true).gte('start_at', `${planStart}T00:00:00Z`).lte('start_at', `${weekEnd}T23:59:59Z`),
+      client.from('calendar_events').select('start_at, end_at').eq('user_id', userId).eq('is_busy', true).gte('start_at', weekWindowStart).lt('start_at', weekWindowEnd),
       client
         .from('tasks')
         .select('planned_start_at, estimated_minutes')
         .eq('user_id', userId)
         .not('planned_start_at', 'is', null)
-        .gte('planned_start_at', `${planStart}T00:00:00Z`)
-        .lte('planned_start_at', `${weekEnd}T23:59:59Z`),
+        .gte('planned_start_at', weekWindowStart)
+        .lt('planned_start_at', weekWindowEnd),
     ]);
   if (openTasksError) return dataErr(mapDataError(openTasksError));
   if (deliverableRowsError) return dataErr(mapDataError(deliverableRowsError));
@@ -245,7 +260,12 @@ export async function generateAndPersistWeeklyPlan(
   const historicalDeepWorkP50Minutes = historicalCapacity.minutes;
   const typicalFreeMinutes = wakingMinutesPerDayFor(profile.sleep_baseline_hours);
 
-  const dayCount = Math.max(0, Math.round((new Date(`${weekEnd}T00:00:00Z`).getTime() - new Date(`${planStart}T00:00:00Z`).getTime()) / 86_400_000)) + 1;
+  // B4: was `Math.round((new Date(weekEndT00Z) - new Date(planStartT00Z)) / 86_400_000) + 1`
+  // -- the same UTC-midnight mistake as everywhere else in this pass, but both operands
+  // got the identical wrong offset, so it happened to cancel out and always produced the
+  // right count. Correct by luck, not by correctness -- daysBetween is the real,
+  // timezone-independent way to diff two LocalDate strings.
+  const dayCount = Math.max(0, daysBetween(planStart, weekEnd)) + 1;
   const days: DayPlanningInput[] = Array.from({ length: dayCount }, (_, i) => {
     const date = addDays(planStart, i);
     const dayStart = localTimeToInstant(date, WAKING_START_HOUR, 0, profile.timezone);

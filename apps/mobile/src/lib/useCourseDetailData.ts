@@ -84,7 +84,7 @@ export function useCourseDetailData(courseId: number) {
           if (cancelled) return;
 
           Promise.all([
-            computeRiskAssessment(client, userId, today, courseFacts, gradeProjections, profile.sleep_baseline_hours),
+            computeRiskAssessment(client, userId, today, courseFacts, gradeProjections, profile.sleep_baseline_hours, profile.timezone),
             listGradeCategories(client, courseId),
             listGradeItems(client, courseId),
             listGradeBoundaries(client, courseId),

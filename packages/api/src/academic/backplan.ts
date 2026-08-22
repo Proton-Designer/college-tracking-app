@@ -1,4 +1,13 @@
-import { buildBackplan, daysBetween, type Backplan, type DayCapacity, type DeliverableType, type LocalDate } from '@collegeos/core';
+import {
+  addDays,
+  buildBackplan,
+  daysBetween,
+  localTimeToInstant,
+  type Backplan,
+  type DayCapacity,
+  type DeliverableType,
+  type LocalDate,
+} from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
 import { dataErr, dataOk, type DataResult } from '../data/types';
 import { mapDataError } from '../data/errors';
@@ -36,17 +45,24 @@ export async function computeCapacityHorizon(
   today: LocalDate,
   horizonEnd: LocalDate,
   sleepBaselineHours: number | null,
+  timezone: string,
 ): Promise<DataResult<CapacityDay[]>> {
   const windowDays = Math.max(daysBetween(today, horizonEnd), 0);
   const wakingMinutesPerDay = wakingMinutesPerDayFor(sleepBaselineHours);
 
+  // B4: the window must be the user's real local days, not UTC midnight -- a plain
+  // `${today}T00:00:00Z` treats a correctly-computed local date as though it were a UTC
+  // instant, which is wrong by the user's own offset at both ends (never derive a day
+  // boundary from UTC, CLAUDE.md). localTimeToInstant already does this correctly and is
+  // already used elsewhere in this codebase (weeklyPlan.ts) -- it just wasn't reached
+  // for here. Half-open interval, matching the pattern the rest of the domain layer uses.
   const { data: events, error } = await client
     .from('calendar_events')
     .select('start_at, end_at')
     .eq('user_id', userId)
     .eq('is_busy', true)
-    .gte('start_at', `${today}T00:00:00Z`)
-    .lte('start_at', `${horizonEnd}T23:59:59Z`);
+    .gte('start_at', localTimeToInstant(today, 0, 0, timezone))
+    .lt('start_at', localTimeToInstant(addDays(horizonEnd, 1), 0, 0, timezone));
   if (error) return dataErr(mapDataError(error));
 
   const busyMinutesByDate = new Map<LocalDate, number>();
@@ -57,9 +73,7 @@ export async function computeCapacityHorizon(
   }
 
   const days = Array.from({ length: windowDays + 1 }, (_, i) => {
-    const date = new Date(`${today}T00:00:00Z`);
-    date.setUTCDate(date.getUTCDate() + i);
-    const localDate = date.toISOString().slice(0, 10);
+    const localDate = addDays(today, i);
     const committedMinutes = busyMinutesByDate.get(localDate) ?? 0;
     return {
       date: localDate,
@@ -143,6 +157,7 @@ export async function generateAndPersistBackplan(
     today,
     deliverable.local_due_date,
     profile.sleep_baseline_hours,
+    profile.timezone,
   );
   if (!capacityResult.ok) return capacityResult;
 

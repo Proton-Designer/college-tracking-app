@@ -67,7 +67,7 @@ export function useCoursesIndexData() {
         loadCourseGradeProjections(client, userId).then((gradeProjections) => {
           if (cancelled) return;
 
-          computeRiskAssessment(client, userId, today, courseFacts, gradeProjections, profile.sleep_baseline_hours).then((risk) => {
+          computeRiskAssessment(client, userId, today, courseFacts, gradeProjections, profile.sleep_baseline_hours, profile.timezone).then((risk) => {
             if (cancelled) return;
 
             const gradeByCourse = new Map(gradeProjections.map((g) => [g.courseId, g.result]));

@@ -130,10 +130,10 @@ describe('deadline radar + grade scenarios against the seeded demo user', () => 
   });
 
   it('computes committed-vs-available capacity across a semester-scale horizon, not just one deliverable\'s window', async () => {
-    const { data: profile } = await client.from('profiles').select('sleep_baseline_hours').eq('id', userId).single();
+    const { data: profile } = await client.from('profiles').select('sleep_baseline_hours, timezone').eq('id', userId).single();
     const horizonEnd = addDays(today, 13);
 
-    const result = await computeCapacityHorizon(client, userId, today, horizonEnd, profile!.sleep_baseline_hours);
+    const result = await computeCapacityHorizon(client, userId, today, horizonEnd, profile!.sleep_baseline_hours, profile!.timezone);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 

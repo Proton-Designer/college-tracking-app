@@ -1,4 +1,4 @@
-import { composeMinimumViableDay, daysBetween, type LocalDate, type MvdCandidateItem, type MvdPlan } from '@collegeos/core';
+import { addDays, composeMinimumViableDay, daysBetween, localTimeToInstant, type LocalDate, type MvdCandidateItem, type MvdPlan } from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
 import type { DeliverableRisk } from './risk';
 
@@ -22,7 +22,10 @@ export async function composeMvdPlanForToday(
   today: LocalDate,
   deliverableRisks: DeliverableRisk[],
   sleepBaselineHours: number | null,
+  timezone: string,
 ): Promise<MvdPlan> {
+  // B4: the user's real local day, not UTC midnight -- see CLAUDE.md's "never derive a
+  // day boundary from UTC."
   const [{ data: tasks, error: taskError }, { data: events, error: eventError }] = await Promise.all([
     client
       .from('tasks')
@@ -36,8 +39,8 @@ export async function composeMvdPlanForToday(
       .eq('user_id', userId)
       .eq('is_busy', true)
       .eq('is_class_meeting', true)
-      .gte('start_at', `${today}T00:00:00Z`)
-      .lt('start_at', `${today}T23:59:59Z`),
+      .gte('start_at', localTimeToInstant(today, 0, 0, timezone))
+      .lt('start_at', localTimeToInstant(addDays(today, 1), 0, 0, timezone)),
   ]);
   if (taskError) throw taskError;
   if (eventError) throw eventError;

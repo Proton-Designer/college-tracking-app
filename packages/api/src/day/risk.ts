@@ -1,7 +1,9 @@
 import {
+  addDays,
   computeAssignmentRisk,
   computeCourseRisk,
   daysBetween,
+  localTimeToInstant,
   type AssignmentRiskInput,
   type CourseRiskSummary,
   type DeliverableRisk,
@@ -69,6 +71,7 @@ export async function computeRiskAssessment(
   courses: CourseFacts[],
   gradeProjections: CourseGradeProjection[],
   sleepBaselineHours: number | null,
+  timezone: string,
 ): Promise<RiskAssessment> {
   const wakingHoursPerDay = wakingHoursPerDayFor(sleepBaselineHours);
   const [
@@ -146,7 +149,7 @@ export async function computeRiskAssessment(
     const units = unitsByDeliverable.get(d.id) ?? { planned: 0, completed: 0 };
     const windowDays = Math.max(daysBetween(today, d.local_due_date), 0);
     const availableHours = windowDays * wakingHoursPerDay;
-    const committedHours = sumCalendarHoursInWindow(calendarEvents ?? [], today, d.local_due_date);
+    const committedHours = sumCalendarHoursInWindow(calendarEvents ?? [], today, d.local_due_date, timezone);
     const grade = gradeByCourse.get(d.course_id);
     const weightPct = d.grade_item_id != null ? (weightPctByGradeItemId.get(d.grade_item_id) ?? 0) : 0;
 
@@ -202,9 +205,14 @@ function sumCalendarHoursInWindow(
   events: Array<{ start_at: string; end_at: string }>,
   today: LocalDate,
   dueDate: LocalDate,
+  timezone: string,
 ): number {
-  const windowStart = new Date(`${today}T00:00:00Z`).getTime();
-  const windowEnd = new Date(`${dueDate}T23:59:59Z`).getTime();
+  // B4: the window is the user's real local days [today, dueDate], not UTC midnight --
+  // see CLAUDE.md's "never derive a day boundary from UTC." localTimeToInstant converts
+  // correctly; addDays(dueDate, 1) makes this a half-open interval ending at the real
+  // start of the day AFTER dueDate, equivalent to "through the end of dueDate."
+  const windowStart = new Date(localTimeToInstant(today, 0, 0, timezone)).getTime();
+  const windowEnd = new Date(localTimeToInstant(addDays(dueDate, 1), 0, 0, timezone)).getTime();
   let totalMs = 0;
   for (const e of events) {
     const start = Math.max(new Date(e.start_at).getTime(), windowStart);

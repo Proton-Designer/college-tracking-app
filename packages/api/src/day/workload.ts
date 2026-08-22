@@ -1,8 +1,10 @@
 import {
+  addDays,
   computeAssignmentRisk,
   computeCapacityMinutes,
   computeWorkloadLevels,
   daysBetween,
+  localTimeToInstant,
   recoveryAdjustmentFromWhoopPct,
   type Confidence,
   type LocalDate,
@@ -71,7 +73,10 @@ export async function buildTodayWorkloadItems(
   today: LocalDate,
   deliverableRisks: DeliverableRisk[],
   calibration: CalibrationObservations,
+  timezone: string,
 ): Promise<WorkloadItemsResult> {
+  // B4: the user's real local day, not UTC midnight -- see CLAUDE.md's "never derive a
+  // day boundary from UTC."
   const [{ data: tasks, error: taskError }, { data: events, error: eventError }] = await Promise.all([
     client
       .from('tasks')
@@ -84,8 +89,8 @@ export async function buildTodayWorkloadItems(
       .select('*')
       .eq('user_id', userId)
       .eq('is_busy', true)
-      .gte('start_at', `${today}T00:00:00Z`)
-      .lt('start_at', `${today}T23:59:59Z`),
+      .gte('start_at', localTimeToInstant(today, 0, 0, timezone))
+      .lt('start_at', localTimeToInstant(addDays(today, 1), 0, 0, timezone)),
   ]);
   if (taskError) throw taskError;
   if (eventError) throw eventError;
@@ -138,8 +143,9 @@ export async function computeTodayWorkload(
   historicalDeepWorkP50Minutes: number,
   whoopRecoveryPct: number | null,
   sleepBaselineHours: number | null,
+  timezone: string,
 ): Promise<TodayWorkload> {
-  const { items, calibrationByItemId } = await buildTodayWorkloadItems(client, userId, today, deliverableRisks, calibration);
+  const { items, calibrationByItemId } = await buildTodayWorkloadItems(client, userId, today, deliverableRisks, calibration, timezone);
 
   const wakingMinutesPerDay = wakingMinutesPerDayFor(sleepBaselineHours);
   const busyMinutesToday = items

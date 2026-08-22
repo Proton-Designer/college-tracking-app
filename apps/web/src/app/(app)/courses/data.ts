@@ -61,6 +61,7 @@ export async function loadCoursesIndex(): Promise<CoursesLoadResult> {
     courseFacts,
     gradeProjections,
     profile.sleep_baseline_hours,
+    profile.timezone,
   );
 
   const gradeByCourse = new Map(gradeProjections.map((g) => [g.courseId, g.result]));

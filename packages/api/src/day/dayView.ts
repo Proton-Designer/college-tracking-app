@@ -1,4 +1,13 @@
-import type { Confidence, LocalDate, MvdPlan, PlanningExecutionResult, RecoveryModeResult, WorkloadLevels } from '@collegeos/core';
+import {
+  addDays,
+  localTimeToInstant,
+  type Confidence,
+  type LocalDate,
+  type MvdPlan,
+  type PlanningExecutionResult,
+  type RecoveryModeResult,
+  type WorkloadLevels,
+} from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
 import type { Database } from '../database.types';
 import { dataErr, dataOk, type DataResult } from '../data/types';
@@ -78,11 +87,11 @@ export async function getDayView(
   if (profileError) return dataErr(mapDataError(profileError));
 
   const today = getUserLocalToday(profile.timezone, now);
-  const todayStart = new Date(`${today}T00:00:00Z`);
-  const todayEnd = new Date(todayStart);
-  todayEnd.setUTCDate(todayEnd.getUTCDate() + 1);
-  const horizonEnd = new Date(todayStart);
-  horizonEnd.setUTCDate(horizonEnd.getUTCDate() + DEADLINE_HORIZON_DAYS);
+  // B4: the user's real local day, not UTC midnight -- see CLAUDE.md's "never derive a
+  // day boundary from UTC." `today` above is already correctly local; these must be too.
+  const todayStart = new Date(localTimeToInstant(today, 0, 0, profile.timezone));
+  const todayEnd = new Date(localTimeToInstant(addDays(today, 1), 0, 0, profile.timezone));
+  const horizonEnd = new Date(localTimeToInstant(addDays(today, DEADLINE_HORIZON_DAYS), 0, 0, profile.timezone));
 
   const [
     { data: todayCheckin, error: checkinError },
@@ -135,11 +144,12 @@ export async function getDayView(
     courses as Course[],
     gradeProjections,
     profile.sleep_baseline_hours,
+    profile.timezone,
   );
   const calibration = await loadCalibrationObservations(client, userId, profile.timezone, now);
 
   const [recoveryMode, yesterdayPlanningExecution, historicalCapacity] = await Promise.all([
-    computeTodayRecoveryMode(client, userId, today, profile.sleep_baseline_hours),
+    computeTodayRecoveryMode(client, userId, today, profile.sleep_baseline_hours, profile.timezone),
     computeYesterdayPlanningExecution(client, userId, today),
     computeHistoricalCapacityP50Min(client, userId, today),
   ]);
@@ -167,10 +177,11 @@ export async function getDayView(
     historicalCapacity.minutes,
     todayHealth?.whoopRecoveryPct ?? null,
     profile.sleep_baseline_hours,
+    profile.timezone,
   );
 
   const mvdPlan = recoveryMode.triggered
-    ? await composeMvdPlanForToday(client, userId, today, risk.deliverableRisks, profile.sleep_baseline_hours)
+    ? await composeMvdPlanForToday(client, userId, today, risk.deliverableRisks, profile.sleep_baseline_hours, profile.timezone)
     : null;
 
   return dataOk({

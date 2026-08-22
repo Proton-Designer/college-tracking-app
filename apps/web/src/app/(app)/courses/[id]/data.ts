@@ -68,7 +68,7 @@ export async function loadCourseDetail(courseId: number): Promise<CourseDetailLo
   ];
 
   const [risk, categoriesResult, gradeItemsResult, gradeBoundariesResult, deliverablesResult] = await Promise.all([
-    computeRiskAssessment(client, user.id, today, courseFacts, gradeProjections, profile.sleep_baseline_hours),
+    computeRiskAssessment(client, user.id, today, courseFacts, gradeProjections, profile.sleep_baseline_hours, profile.timezone),
     listGradeCategories(client, courseId),
     listGradeItems(client, courseId),
     listGradeBoundaries(client, courseId),

@@ -63,9 +63,9 @@ export async function loadCalendarHorizon(): Promise<CalendarLoadResult> {
   }));
 
   const [risk, deliverablesByCourse, capacityResult] = await Promise.all([
-    computeRiskAssessment(client, user.id, today, courseFacts, gradeProjections, profile.sleep_baseline_hours),
+    computeRiskAssessment(client, user.id, today, courseFacts, gradeProjections, profile.sleep_baseline_hours, profile.timezone),
     Promise.all(courses.map((c) => listDeliverables(client, c.id))),
-    computeCapacityHorizon(client, user.id, today, addDays(today, CAPACITY_HORIZON_DAYS), profile.sleep_baseline_hours),
+    computeCapacityHorizon(client, user.id, today, addDays(today, CAPACITY_HORIZON_DAYS), profile.sleep_baseline_hours, profile.timezone),
   ]);
 
   const badCourse = deliverablesByCourse.find((r) => !r.ok);

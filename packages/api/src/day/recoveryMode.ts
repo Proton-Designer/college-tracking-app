@@ -1,4 +1,4 @@
-import { addDays, computeRecoveryModeTrigger, type LocalDate, type RecoveryModeResult } from '@collegeos/core';
+import { addDays, computeRecoveryModeTrigger, localTimeToInstant, type LocalDate, type RecoveryModeResult } from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
 
 const HARD_DEADLINE_WINDOW_HOURS = 48;
@@ -25,9 +25,13 @@ export async function computeTodayRecoveryMode(
   userId: string,
   today: LocalDate,
   sleepBaselineHours: number | null,
+  timezone: string,
 ): Promise<RecoveryModeResult> {
   const yesterday = addDays(today, -1);
-  const deadlineHorizon = new Date(`${today}T00:00:00Z`);
+  // B4: local midnight, not UTC midnight -- see CLAUDE.md's "never derive a day
+  // boundary from UTC." A wrong start here also shifts the 48h hard-deadline horizon.
+  const todayStart = new Date(localTimeToInstant(today, 0, 0, timezone));
+  const deadlineHorizon = new Date(todayStart);
   deadlineHorizon.setUTCHours(deadlineHorizon.getUTCHours() + HARD_DEADLINE_WINDOW_HOURS);
 
   const [
@@ -53,7 +57,7 @@ export async function computeTodayRecoveryMode(
       .eq('user_id', userId)
       .neq('status', 'completed')
       .lte('due_at', deadlineHorizon.toISOString())
-      .gte('due_at', new Date(`${today}T00:00:00Z`).toISOString()),
+      .gte('due_at', todayStart.toISOString()),
     client.from('daily_checkins').select('id').eq('user_id', userId).eq('local_date', yesterday).maybeSingle(),
     client.from('tasks').select('id, status').eq('user_id', userId).eq('planned_date', yesterday).not('mit_rank', 'is', null),
     client
@@ -61,8 +65,8 @@ export async function computeTodayRecoveryMode(
       .select('start_at, end_at')
       .eq('user_id', userId)
       .eq('is_busy', true)
-      .gte('start_at', `${today}T00:00:00Z`)
-      .lt('start_at', `${addDays(today, 1)}T00:00:00Z`),
+      .gte('start_at', todayStart.toISOString())
+      .lt('start_at', localTimeToInstant(addDays(today, 1), 0, 0, timezone)),
     client
       .from('deliverable_backplans')
       .select('id, deliverables!inner(status)')
