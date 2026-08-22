@@ -113,6 +113,7 @@ function SegmentTab({ label, active, onPress }: { label: string; active: boolean
     <Pressable
       accessibilityRole="tab"
       accessibilityState={{ selected: active }}
+      aria-selected={active}
       onPress={onPress}
       style={styles.segmentTab}
     >

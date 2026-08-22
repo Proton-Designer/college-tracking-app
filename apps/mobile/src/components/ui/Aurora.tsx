@@ -44,7 +44,13 @@ export function Aurora({ band }: AuroraProps) {
   const opacity = derived ? DERIVED_AURORA_OPACITY : RESTING_WASH_OPACITY;
 
   return (
-    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { opacity }]}>
+    <View
+      pointerEvents="none"
+      accessibilityElementsHidden
+      importantForAccessibility="no-hide-descendants"
+      aria-hidden
+      style={[StyleSheet.absoluteFill, { opacity }]}
+    >
       <LinearGradient
         colors={[a, b, "transparent"]}
         locations={[0, 0.3, 0.6]}

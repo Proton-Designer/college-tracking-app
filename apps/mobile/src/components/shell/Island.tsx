@@ -66,6 +66,7 @@ export function Island({ state, descriptors, navigation, insets }: BottomTabBarP
                   key={route.key}
                   accessibilityRole="tab"
                   accessibilityState={{ selected: focused }}
+                  aria-selected={focused}
                   accessibilityLabel={label}
                   onPress={onPress}
                   hitSlop={8}

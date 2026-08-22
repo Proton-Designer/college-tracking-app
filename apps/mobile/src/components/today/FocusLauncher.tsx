@@ -78,7 +78,7 @@ export function FocusLauncher({
         <View style={styles.flexText}>
           <Text style={textStyle("body", color.ink)}>
             {block.title}
-            {block.courseCode ? <Text style={textStyle("body", color.inkFaint)}> · {block.courseCode}</Text> : null}
+            {block.courseCode ? <Text style={textStyle("body", color.inkMuted)}> · {block.courseCode}</Text> : null}
           </Text>
           <Text style={textStyle("caption", color.inkFaint)}>
             {block.calibratedMinutes} min
