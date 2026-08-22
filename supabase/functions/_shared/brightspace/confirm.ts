@@ -79,7 +79,13 @@ export async function confirmIcsEvent(client: AnySupabaseClient, input: ConfirmI
       title: row.summary,
       start_at: row.start_at,
       end_at: endAt,
-      is_busy: true,
+      // B6: an all-day event is a label on a day, not an occupied interval -- calendar_events
+      // has no is_all_day column of its own (this is the one place that flag is still known),
+      // and every committed-hours consumer (risk.ts, recoveryMode.ts, backplan.ts, workload.ts)
+      // sums is_busy=true events verbatim. Marking an all-day entry busy would fabricate up to
+      // 24 hours of committed time from a single reading day or break -- we'd rather understate
+      // commitment than invent it.
+      is_busy: !row.is_all_day,
       is_class_meeting: input.isClassMeeting ?? false,
       course_id: input.courseId ?? row.course_id,
     })
