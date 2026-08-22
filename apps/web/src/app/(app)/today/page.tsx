@@ -1,4 +1,5 @@
 import type { Course, DayView } from "@collegeos/api";
+import type { ReactNode } from "react";
 import type { FocusBlock } from "@/components/today/FocusLauncher";
 import type { MitItem } from "@/components/today/MitList";
 import { DayTrace } from "@/components/today/DayTrace";
@@ -14,6 +15,20 @@ import { RecoveryBanner } from "@/components/today/RecoveryBanner";
 import { UnplannedGate } from "@/components/today/UnplannedGate";
 import { WorkloadBand } from "@/components/today/WorkloadBand";
 import { loadTodayData } from "./data";
+
+/** L13.1 composition (docs/L13_DESIGN_PASS.md #1) -- same Section pattern the Insights
+ *  rewrite already established: a hairline above each heading, one place the rhythm lives. */
+function Section({ title, action, children }: { title: string; action?: ReactNode; children: ReactNode }) {
+  return (
+    <section className="flex flex-col gap-3 border-t border-hairline pt-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">{title}</h2>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 function buildFocusBlock(dayView: DayView, courses: Record<number, Course>): FocusBlock | null {
   const top = dayView.suggestedMits[0];
@@ -132,28 +147,32 @@ export default async function TodayPage({
           Nothing set up yet — this is what Today will look like once a course or task exists.
         </p>
       ) : null}
-      <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Top 3</h2>
-          <QuickAddTaskModal today={dayView.today} courses={courses} />
+      {/* Top 3 + Focus are the primary "what do I do" thread; Workload + Deadline radar are
+          secondary readouts that inform it. Independent of each other, neither needs full
+          width, so they pair side by side at >=1280px (docs/L13_DESIGN_PASS.md #1) instead
+          of stacking under a page that otherwise runs out of content halfway down. */}
+      <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
+        <div className="flex flex-col gap-8">
+          <Section title="Top 3" action={<QuickAddTaskModal today={dayView.today} courses={courses} />}>
+            <MitList items={mitItems} />
+          </Section>
+          <FocusLauncher block={focusBlock} activeSession={activeFocusSession} />
         </div>
-        <MitList items={mitItems} />
-      </section>
-      <section className="flex flex-col gap-3">
-        <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Workload</h2>
-        <WorkloadBand workload={dayView.workload} />
-      </section>
-      <section className="flex flex-col gap-3">
-        <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Deadline radar</h2>
-        <DeadlineRadar
-          today={dayView.today}
-          deliverables={dayView.upcomingDeliverables}
-          deliverableRisks={dayView.risk.deliverableRisks}
-          courses={courses}
-        />
-      </section>
+        <div className="flex flex-col gap-8">
+          <Section title="Workload">
+            <WorkloadBand workload={dayView.workload} />
+          </Section>
+          <Section title="Deadline radar">
+            <DeadlineRadar
+              today={dayView.today}
+              deliverables={dayView.upcomingDeliverables}
+              deliverableRisks={dayView.risk.deliverableRisks}
+              courses={courses}
+            />
+          </Section>
+        </div>
+      </div>
       <KillListSection habits={killHabits} />
-      <FocusLauncher block={focusBlock} activeSession={activeFocusSession} />
     </div>
   );
 
@@ -187,7 +206,11 @@ export default async function TodayPage({
       <InterventionsSection interventions={interventions} />
 
       {mode === "recovery" ? (
-        <div className="flex flex-col gap-8">
+        // Recovery Mode narrows the day on purpose -- its content column narrows to match
+        // (docs/L13_DESIGN_PASS.md #1's "constrain the content column" option) rather than
+        // stretch a deliberately sparse day across the same full-width canvas as a normal
+        // one, where the empty space below it read as a page that failed to load.
+        <div className="flex max-w-[640px] flex-col gap-8">
           <RecoveryBanner
             recoveryMode={dayView.recoveryMode}
             mvdPlan={dayView.mvdPlan}
@@ -195,10 +218,9 @@ export default async function TodayPage({
             calendarEvents={dayView.todayCalendarEvents}
           />
           {recoveryMitItems.length > 0 ? (
-            <section className="flex flex-col gap-3">
-              <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Today&apos;s minimum</h2>
+            <Section title="Today's minimum">
               <MitList items={recoveryMitItems} />
-            </section>
+            </Section>
           ) : null}
           <FocusLauncher block={recoveryFocusBlock} activeSession={activeFocusSession} />
         </div>

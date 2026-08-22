@@ -31,7 +31,7 @@ export function FocusLauncher({ block, activeSession }: { block: FocusBlock | nu
 
   if (activeSession) {
     return (
-      <section className="flex flex-col gap-3">
+      <section className="flex flex-col gap-3 border-t border-hairline pt-6">
         <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Focus</h2>
         <Panel className="flex items-center justify-between gap-4">
           <span className="text-body text-ink">A focus session is already running.</span>
@@ -60,7 +60,7 @@ export function FocusLauncher({ block, activeSession }: { block: FocusBlock | nu
   }
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-3 border-t border-hairline pt-6">
       <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Focus</h2>
       <Panel className="flex items-center justify-between gap-4">
         <div className="flex flex-col">

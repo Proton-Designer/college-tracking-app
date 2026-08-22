@@ -17,7 +17,7 @@ export function KillListSection({ habits }: { habits: KillHabitRow[] }) {
   if (habits.length === 0) return null;
 
   return (
-    <section className="flex flex-col gap-3">
+    <section className="flex flex-col gap-3 border-t border-hairline pt-6">
       <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Kill list</h2>
       <div className="flex flex-col gap-3">
         {habits.map((habit) => (
