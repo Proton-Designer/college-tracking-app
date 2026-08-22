@@ -46,7 +46,7 @@ export default function LandingPage() {
           tomorrow&apos;s plan because of it. It is not a to-do list, and it does not cheer you on.
         </p>
 
-        <div className="glass mt-2 rounded-lg p-6">
+        <div className="mt-2">
           <DayReading />
         </div>
 
