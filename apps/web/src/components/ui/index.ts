@@ -18,6 +18,8 @@ export { Metric } from "./Metric";
 export type { MetricDelta, MetricProps } from "./Metric";
 export { Panel, PanelButton } from "./Panel";
 export type { PanelButtonProps, PanelProps, PanelTone } from "./Panel";
+export { PageHeader } from "./PageHeader";
+export type { PageHeaderProps } from "./PageHeader";
 export { RiskPill } from "./RiskPill";
 export type { RiskBand, RiskPillProps } from "./RiskPill";
 export { SegmentedControl } from "./SegmentedControl";
