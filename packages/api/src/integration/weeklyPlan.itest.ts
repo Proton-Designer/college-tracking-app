@@ -2,7 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { addDays, localTimeToInstant } from '@collegeos/core';
 import { getUserLocalToday } from '../day/today';
-import { generateAndPersistWeeklyPlan } from '../planning/weeklyPlan';
+import { generateAndPersistWeeklyPlan, getWeeklyPlan, updateWeeklyPlanBlockStatus } from '../planning/weeklyPlan';
 import { createConfirmedUser, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from '../client/types';
@@ -162,5 +162,113 @@ describe('generateAndPersistWeeklyPlan', () => {
 
     const blockToday = result.data.plan.blocks.find((b) => b.deliverableId === deliverableId && b.date === today);
     expect(blockToday).toBeUndefined(); // today is fully busy -- must not overlap the calendar event
+  });
+});
+
+describe('getWeeklyPlan / updateWeeklyPlanBlockStatus', () => {
+  let client: TypedSupabaseClient;
+  let userId: string;
+  let today: string;
+  let weekStart: string;
+
+  beforeAll(async () => {
+    const email = `itest-weeklyplan-read-${Date.now()}@collegeos.test`;
+    const password = 'itest-weeklyplan-password-1';
+    const user = await createConfirmedUser(email, password);
+    userId = user.id;
+
+    client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY!);
+    const { error: signInError } = await client.auth.signInWithPassword({ email, password });
+    if (signInError) throw signInError;
+    today = getUserLocalToday(TIMEZONE);
+    weekStart = today;
+
+    const reviewRows = Array.from({ length: 5 }, (_, i) => ({
+      user_id: userId,
+      local_date: addDays(today, -(i + 1)),
+      deep_work_actual_min: 180,
+    }));
+    const { error: reviewError } = await client.from('daily_reviews').insert(reviewRows);
+    if (reviewError) throw reviewError;
+  });
+
+  it('returns null for a week that has never been generated', async () => {
+    const result = await getWeeklyPlan(client, userId, addDays(weekStart, 70), today);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data).toBeNull();
+  });
+
+  it('resolves deliverable titles, course codes, highest-risk ranking and per-course allocation live -- none of it read back off the row', async () => {
+    const { data: course, error: courseError } = await client
+      .from('courses')
+      .insert({ user_id: userId, code: `WKREAD${Date.now() % 100000}`, name: 'Read-path fixture', term: 'Fall 2026' })
+      .select('id, code')
+      .single();
+    expect(courseError).toBeNull();
+    const courseId = course!.id;
+
+    const dueDate = addDays(today, 4);
+    const { data: deliverable, error: deliverableError } = await client
+      .from('deliverables')
+      .insert({ user_id: userId, course_id: courseId, title: 'Read-path deliverable', type: 'problem_set', due_at: `${dueDate}T23:59:00Z`, local_due_date: dueDate, estimated_minutes: 90 })
+      .select('id')
+      .single();
+    expect(deliverableError).toBeNull();
+    const deliverableId = deliverable!.id;
+
+    const generated = await generateAndPersistWeeklyPlan(client, userId, weekStart, today, { force: true });
+    expect(generated.ok).toBe(true);
+    if (!generated.ok) return;
+
+    const result = await getWeeklyPlan(client, userId, weekStart, today);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.data).not.toBeNull();
+    const plan = result.data!;
+
+    expect(plan.weekStartDate).toBe(weekStart);
+    const block = plan.blocks.find((b) => b.deliverableId === deliverableId);
+    expect(block).toBeDefined();
+    expect(block!.title).toBe('Read-path deliverable');
+    expect(block!.courseCode).toBe(course!.code);
+
+    const risky = plan.highestRisk.find((r) => r.deliverableId === deliverableId);
+    expect(risky).toBeDefined();
+    expect(risky!.title).toBe('Read-path deliverable');
+
+    const allocation = plan.courseAllocations.find((a) => a.courseId === courseId);
+    expect(allocation).toBeDefined();
+    expect(allocation!.minutesAllocated).toBeGreaterThan(0);
+  });
+
+  it('updateWeeklyPlanBlockStatus changes only the targeted block and is scoped to the owning user', async () => {
+    const { data: course } = await client
+      .from('courses')
+      .insert({ user_id: userId, code: `WKSTAT${Date.now() % 100000}`, name: 'Status fixture', term: 'Fall 2026' })
+      .select('id')
+      .single();
+    const dueDate = addDays(today, 4);
+    await client
+      .from('deliverables')
+      .insert({ user_id: userId, course_id: course!.id, title: 'Status fixture deliverable', type: 'problem_set', due_at: `${dueDate}T23:59:00Z`, local_due_date: dueDate, estimated_minutes: 60 });
+
+    const generated = await generateAndPersistWeeklyPlan(client, userId, weekStart, today, { force: true });
+    expect(generated.ok).toBe(true);
+    if (!generated.ok) return;
+
+    const { data: blocks } = await client.from('weekly_plan_blocks').select('id, status').eq('weekly_plan_id', generated.data.planId);
+    expect(blocks!.length).toBeGreaterThan(0);
+    const targetBlockId = blocks![0]!.id;
+
+    const wrongUserResult = await updateWeeklyPlanBlockStatus(client, '00000000-0000-0000-0000-000000000000', targetBlockId, 'confirmed');
+    expect(wrongUserResult.ok).toBe(true); // no error -- just zero rows matched, same as every other user_id-scoped update
+    const { data: unchanged } = await client.from('weekly_plan_blocks').select('status').eq('id', targetBlockId).single();
+    expect(unchanged!.status).toBe('suggested');
+
+    const result = await updateWeeklyPlanBlockStatus(client, userId, targetBlockId, 'confirmed');
+    expect(result.ok).toBe(true);
+    const { data: changed } = await client.from('weekly_plan_blocks').select('status').eq('id', targetBlockId).single();
+    expect(changed!.status).toBe('confirmed');
   });
 });

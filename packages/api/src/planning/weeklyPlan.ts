@@ -8,10 +8,12 @@ import {
   intervalMinutes,
   localTimeToInstant,
   recoveryAdjustmentFromWhoopPct,
+  type AcademicLoadBand,
   type BusyEvent,
   type Confidence,
   type DayPlanningInput,
   type LocalDate,
+  type RiskBand,
   type WeeklyDeliverableInput,
   type WeeklyPlanResult,
 } from '@collegeos/core';
@@ -332,4 +334,212 @@ export async function generateAndPersistWeeklyPlan(
   }
 
   return dataOk({ planId: planRow.id, plan, skippedForMissingEstimate, capacityConfidence: historicalCapacity.confidence });
+}
+
+export type WeeklyPlanBlockStatus = 'suggested' | 'confirmed' | 'skipped' | 'completed';
+
+export interface WeeklyPlanBlockView {
+  id: number;
+  deliverableId: number | null;
+  courseId: number | null;
+  courseCode: string | null;
+  /** Deliverable title -- resolved live below, never persisted on the block. */
+  title: string | null;
+  blockDate: LocalDate;
+  startAt: string;
+  endAt: string;
+  minutes: number;
+  status: WeeklyPlanBlockStatus;
+}
+
+export interface WeeklyPlanUnplacedView {
+  id: number;
+  deliverableId: number | null;
+  courseId: number | null;
+  courseCode: string | null;
+  title: string | null;
+  minutesNeeded: number;
+  minutesPlaced: number;
+  minutesShortfall: number;
+  reason: 'due_before_window' | 'insufficient_capacity';
+}
+
+export interface WeeklyPlanHighestRiskItem {
+  deliverableId: number;
+  courseCode: string;
+  title: string;
+  dueDate: LocalDate;
+  riskScore: number;
+  riskBand: RiskBand;
+}
+
+export interface WeeklyPlanCourseAllocation {
+  courseId: number;
+  courseCode: string;
+  minutesAllocated: number;
+}
+
+export interface WeeklyPlanView {
+  id: number;
+  weekStartDate: LocalDate;
+  generatedAt: string;
+  academicLoad: AcademicLoadBand;
+  totalNeededMinutes: number;
+  totalCapacityMinutes: number;
+  hasUnplacedWork: boolean;
+  blocks: WeeklyPlanBlockView[];
+  unplaced: WeeklyPlanUnplacedView[];
+  /** Ranked highest-risk-first, capped -- source brief's "Highest risk" list. Recomputed
+   *  live from the same computeRiskAssessment every risk-aware screen uses, never
+   *  persisted: a stored score would go stale the moment a deliverable moves. */
+  highestRisk: WeeklyPlanHighestRiskItem[];
+  /** Source brief's "Recommended deep-work allocation" -- derived by summing each block's
+   *  minutes per course_id, not its own stored figure. */
+  courseAllocations: WeeklyPlanCourseAllocation[];
+}
+
+const HIGHEST_RISK_LIMIT = 5;
+
+/**
+ * Reads back a persisted plan for the given week, or null if none has been generated yet
+ * -- that's the empty-state trigger ("generate this week's plan"), not an error. Deliverable
+ * titles, course codes, risk ranking and per-course allocation are all resolved/computed
+ * here rather than stored on weekly_plan_blocks/weekly_plan_unplaced, so this always
+ * reflects the deliverable's CURRENT state (title edits, risk changes) rather than a
+ * snapshot from generation time -- the opposite convention from a report/AgentReport,
+ * which deliberately freezes values at assembly time. A weekly plan is a live plan the user
+ * is still acting on, not an archival record.
+ */
+export async function getWeeklyPlan(
+  client: TypedSupabaseClient,
+  userId: string,
+  weekStartDate: LocalDate,
+  today: LocalDate,
+): Promise<DataResult<WeeklyPlanView | null>> {
+  const { data: planRow, error: planError } = await client
+    .from('weekly_plans')
+    .select('id, week_start_date, generated_at, academic_load, total_needed_minutes, total_capacity_minutes, has_unplaced_work')
+    .eq('user_id', userId)
+    .eq('week_start_date', weekStartDate)
+    .maybeSingle();
+  if (planError) return dataErr(mapDataError(planError));
+  if (!planRow) return dataOk(null);
+
+  const [{ data: blockRows, error: blocksError }, { data: unplacedRows, error: unplacedError }] = await Promise.all([
+    client
+      .from('weekly_plan_blocks')
+      .select('id, deliverable_id, course_id, block_date, start_at, end_at, minutes, status')
+      .eq('weekly_plan_id', planRow.id)
+      .order('start_at', { ascending: true }),
+    client
+      .from('weekly_plan_unplaced')
+      .select('id, deliverable_id, course_id, minutes_needed, minutes_placed, minutes_shortfall, reason')
+      .eq('weekly_plan_id', planRow.id),
+  ]);
+  if (blocksError) return dataErr(mapDataError(blocksError));
+  if (unplacedError) return dataErr(mapDataError(unplacedError));
+
+  const { data: profile, error: profileError } = await client.from('profiles').select('timezone, sleep_baseline_hours').eq('id', userId).single();
+  if (profileError) return dataErr(mapDataError(profileError));
+
+  const { data: courses, error: coursesError } = await client
+    .from('courses')
+    .select('id, code, name, difficulty_rating, confidence_rating, target_grade_pct')
+    .is('archived_at', null);
+  if (coursesError) return dataErr(mapDataError(coursesError));
+
+  const gradeProjections = await loadCourseGradeProjections(client, userId);
+  const riskAssessment = await computeRiskAssessment(
+    client,
+    userId,
+    today,
+    courses as Course[],
+    gradeProjections,
+    profile.sleep_baseline_hours,
+    profile.timezone,
+  );
+  const riskById = new Map(riskAssessment.deliverableRisks.map((d) => [d.deliverableId, d]));
+  const courseCodeById = new Map((courses ?? []).map((c) => [c.id, c.code]));
+
+  const blocks: WeeklyPlanBlockView[] = (blockRows ?? []).map((b) => ({
+    id: b.id,
+    deliverableId: b.deliverable_id,
+    courseId: b.course_id,
+    courseCode: b.course_id != null ? (courseCodeById.get(b.course_id) ?? null) : null,
+    title: b.deliverable_id != null ? (riskById.get(b.deliverable_id)?.title ?? null) : null,
+    blockDate: b.block_date,
+    startAt: b.start_at,
+    endAt: b.end_at,
+    minutes: b.minutes,
+    status: b.status as WeeklyPlanBlockStatus,
+  }));
+
+  const unplaced: WeeklyPlanUnplacedView[] = (unplacedRows ?? []).map((u) => ({
+    id: u.id,
+    deliverableId: u.deliverable_id,
+    courseId: u.course_id,
+    courseCode: u.course_id != null ? (courseCodeById.get(u.course_id) ?? null) : null,
+    title: u.deliverable_id != null ? (riskById.get(u.deliverable_id)?.title ?? null) : null,
+    minutesNeeded: u.minutes_needed,
+    minutesPlaced: u.minutes_placed,
+    minutesShortfall: u.minutes_shortfall,
+    reason: u.reason as 'due_before_window' | 'insufficient_capacity',
+  }));
+
+  const allocByCourseId = new Map<number, number>();
+  for (const b of blockRows ?? []) {
+    if (b.course_id == null) continue;
+    allocByCourseId.set(b.course_id, (allocByCourseId.get(b.course_id) ?? 0) + b.minutes);
+  }
+  const courseAllocations: WeeklyPlanCourseAllocation[] = [...allocByCourseId.entries()]
+    .map(([courseId, minutesAllocated]) => ({ courseId, courseCode: courseCodeById.get(courseId) ?? '—', minutesAllocated }))
+    .sort((a, b) => b.minutesAllocated - a.minutesAllocated);
+
+  const planDeliverableIds = new Set<number>();
+  for (const b of blockRows ?? []) if (b.deliverable_id != null) planDeliverableIds.add(b.deliverable_id);
+  for (const u of unplacedRows ?? []) if (u.deliverable_id != null) planDeliverableIds.add(u.deliverable_id);
+
+  const highestRisk: WeeklyPlanHighestRiskItem[] = [...planDeliverableIds]
+    .map((id) => riskById.get(id))
+    .filter((d): d is DeliverableRisk => d != null)
+    .sort((a, b) => b.result.score - a.result.score)
+    .slice(0, HIGHEST_RISK_LIMIT)
+    .map((d) => ({
+      deliverableId: d.deliverableId,
+      courseCode: d.courseCode,
+      title: d.title,
+      dueDate: d.input.dueDate,
+      riskScore: d.result.score,
+      riskBand: d.result.band,
+    }));
+
+  return dataOk({
+    id: planRow.id,
+    weekStartDate: planRow.week_start_date,
+    generatedAt: planRow.generated_at,
+    academicLoad: planRow.academic_load as AcademicLoadBand,
+    totalNeededMinutes: planRow.total_needed_minutes,
+    totalCapacityMinutes: planRow.total_capacity_minutes,
+    hasUnplacedWork: planRow.has_unplaced_work,
+    blocks,
+    unplaced,
+    highestRisk,
+    courseAllocations,
+  });
+}
+
+/**
+ * "You adjust once, the engine carries it forward" (the migration's own words) -- a plain,
+ * user_id-scoped UPDATE, never a regeneration. user_id is redundant with RLS by design: RLS
+ * is the backstop, not the only guard, same as every other write in this codebase.
+ */
+export async function updateWeeklyPlanBlockStatus(
+  client: TypedSupabaseClient,
+  userId: string,
+  blockId: number,
+  status: WeeklyPlanBlockStatus,
+): Promise<DataResult<null>> {
+  const { error } = await client.from('weekly_plan_blocks').update({ status }).eq('id', blockId).eq('user_id', userId);
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(null);
 }

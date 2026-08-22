@@ -46,6 +46,14 @@ export function compareLocalDate(a: LocalDate, b: LocalDate): number {
   return diff === 0 ? 0 : diff < 0 ? -1 : 1;
 }
 
+/** The Sunday on or before `date` -- the brief's "Sunday weekly planning" session defines
+ *  the canonical week boundary. Parsed as UTC midnight purely as a calendar-arithmetic
+ *  device (same convention toEpochDay already uses), never as a real instant. */
+export function startOfWeek(date: LocalDate): LocalDate {
+  const dayOfWeek = new Date(`${date}T00:00:00Z`).getUTCDay(); // 0 = Sunday
+  return addDays(date, -dayOfWeek);
+}
+
 export function isValidLocalDate(value: string): value is LocalDate {
   const match = LOCAL_DATE_RE.exec(value);
   if (!match) return false;

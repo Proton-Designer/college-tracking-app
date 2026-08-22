@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { addDays, compareLocalDate, daysBetween, isValidLocalDate } from './date';
+import { addDays, compareLocalDate, daysBetween, isValidLocalDate, startOfWeek } from './date';
 
 describe('daysBetween', () => {
   it('returns 0 for the same date', () => {
@@ -58,6 +58,20 @@ describe('compareLocalDate', () => {
 
   it('returns positive when the first date is later', () => {
     expect(compareLocalDate('2026-08-19', '2026-08-18')).toBeGreaterThan(0);
+  });
+});
+
+describe('startOfWeek', () => {
+  it('returns the most recent Sunday for a mid-week date', () => {
+    expect(startOfWeek('2026-08-18')).toBe('2026-08-16'); // Tuesday -> preceding Sunday
+  });
+
+  it('returns the same date when already a Sunday', () => {
+    expect(startOfWeek('2026-08-16')).toBe('2026-08-16');
+  });
+
+  it('crosses a year boundary correctly', () => {
+    expect(startOfWeek('2026-01-01')).toBe('2025-12-28'); // Thursday -> preceding Sunday
   });
 });
 
