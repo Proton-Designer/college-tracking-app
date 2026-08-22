@@ -110,7 +110,7 @@ export async function getDayView(
       .gte('planned_start', todayStart.toISOString())
       .lt('planned_start', todayEnd.toISOString())
       .order('planned_start'),
-    client.from('courses').select('id, code, name, difficulty_rating, confidence_rating, target_grade_pct'),
+    client.from('courses').select('id, code, name, difficulty_rating, confidence_rating, target_grade_pct').is('archived_at', null),
     client
       .from('deliverables')
       .select('id, course_id, title, due_at, local_due_date')

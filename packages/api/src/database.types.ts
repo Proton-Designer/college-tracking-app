@@ -388,6 +388,7 @@ export type Database = {
       courses: {
         Row: {
           allowed_absences: number | null
+          archived_at: string | null
           attendance_policy: string | null
           code: string
           color: string | null
@@ -406,6 +407,7 @@ export type Database = {
         }
         Insert: {
           allowed_absences?: number | null
+          archived_at?: string | null
           attendance_policy?: string | null
           code: string
           color?: string | null
@@ -424,6 +426,7 @@ export type Database = {
         }
         Update: {
           allowed_absences?: number | null
+          archived_at?: string | null
           attendance_policy?: string | null
           code?: string
           color?: string | null

@@ -38,7 +38,8 @@ export async function assembleDeterministicNightlyReport(
   const { data: courses, error: coursesError } = await client
     .from("courses")
     .select("id, code, name, difficulty_rating, confidence_rating, target_grade_pct")
-    .eq("user_id", userId);
+    .eq("user_id", userId)
+    .is("archived_at", null);
   if (coursesError) throw coursesError;
 
   const [

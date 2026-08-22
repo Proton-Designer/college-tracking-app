@@ -163,7 +163,10 @@ export async function generateAndPersistWeeklyPlan(
   const { data: profile, error: profileError } = await client.from('profiles').select('timezone, sleep_baseline_hours').eq('id', userId).single();
   if (profileError) return dataErr(mapDataError(profileError));
 
-  const { data: courses, error: coursesError } = await client.from('courses').select('id, code, name, difficulty_rating, confidence_rating, target_grade_pct');
+  const { data: courses, error: coursesError } = await client
+    .from('courses')
+    .select('id, code, name, difficulty_rating, confidence_rating, target_grade_pct')
+    .is('archived_at', null);
   if (coursesError) return dataErr(mapDataError(coursesError));
 
   const gradeProjections = await loadCourseGradeProjections(client, userId);

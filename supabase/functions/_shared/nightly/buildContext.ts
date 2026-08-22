@@ -150,7 +150,8 @@ export async function loadDurableProfile(client: AnySupabaseClient, userId: stri
     client
       .from("courses")
       .select("id, name, code, target_grade_pct, difficulty_rating, confidence_rating, late_policy, attendance_policy, allowed_absences")
-      .eq("user_id", userId),
+      .eq("user_id", userId)
+      .is("archived_at", null),
     client
       .from("kill_habits")
       .select(

@@ -50,7 +50,13 @@ export async function syncBrightspaceFeed(
 ): Promise<SyncBrightspaceFeedResult> {
   const { events, malformedLineCount } = parseIcsFeed(icsText);
 
-  const { data: courses, error: coursesError } = await client.from("courses").select("id, code").eq("user_id", userId);
+  // Archived courses are excluded from matching: an incoming ICS event shouldn't get
+  // silently attached to a semester that's already over.
+  const { data: courses, error: coursesError } = await client
+    .from("courses")
+    .select("id, code")
+    .eq("user_id", userId)
+    .is("archived_at", null);
   if (coursesError) throw coursesError;
 
   let staged = 0;
