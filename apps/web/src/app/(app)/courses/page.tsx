@@ -45,6 +45,7 @@ export default async function CoursesPage() {
                 <th className="py-2 pr-4 font-normal">Current</th>
                 <th className="py-2 pr-4 font-normal">Target</th>
                 <th className="py-2 pr-4 font-normal">Next deadline</th>
+                <th className="py-2 w-6" aria-hidden="true" />
               </tr>
             </thead>
             <tbody>
@@ -63,7 +64,7 @@ function CourseRow({ row, today }: { row: CoursesIndexRow; today: string }) {
   const { course, gradeResult, courseRisk, nextDeadline } = row;
 
   return (
-    <tr className="border-b border-hairline last:border-b-0">
+    <tr className="group border-b border-hairline transition-colors duration-90 last:border-b-0 hover:bg-surface-sunken">
       <td className="py-3 pr-4">
         <Link href={`/courses/${course.id}`} className="flex flex-col hover:underline">
           <span className="font-mono text-body-s text-ink">{course.code}</span>
@@ -90,6 +91,9 @@ function CourseRow({ row, today }: { row: CoursesIndexRow; today: string }) {
         ) : (
           <span className="text-ink-faint">Nothing open</span>
         )}
+      </td>
+      <td className="py-3 text-ink-faint transition-colors duration-90 group-hover:text-ink" aria-hidden="true">
+        ›
       </td>
     </tr>
   );
