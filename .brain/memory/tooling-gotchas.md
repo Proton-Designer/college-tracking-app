@@ -211,3 +211,33 @@ tab-bar active indicator renders correctly.
 **So it is not a substitute for an on-device pass before launch.** It is a fast, reliable way to
 verify layout, states, copy, data flow, and component behaviour — which is most of what a UI change
 needs — instead of verifying nothing at all because the simulator is wedged.
+
+---
+
+## Edge functions return 503 locally because no runtime container is running
+
+**Symptom:** every `http://127.0.0.1:54321/functions/v1/*` call returns **503**, so anything routed
+through an edge function fails. It reads like a code or Kong problem. It isn't.
+
+**Cause:** `npm run db:start` (`supabase start`) does **not** bring up an edge-runtime container.
+`docker ps` shows db, auth, kong, rest, storage, realtime, studio, analytics, vector, inbucket — and
+no `supabase_edge_runtime_*`. Kong has nothing to route to, hence 503.
+
+**Fix:**
+
+```bash
+supabase functions serve --env-file ./.env.local
+```
+
+That creates `supabase_edge_runtime_<project>`, reloads Kong, and serves all 11 functions. It is a
+**foreground process** — if it dies, restart it. It is not part of `db:start`, which is why nobody
+had it running and why "the edge functions are unreachable" was true for the whole build.
+
+`--env-file` warns `Env name cannot start with SUPABASE_, skipping: ...` for four variables. That is
+expected and harmless: the runtime injects `SUPABASE_URL`, `SUPABASE_ANON_KEY`,
+`SUPABASE_SERVICE_ROLE_KEY` and `SUPABASE_DB_URL` itself, and refuses to let a file override them.
+
+**What this does not fix:** there is still no `ANTHROPIC_API_KEY`, so `syllabus-extract` and the
+model half of `nightly-analysis` will still fail. That is correct and expected — but with the runtime
+up you can now prove it is the *model call* failing rather than the function being unreachable, which
+is a materially different claim to be able to make.
