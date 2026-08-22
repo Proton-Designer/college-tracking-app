@@ -41,7 +41,8 @@ export function Island({ state, descriptors, navigation, insets }: BottomTabBarP
           {/* Mandatory opaque fallback (§2): the tint View below is 88% opaque on its own, so
               the dock stays fully readable even where BlurView can't blur (older Android,
               reduced-transparency). The blur is a bonus layer, not the thing readability
-              depends on. */}
+              depends on. Android renders a solid tinted fill here, never a blur, unless
+              `blurTarget` is wired -- see FOLLOWUPS G1. */}
           <BlurView intensity={80} tint="dark" style={StyleSheet.absoluteFill} />
           <View style={[StyleSheet.absoluteFill, { backgroundColor: islandTint() }]} />
           <View style={styles.itemsRow}>
