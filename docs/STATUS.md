@@ -30,13 +30,20 @@ why that was invisible for so long — every verification ran against a seeded d
 web: 17 routes · mobile: 16 routes · 23 integration-test files · 8 E2E specs
 ```
 
-| Suite | Count |
+Full regression, run 2026-08-22, every number below executed rather than recalled:
+
+| Suite | Result |
 |---|---|
-| `packages/core` unit | **332** |
-| pgTAP | **459** assertions, 10 files |
-| `packages/api` integration | 100+, run twice (D14) |
-| Deno edge (offline) | 84 |
-| Web E2E (Playwright) | 8 specs, incl. the E0 acceptance test |
+| `npm run verify` | **PASS** — 4 guards, typecheck ×5 workspaces, lint, **354 unit tests** (core 335 · api 17 · mobile 2) |
+| pgTAP | **459 assertions**, 10 files |
+| `packages/api` integration (real DB) | **101 / 101**, twice consecutively (D14) |
+| Deno edge, offline | **86 / 86** |
+| Deno edge, live DB | **60 / 60**, twice consecutively |
+| Playwright E2E, desktop + mobile | **28 / 28**, twice, at `--workers=2` |
+
+Playwright was deliberately run at `--workers=2` rather than `1`: single-worker would have hidden a
+real locator ambiguity that only appears under concurrent timing. The setting that makes a suite pass
+is not always the setting that makes it useful.
 
 `npm run verify` → **exit 0**. Four guards run before typecheck; each has caught a real defect.
 
