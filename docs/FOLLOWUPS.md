@@ -148,6 +148,32 @@ the proximate one.
 
 ---
 
+## 🔴 B3 — Seven routes have zero end-to-end coverage
+
+Audited after B1. Every `goto()` in `apps/web/e2e/**` covers only:
+`/` · `/login` · `/signup` · `/forgot-password` · `/today` · `/courses/[id]` (added *because* of B1).
+
+**No test visits** `/courses` (list) · `/calendar` · `/insights` · `/review` · `/review/[date]` ·
+`/settings` · `/focus/[sessionId]`.
+
+B1 proved what that costs: `/courses/[id]` returned a hard **500 on every real course, on both
+platforms**, for an unknown length of time, while `npm run verify` was green, 332 unit tests passed,
+356 pgTAP assertions passed, and 17 E2E tests passed. **Nothing in the suite was capable of noticing.**
+
+**Required:** an authenticated smoke spec that visits *every* route against the seeded demo account
+and asserts a 200 plus the absence of an error boundary. Cheap, mechanical, and exactly the class of
+guard that has already caught a real defect four times in this build (`check:imports`,
+`check:core-mirror`, `check:barrel-exports`, `check:demo-clean`).
+
+Two design requirements, learned from B1:
+- **Iterate over every course the fixture has, not "the first course."** A one-course fixture cannot
+  reproduce B1 — the bug requires a deliverable belonging to a course *not* in `courseFacts`. The
+  obvious test would have passed against the bug.
+- **Assert against a realistic account, not a minimal one.** Every previous verification passed
+  because it ran against thin or seeded-just-so data.
+
+---
+
 ## Smaller items from the 2026-08-22 live review
 
 | # | Item | Notes |
