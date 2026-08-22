@@ -50,6 +50,7 @@
   },
   "jest": {
     "preset": "jest-expo",
+    "resolver": "react-native-worklets/jest/resolver.js",
     "setupFiles": [
       "<rootDir>/jest.setup.ts"
     ]

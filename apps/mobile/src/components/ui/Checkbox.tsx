@@ -1,6 +1,8 @@
-import { color, radius, space } from "@collegeos/design/native";
-import { useState } from "react";
+import { color, radius, space, spring } from "@collegeos/design/native";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import { useReducedMotion } from "../../lib/useReducedMotion";
 import { textStyle } from "../../design/typography";
 import { FieldError } from "./FieldError";
 
@@ -14,6 +16,20 @@ export interface CheckboxProps {
 
 export function Checkbox({ checked, onValueChange, label, disabled = false, error }: CheckboxProps) {
   const [focused, setFocused] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const checkScale = useSharedValue(checked ? 1 : 0);
+  const checkStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: checkScale.value }],
+    opacity: checkScale.value,
+  }));
+
+  useEffect(() => {
+    const target = checked ? 1 : 0;
+    // SharedValue.value assignment is Reanimated's intended API, not React state mutation;
+    // the compiler rule can't see that.
+    // eslint-disable-next-line react-hooks/immutability
+    checkScale.value = reducedMotion ? target : withSpring(target, spring.standard);
+  }, [checked, reducedMotion, checkScale]);
 
   return (
     <View style={styles.container}>
@@ -37,7 +53,7 @@ export function Checkbox({ checked, onValueChange, label, disabled = false, erro
             focused ? styles.focusRing : null,
           ]}
         >
-          {checked ? <Text style={styles.check}>✓</Text> : null}
+          <Animated.Text style={[styles.check, checkStyle]}>✓</Animated.Text>
         </View>
         <Text style={textStyle("body", disabled ? color.inkFaint : color.ink)}>{label}</Text>
       </Pressable>

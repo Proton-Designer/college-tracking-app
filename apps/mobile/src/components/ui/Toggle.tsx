@@ -1,7 +1,12 @@
-import { color, space } from "@collegeos/design/native";
-import { useState } from "react";
+import { color, space, spring } from "@collegeos/design/native";
+import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, { useAnimatedStyle, useSharedValue, withSpring } from "react-native-reanimated";
+import { useReducedMotion } from "../../lib/useReducedMotion";
 import { textStyle } from "../../design/typography";
+
+const THUMB_OFF = 3;
+const THUMB_ON = 19;
 
 export interface ToggleProps {
   checked: boolean;
@@ -12,6 +17,17 @@ export interface ToggleProps {
 
 export function Toggle({ checked, onValueChange, label, disabled = false }: ToggleProps) {
   const [focused, setFocused] = useState(false);
+  const reducedMotion = useReducedMotion();
+  const thumbX = useSharedValue(checked ? THUMB_ON : THUMB_OFF);
+  const thumbStyle = useAnimatedStyle(() => ({ transform: [{ translateX: thumbX.value }] }));
+
+  useEffect(() => {
+    const target = checked ? THUMB_ON : THUMB_OFF;
+    // SharedValue.value assignment is Reanimated's intended API, not React state mutation;
+    // the compiler rule can't see that.
+    // eslint-disable-next-line react-hooks/immutability
+    thumbX.value = reducedMotion ? target : withSpring(target, spring.standard);
+  }, [checked, reducedMotion, thumbX]);
 
   return (
     <Pressable
@@ -37,7 +53,7 @@ export function Toggle({ checked, onValueChange, label, disabled = false }: Togg
           focused ? styles.focusRing : null,
         ]}
       >
-        <View style={[styles.thumb, { transform: [{ translateX: checked ? 19 : 3 }] }]} />
+        <Animated.View style={[styles.thumb, thumbStyle]} />
       </View>
     </Pressable>
   );
