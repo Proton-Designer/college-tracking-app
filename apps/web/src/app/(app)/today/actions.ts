@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  createTask,
   logKillEvent,
   startFocusSession,
   submitMorningCheckin,
@@ -10,7 +11,45 @@ import {
   type SubmitMorningCheckinInput,
   type TaskStatus,
 } from "@collegeos/api";
+import type { LocalDate } from "@collegeos/core";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
+
+export interface AddTaskResult {
+  ok: boolean;
+  error?: string;
+}
+
+export interface AddTaskInput {
+  title: string;
+  category: string;
+  plannedDate: LocalDate;
+  courseId?: number;
+  estimatedMinutes?: number;
+}
+
+/** E0/U6: Today's own quick-add -- the only entry point for a task that isn't scoped to
+ *  a specific deliverable (that scoped version lives on /deliverables/[id]). courseId is
+ *  optional -- a personal task (gym, errand) is real and plannable without belonging to
+ *  any course, same as course_id already being nullable on the tasks table. */
+export async function addTaskAction(input: AddTaskInput): Promise<AddTaskResult> {
+  const client = await getServerSupabaseClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const result = await createTask(client, {
+    user_id: user.id,
+    title: input.title,
+    category: input.category,
+    planned_date: input.plannedDate,
+    ...(input.courseId != null ? { course_id: input.courseId } : {}),
+    ...(input.estimatedMinutes != null ? { estimated_minutes: input.estimatedMinutes } : {}),
+  });
+  if (!result.ok) return { ok: false, error: result.error.message };
+  revalidatePath("/today");
+  return { ok: true };
+}
 
 export interface ToggleTaskResult {
   ok: boolean;

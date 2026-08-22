@@ -11,7 +11,7 @@ import {
 } from "@collegeos/api";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
-export type TodayMode = "unplanned" | "recovery" | "normal";
+export type TodayMode = "onboarding" | "unplanned" | "recovery" | "normal";
 
 export interface TodayData {
   dayView: DayView;
@@ -39,7 +39,16 @@ export type TodayLoadResult =
  * `recovery` takes priority over `unplanned` because a triggered Recovery Mode is the more
  * urgent fact even on a day the user hasn't checked in yet.
  */
-function decideMode(dayView: DayView): TodayMode {
+/** E0_ONBOARDING_SPEC.md: "does this user have at least one course?" is a real data
+ *  check, never a has_onboarded flag -- a user who deletes everything gets help again,
+ *  not a dead app. Checked first, ahead of recovery/unplanned: the daily ritual (and
+ *  Recovery Mode's crisis intervention) both presuppose a semester exists, and neither
+ *  should realistically fire for a genuinely empty account, but onboarding wins even if
+ *  they somehow do. Archived-only doesn't count -- an archived course is deliberately
+ *  excluded from every other live computation (migration 0030's read-path audit), so
+ *  it isn't "a semester" for this purpose either. */
+function decideMode(dayView: DayView, courseCount: number): TodayMode {
+  if (courseCount === 0) return "onboarding";
   if (dayView.recoveryMode.triggered) return "recovery";
   if (dayView.todayCheckin == null) return "unplanned";
   return "normal";
@@ -81,7 +90,7 @@ export async function loadTodayData(options?: { asOf?: Date }): Promise<TodayLoa
     data: {
       dayView: dayViewResult.data,
       courses: Object.fromEntries(coursesResult.data.map((c) => [c.id, c])),
-      mode: decideMode(dayViewResult.data),
+      mode: decideMode(dayViewResult.data, coursesResult.data.length),
       killHabits: killHabitsResult.data,
       activeFocusSession: activeFocusSessionResult.data,
       now,

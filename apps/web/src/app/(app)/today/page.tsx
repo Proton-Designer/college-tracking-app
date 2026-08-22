@@ -7,6 +7,8 @@ import { FocusLauncher } from "@/components/today/FocusLauncher";
 import { TodayHeader } from "@/components/today/Header";
 import { KillListSection } from "@/components/today/KillListSection";
 import { MitList } from "@/components/today/MitList";
+import { OnboardingGate } from "@/components/today/OnboardingGate";
+import { QuickAddTaskModal } from "@/components/today/QuickAddTaskModal";
 import { RecoveryBanner } from "@/components/today/RecoveryBanner";
 import { UnplannedGate } from "@/components/today/UnplannedGate";
 import { WorkloadBand } from "@/components/today/WorkloadBand";
@@ -130,7 +132,10 @@ export default async function TodayPage({
         </p>
       ) : null}
       <section className="flex flex-col gap-3">
-        <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Top 3</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Top 3</h2>
+          <QuickAddTaskModal today={dayView.today} courses={courses} />
+        </div>
         <MitList items={mitItems} />
       </section>
       <section className="flex flex-col gap-3">
@@ -150,6 +155,15 @@ export default async function TodayPage({
       <FocusLauncher block={focusBlock} activeSession={activeFocusSession} />
     </div>
   );
+
+  if (mode === "onboarding") {
+    return (
+      <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-8 px-8 py-10">
+        <TodayHeader today={dayView.today} health={dayView.todayHealth} sleepBaselineHours={dayView.profile.sleep_baseline_hours} />
+        <OnboardingGate />
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-8 px-8 py-10">
