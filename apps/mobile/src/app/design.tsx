@@ -6,16 +6,20 @@ import {
   Badge,
   Button,
   Checkbox,
+  DatePicker,
   EmptyState,
   FieldError,
   Input,
   Label,
   Metric,
+  Modal,
   Panel,
   RiskPill,
   SegmentedControl,
+  Select,
   Skeleton,
   Textarea,
+  TimePicker,
   Toast,
   Toggle,
   useToast,
@@ -72,6 +76,10 @@ export default function DesignPreviewScreen() {
   const [scale, setScale] = useState<number | null>(7);
   const [checked, setChecked] = useState(true);
   const [toggled, setToggled] = useState(false);
+  const [category, setCategory] = useState<string | null>(null);
+  const [dueDate, setDueDate] = useState<string | null>(null);
+  const [studyTime, setStudyTime] = useState<string | null>(null);
+  const [modalOpen, setModalOpen] = useState(false);
   const insets = useSafeAreaInsets();
 
   return (
@@ -174,6 +182,54 @@ export default function DesignPreviewScreen() {
       <SegmentedControl label="Energy" value={scale} onValueChange={setScale} />
       <View style={{ height: space[4] }} />
       <SegmentedControl label="Disabled" value={4} onValueChange={() => {}} disabled />
+
+      <SectionTitle note="Trigger opens a picker sheet built on Modal.">Select</SectionTitle>
+      <StateLabel>unset / chosen (live)</StateLabel>
+      <Select
+        label="Category"
+        placeholder="Choose a category"
+        options={[
+          { value: "homework", label: "Homework" },
+          { value: "exam", label: "Exam" },
+          { value: "reading", label: "Reading" },
+        ]}
+        value={category}
+        onValueChange={setCategory}
+      />
+
+      <SectionTitle note="Unset is a real state, not a fabricated default -- Clear returns to it.">
+        DatePicker & TimePicker
+      </SectionTitle>
+      <View style={styles.stack}>
+        <DatePicker label="Due date" value={dueDate} onValueChange={setDueDate} />
+        <TimePicker label="Study block start" value={studyTime} onValueChange={setStudyTime} />
+      </View>
+
+      <SectionTitle note="A bottom sheet, not a centered dialog -- DESIGN_SYSTEM's dedicated sheet spring.">
+        Modal
+      </SectionTitle>
+      <Button variant="secondary" onPress={() => setModalOpen(true)}>
+        Open modal
+      </Button>
+      <Modal
+        visible={modalOpen}
+        onClose={() => setModalOpen(false)}
+        title="Add a course"
+        footer={
+          <>
+            <Button variant="ghost" onPress={() => setModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="primary" onPress={() => setModalOpen(false)}>
+              Save
+            </Button>
+          </>
+        }
+      >
+        <Text style={textStyle("body", color.inkMuted)}>
+          Demo content only -- this is where a real form (Input/Select/DatePicker) would sit.
+        </Text>
+      </Modal>
 
       <SectionTitle>Checkbox & Toggle</SectionTitle>
       <StateLabel>checkbox — unchecked / checked (live)</StateLabel>
