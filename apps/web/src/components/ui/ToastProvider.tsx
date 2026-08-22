@@ -38,7 +38,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={value}>
       {children}
-      <div className="pointer-events-none fixed inset-x-0 bottom-6 z-toast flex flex-col items-center gap-2">
+      {/* bottom-[136px] clears the floating Island (§5: 20px offset + ~92px dock height) on
+          every authenticated screen, not just bottom-6 -- a toast stacking visually on top of
+          the dock read cluttered once the shell went from a static rail to a floating pill. */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-[136px] z-toast flex flex-col items-center gap-2">
         {toasts.map((toast) => (
           <div key={toast.id} className="pointer-events-auto w-full max-w-sm px-4">
             <Toast variant={toast.variant} message={toast.message} onDismiss={() => dismiss(toast.id)} />
