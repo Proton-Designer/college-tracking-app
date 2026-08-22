@@ -148,6 +148,53 @@ the proximate one.
 
 ---
 
+## 🔴🔴🔴 B4 — Day boundaries are derived from UTC across the domain layer
+
+> **The most serious logic defect in the codebase.** It breaks the one rule `CLAUDE.md` emphasises
+> hardest: *"This product is about local days. Never derive a day boundary from UTC."*
+
+**Mechanism.** `dayView.ts:81` and 8+ sibling sites build a day window as
+`new Date(`${today}T00:00:00Z`)` — where `today` is the user's **correctly computed local date**
+(from `getUserLocalToday`). Appending `Z` then asserts that local date is a **UTC** instant.
+
+For `America/Indiana/Indianapolis` (UTC−4 in August), local midnight is `04:00Z`, not `00:00Z`. So
+every window is wrong by the user's UTC offset at **both** ends. Confirmed by arithmetic, not
+inference: a task session created during the gap falls outside the window and disappears from
+`todayTaskSessions` entirely.
+
+**This is not an edge case.** The window is wrong for roughly 4–8 hours out of every 24 — the size
+of the offset — for every user not sitting exactly on UTC. Near midnight in the user's own local
+time, task sessions, deadline urgency, congestion hours and Recovery Mode's deadline horizon can all
+silently use the wrong day.
+
+**Known sites** (to be enumerated exactly before fixing): `dayView.ts` · `backplan.ts` ·
+`weeklyPlan.ts` · `recoveryMode.ts` · `workload.ts` · `risk.ts` (`sumCalendarHoursInWindow`) ·
+`mvd.ts` · the Deno mirror's `domainQueries.ts` (×2).
+
+**The fix already exists and was never used.** `localTimeToInstant(date, hour, minute, timezone)` is
+in `packages/core` and is already used correctly by `CheckinForm.tsx`. This is a *"the right tool was
+never reached for"* bug, not a missing capability.
+
+**Requirements:** prove the red first, with a **timezone-parameterised** regression (a UTC-positive
+zone, a UTC-negative zone, and a fixed `now` inside the broken gap — a test that passes only because
+CI happens to run at 14:00 UTC is how this survived). Fix every site including both Deno mirror
+copies. Check whether persisted rows are already wrong. Consider a `check:*` guard for the
+`T00:00:00Z`-concatenation idiom — if it was copied eight times, a ninth exists somewhere.
+
+## 🟡 B5 — Seeded fixtures drift against real wall-clock time, and the integration suite is red
+
+Three integration tests currently fail (`agentReports.itest.ts` ×1, `dayView.itest.ts` ×2) on
+Recovery-Mode assertions, apparently because seed data is anchored to **relative offsets from
+whenever it was seeded** and those offsets no longer produce the intended scenario as real time
+advances. **Not yet root-caused** — recorded as observed rather than explained.
+
+**Separately and more importantly:** this means **the integration suite is currently red — 4
+failures counting B4's.** `npm run verify` does not run the itests (they need a live DB), so *"verify
+is green"* has been simultaneously true and not the whole picture, for an unknown length of time.
+That is a D14-shaped lesson: the thing you don't run routinely is the thing that rots.
+
+---
+
 ## 🔴 B3 — Seven routes have zero end-to-end coverage
 
 Audited after B1. Every `goto()` in `apps/web/e2e/**` covers only:
