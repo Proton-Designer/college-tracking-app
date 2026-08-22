@@ -582,6 +582,33 @@ should wait — pick it deliberately, don't inherit 150s by accident.
 
 ---
 
+## Journey-pass findings (full manual user journey, web, 2026-08-22)
+
+Eight of ten steps verified end to end on a from-scratch account — signup → real Mailpit confirm →
+onboarding gate → course → assignment → weekly plan → check-in → quick-add task → focus session →
+night review. The focus session was confirmed in psql (`task_sessions` completed,
+`subjective_focus=4`, `objective_output` stored verbatim), and the night review's numbers matched
+reality exactly, including *"MITs: none planned"* rather than a fabricated zero.
+
+**The headline finding of that pass is P1** (above). These are the small ones:
+
+| # | Item | Notes |
+|---|---|---|
+| 🟡 J1 | **The "Add assignment" due-date field is a plain `<input type="date">`, not the `DatePicker` primitive** | That primitive exists specifically so forms get unset-as-`null` handled properly — its whole design point is that the OS control is never asked to represent "no value". A native input silently loses that, on the one field in the form where a real date is required and a wrong default is most costly. |
+| 🟢 J2 | **Course detail's assignments table renders the raw enum `NOT_STARTED`** | Should be humanized ("Not started"). Small, but raw enums leaking into UI text is exactly what reads as unfinished to a real user. |
+
+**Two steps not reached, and why — neither is a failure:**
+- **Insights**: the web dev server was killed by the Lead during wind-down while the journey was still
+  running. Timing, not a crash.
+- **The nightly report**: skipped out of caution about triggering a paid API call. **That premise was
+  wrong** — with no `ANTHROPIC_API_KEY` the function runs its deterministic path and never reaches a
+  provider (the Lead invoked it earlier the same day: `usedModel: false`, zero cost). Recorded because
+  the reasoning matters: *the guard against an unauthorized paid call is the missing key itself.*
+  Declining to spend someone else's money without checking was still the right instinct.
+- **Mobile**: not attempted this pass. The journey has been walked on web only.
+
+---
+
 ## Smaller items from the 2026-08-22 live review
 
 | # | Item | Notes |
