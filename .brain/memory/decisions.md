@@ -261,3 +261,32 @@ safe. It wasn't.
   shared directory is invisible to everyone except its author — right up until someone builds on it.
 - **Never let your commit depend on files someone else has not committed.**
 - Green `verify` is evidence about *correctness*, never about *stability*.
+
+
+---
+
+## D22 — In a shared working directory, commit by pathspec, never by index
+
+**Decision:** always `git commit -- <paths>` (or `git commit <paths>`), never `git add <paths>`
+followed by a bare `git commit`.
+
+**Why.** Two agents working in one checkout share **one git index**. On 2026-08-22 the Lead staged
+ten files for the U9 commit and ran `git commit`; the commit also contained 78 lines of
+`docs/FOLLOWUPS.md` that Atlas had staged moments earlier for his own work. Nothing failed, nothing
+warned, and the content was correct — it was simply attributed to the wrong commit and the wrong
+message. Atlas noticed and said so.
+
+This is **worse than D21**, which says a green `verify` tells you nothing about what is committed.
+D21 is about *uncommitted* work being invisible. This is about *someone else's* work being
+committed by you, silently, under a message that describes something entirely different — which
+corrupts the one record we rely on for "why was this changed."
+
+`git commit -- <paths>` builds the commit from those paths alone regardless of what else sits in the
+index, so a peer's staged work cannot be swept in.
+
+**Corollary:** `git commit -a` is banned outright in this repo for the same reason, and more
+obviously so.
+
+**How we found it:** not from a failure. Atlas read his own diff after the fact, saw his writing
+under someone else's commit message, and reported it rather than shrugging. Reviewing what you
+actually committed — not just what you meant to commit — is what caught this.

@@ -369,6 +369,39 @@ other pretends the capability doesn't exist, is worse than text-only.
 
 ---
 
+## 🔴 B7 — The web session drops, `auth.getUser()` fails with a bare 400
+
+**Status: recurring, reproduced only incidentally, mechanism unknown, now instrumented.** Filed
+honestly rather than as a diagnosis.
+
+**Symptom.** While browsing as the demo user the session dies: the `sb-…-auth-token` cookie is gone
+and every protected route bounces to `/login`. Seen at least four times on 2026-08-22.
+
+**Why it went undiagnosed for so long — and how I got it wrong.** `proxy.ts` destructured only
+`data` from `auth.getUser()` and **discarded the error**. So every occurrence left a completely
+empty server log, and the Lead concluded from that empty log that there was no auth failure at all.
+That was circular: the log was empty *because* the error was being thrown away. Instrumented in
+`b901fbd`/`08bb1f8`, and the failure is now visible:
+
+```
+[proxy] auth.getUser() failed on /review:   code=unknown status=400
+[proxy] auth.getUser() failed on /insights: code=unknown status=400   (×3)
+```
+
+**What is ruled out.** A 500 response does **not** clear the cookie — tested directly (sign in →
+`/today` 200 → `/courses/3` 500 → `/today` 200), cookie count stayed at 1 throughout. So B1's 500s
+were not the cause, despite the correlation that first suggested it.
+
+**What the evidence says.** `code` is `undefined` on a 400. A `refresh_token_not_found` carries a
+real code, so this is a **different error class** — which is the most useful fact we have. The
+message is now logged outside production; it had not reproduced again as of filing.
+
+**Do not "fix" `proxy.ts` or the cookie adapter speculatively.** Both are correct per the
+`@supabase/ssr` contract, and the Server-Component `setAll` swallow is intentional and documented.
+The next step is the message string, not a patch.
+
+---
+
 ## Smaller items from the 2026-08-22 live review
 
 | # | Item | Notes |
