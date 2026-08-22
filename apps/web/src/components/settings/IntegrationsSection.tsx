@@ -1,13 +1,14 @@
 "use client";
 
-import type { BrightspaceFeedRow, IntegrationStatus, OAuthProvider } from "@collegeos/api";
+import type { BrightspaceFeedRow, IcsEventExtractionRow, IntegrationStatus, OAuthProvider } from "@collegeos/api";
 import { useState, useTransition } from "react";
 import {
+  confirmIcsEventAction,
   connectBrightspaceFeedAction,
   disconnectBrightspaceFeedAction,
   disconnectIntegrationAction,
 } from "@/app/(app)/settings/actions";
-import { Badge, Button, Input, Panel } from "@/components/ui";
+import { Badge, Button, Checkbox, Panel, Input } from "@/components/ui";
 import { useToast } from "@/components/ui/ToastProvider";
 
 const PROVIDER_LABEL: Record<OAuthProvider, string> = {
@@ -31,17 +32,96 @@ const CONNECT_UNAVAILABLE_REASON: Record<OAuthProvider, string> = {
 export function IntegrationsSection({
   integrationStatuses,
   brightspaceFeed,
+  pendingIcsEvents,
 }: {
   integrationStatuses: IntegrationStatus[];
   brightspaceFeed: Pick<BrightspaceFeedRow, "id" | "last_synced_at"> | null;
+  pendingIcsEvents: IcsEventExtractionRow[];
 }) {
   return (
     <div className="flex flex-col gap-3">
       <BrightspaceCard feed={brightspaceFeed} />
+      {pendingIcsEvents.length > 0 ? <PendingIcsEventsCard events={pendingIcsEvents} /> : null}
       {integrationStatuses.map((status) => (
         <OAuthProviderCard key={status.provider} status={status} />
       ))}
     </div>
+  );
+}
+
+function PendingIcsEventsCard({ events }: { events: IcsEventExtractionRow[] }) {
+  const toast = useToast();
+  const [decidedIds, setDecidedIds] = useState<Set<number>>(new Set());
+  const [isClassMeetingById, setIsClassMeetingById] = useState<Record<number, boolean>>({});
+  const [isPending, startTransition] = useTransition();
+
+  function decide(event: IcsEventExtractionRow, decision: "confirmed" | "rejected") {
+    startTransition(async () => {
+      try {
+        const result = await confirmIcsEventAction(
+          event.id,
+          decision,
+          isClassMeetingById[event.id] ?? false,
+          event.course_id ?? undefined,
+        );
+        if (!result.ok) {
+          toast.show(`Couldn't save that decision: ${result.error ?? "unknown error"}.`, "error");
+          return;
+        }
+        setDecidedIds((prev) => new Set(prev).add(event.id));
+        toast.show(decision === "confirmed" ? "Added to your calendar." : "Rejected.", "success");
+      } catch (err) {
+        // A thrown server error (Edge Function unreachable, etc.) must still surface as
+        // a real, visible outcome -- never a silent no-op that leaves the item sitting
+        // there with no explanation.
+        toast.show(`Couldn't save that decision: ${err instanceof Error ? err.message : "unknown error"}.`, "error");
+      }
+    });
+  }
+
+  const remaining = events.filter((e) => !decidedIds.has(e.id));
+
+  return (
+    <Panel className="flex flex-col gap-3">
+      <div className="flex items-center justify-between gap-3">
+        <span className="text-body font-medium text-ink">
+          Pending Brightspace deadlines {remaining.length > 0 ? `(${remaining.length})` : ""}
+        </span>
+      </div>
+      <p className="text-caption text-ink-faint">
+        Staged from your synced feed. Nothing here is on your real calendar until you confirm it.
+      </p>
+      {remaining.length === 0 ? (
+        <p className="text-body-s text-ink-faint">Every staged deadline has been reviewed.</p>
+      ) : (
+        <ul className="flex flex-col gap-3">
+          {remaining.map((event) => (
+            <li key={event.id} className="flex flex-col gap-2 rounded-md border border-border p-3">
+              <span className="text-body-s text-ink">{event.summary}</span>
+              <span className="font-mono text-caption tabular-nums text-ink-faint">
+                {event.is_all_day
+                  ? new Date(event.start_at).toISOString().slice(0, 10)
+                  : new Date(event.start_at).toLocaleString()}
+                {event.location ? ` · ${event.location}` : ""}
+              </span>
+              <Checkbox
+                label="This is a class meeting (counts toward attendance)"
+                checked={isClassMeetingById[event.id] ?? false}
+                onChange={(checked) => setIsClassMeetingById((prev) => ({ ...prev, [event.id]: checked }))}
+              />
+              <div className="flex gap-3">
+                <Button variant="secondary" onClick={() => decide(event, "confirmed")} loading={isPending} disabled={isPending}>
+                  Confirm
+                </Button>
+                <Button variant="ghost" onClick={() => decide(event, "rejected")} disabled={isPending}>
+                  Reject
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
   );
 }
 

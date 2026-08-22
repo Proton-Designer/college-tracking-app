@@ -5,7 +5,9 @@ import {
   getOwnProfile,
   listIntegrationStatuses,
   listKillHabits,
+  listPendingIcsEvents,
   type BrightspaceFeedRow,
+  type IcsEventExtractionRow,
   type IntegrationStatus,
   type KillHabitRow,
   type LlmMonthlySpend,
@@ -19,6 +21,10 @@ export interface SettingsData {
   killHabits: KillHabitRow[];
   integrationStatuses: IntegrationStatus[];
   brightspaceFeed: Pick<BrightspaceFeedRow, "id" | "last_synced_at"> | null;
+  /** E4: staged Brightspace deadlines awaiting explicit confirmation before they become
+   *  real calendar_events -- CLAUDE.md law #3. Read regardless of whether a feed is
+   *  currently connected, so a disconnect doesn't strand undecided items. */
+  pendingIcsEvents: IcsEventExtractionRow[];
   monthlySpend: LlmMonthlySpend;
   /** Every agent_reports row for this user has model = 'deterministic' -- the model
    *  layer has never actually run, whether because no ANTHROPIC_API_KEY is configured
@@ -38,12 +44,13 @@ export async function loadSettingsData(): Promise<SettingsLoadResult> {
   } = await client.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in." };
 
-  const [profileResult, killHabitsResult, integrationStatusesResult, brightspaceFeedResult, monthlySpendResult, modelUsageRow] =
+  const [profileResult, killHabitsResult, integrationStatusesResult, brightspaceFeedResult, pendingIcsEventsResult, monthlySpendResult, modelUsageRow] =
     await Promise.all([
       getOwnProfile(client),
       listKillHabits(client, user.id, false),
       listIntegrationStatuses(client, user.id),
       getBrightspaceFeedStatus(client),
+      listPendingIcsEvents(client),
       getMonthlySpend(client, user.id, new Date()),
       client.from("agent_reports").select("id").eq("user_id", user.id).neq("model", "deterministic").limit(1).maybeSingle(),
     ]);
@@ -52,6 +59,7 @@ export async function loadSettingsData(): Promise<SettingsLoadResult> {
   if (!killHabitsResult.ok) return { ok: false, error: killHabitsResult.error.message };
   if (!integrationStatusesResult.ok) return { ok: false, error: integrationStatusesResult.error.message };
   if (!brightspaceFeedResult.ok) return { ok: false, error: brightspaceFeedResult.error.message };
+  if (!pendingIcsEventsResult.ok) return { ok: false, error: pendingIcsEventsResult.error.message };
   if (!monthlySpendResult.ok) return { ok: false, error: monthlySpendResult.error.message };
 
   return {
@@ -62,6 +70,7 @@ export async function loadSettingsData(): Promise<SettingsLoadResult> {
       killHabits: killHabitsResult.data,
       integrationStatuses: integrationStatusesResult.data,
       brightspaceFeed: brightspaceFeedResult.data,
+      pendingIcsEvents: pendingIcsEventsResult.data,
       monthlySpend: monthlySpendResult.data,
       hasEverCalledModel: modelUsageRow.data != null,
     },

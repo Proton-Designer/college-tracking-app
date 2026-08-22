@@ -6,6 +6,7 @@ import { EditCourseModal } from "@/components/courses/EditCourseModal";
 import { GradeBoundariesSection } from "@/components/courses/GradeBoundariesSection";
 import { GradeCategoriesSection } from "@/components/courses/GradeCategoriesSection";
 import { ScenarioPlanner } from "@/components/courses/ScenarioPlanner";
+import { UploadSyllabusModal } from "@/components/courses/UploadSyllabusModal";
 import { Metric, PageHeader, Panel, RiskPill } from "@/components/ui";
 import { loadCourseDetail } from "./data";
 
@@ -107,7 +108,10 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Assignments &amp; exams</h2>
-          <AddAssignmentModal courseId={courseId} />
+          <div className="flex items-center gap-3">
+            <UploadSyllabusModal courseId={courseId} />
+            <AddAssignmentModal courseId={courseId} />
+          </div>
         </div>
         <AssignmentsTable
           deliverables={deliverables}

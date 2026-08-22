@@ -17,7 +17,7 @@ export default async function SettingsPage() {
     );
   }
 
-  const { profile, killHabits, integrationStatuses, brightspaceFeed, monthlySpend, hasEverCalledModel } = result.data;
+  const { profile, killHabits, integrationStatuses, brightspaceFeed, pendingIcsEvents, monthlySpend, hasEverCalledModel } = result.data;
 
   return (
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-8 px-8 py-10">
@@ -35,7 +35,11 @@ export default async function SettingsPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Integrations</h2>
-        <IntegrationsSection integrationStatuses={integrationStatuses} brightspaceFeed={brightspaceFeed} />
+        <IntegrationsSection
+          integrationStatuses={integrationStatuses}
+          brightspaceFeed={brightspaceFeed}
+          pendingIcsEvents={pendingIcsEvents}
+        />
       </section>
 
       <section className="flex flex-col gap-3">

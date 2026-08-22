@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  confirmIcsEvent,
   connectBrightspaceFeed,
   createKillHabit,
   deactivateKillHabit,
@@ -150,5 +151,29 @@ export async function deleteAccountAction(confirmEmail: string): Promise<DeleteA
   const client = await getServerSupabaseClient();
   const result = await deleteOwnAccount(client, confirmEmail);
   if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true };
+}
+
+/** E4: the ONLY path from a staged ics_event_extractions row to a real calendar_events
+ *  write is the brightspace-confirm Edge Function -- see
+ *  supabase/functions/_shared/brightspace/confirm.ts's own header for why this can't be
+ *  a direct client write. courseId defaults to whatever the sync already matched from
+ *  the event's summary text (packages/api/src/data/brightspaceFeeds.ts's
+ *  confirmIcsEvent), not re-picked here. */
+export async function confirmIcsEventAction(
+  extractionId: number,
+  decision: "confirmed" | "rejected",
+  isClassMeeting?: boolean,
+  courseId?: number,
+): Promise<ActionResult> {
+  const client = await getServerSupabaseClient();
+  const result = await confirmIcsEvent(client, {
+    extractionId,
+    decision,
+    ...(isClassMeeting != null ? { isClassMeeting } : {}),
+    ...(courseId != null ? { courseId } : {}),
+  });
+  if (!result.ok) return { ok: false, error: result.error.message };
+  revalidatePath("/settings");
   return { ok: true };
 }
