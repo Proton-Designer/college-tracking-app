@@ -1,8 +1,9 @@
-import { color, radius, space } from "@collegeos/design/native";
+import { color, glass, radius, space } from "@collegeos/design/native";
 import { useState } from "react";
 import { StyleSheet, TextInput, View, type TextInputProps } from "react-native";
 import { textStyle } from "../../design/typography";
 import { FieldError } from "./FieldError";
+import { GlassSurface } from "./GlassSurface";
 import { Label } from "./Label";
 
 export interface TextareaProps extends Omit<TextInputProps, "style" | "multiline"> {
@@ -31,30 +32,33 @@ export function Textarea({ label, error, required, editable = true, rows = 4, ..
   return (
     <View style={styles.container}>
       {label ? <Label required={required}>{label}</Label> : null}
-      <TextInput
-        multiline
-        editable={editable}
-        placeholderTextColor={color.inkFaint}
-        onFocus={(e) => {
-          setFocused(true);
-          rest.onFocus?.(e);
-        }}
-        onBlur={(e) => {
-          setFocused(false);
-          rest.onBlur?.(e);
-        }}
+      <GlassSurface
+        tier="sunken"
         style={[
-          styles.input,
-          textStyle("body", disabled ? color.inkFaint : color.ink),
+          styles.clip,
           {
-            minHeight: rows * 22,
-            borderColor: error ? color.riskCritical : focused ? color.accent : color.border,
+            borderColor: error ? color.riskCritical : focused ? color.accent : glass.edgeHairline,
             opacity: disabled ? 0.6 : 1,
           },
           focused ? styles.focusRing : null,
         ]}
-        {...rest}
-      />
+      >
+        <TextInput
+          multiline
+          editable={editable}
+          placeholderTextColor={color.inkFaint}
+          onFocus={(e) => {
+            setFocused(true);
+            rest.onFocus?.(e);
+          }}
+          onBlur={(e) => {
+            setFocused(false);
+            rest.onBlur?.(e);
+          }}
+          style={[styles.input, textStyle("body", disabled ? color.inkFaint : color.ink), { minHeight: rows * 22 }]}
+          {...rest}
+        />
+      </GlassSurface>
       {error ? <FieldError>{error}</FieldError> : null}
     </View>
   );
@@ -64,12 +68,13 @@ const styles = StyleSheet.create({
   container: {
     gap: space[2],
   },
-  input: {
+  clip: {
     borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
+  },
+  input: {
     paddingHorizontal: space[3],
     paddingVertical: space[3],
-    backgroundColor: color.surfaceSunken,
+    backgroundColor: "transparent",
     textAlignVertical: "top",
   },
   focusRing: {

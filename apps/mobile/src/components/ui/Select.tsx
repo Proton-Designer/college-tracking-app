@@ -1,8 +1,9 @@
-import { color, radius, space } from "@collegeos/design/native";
+import { color, glass, radius, space } from "@collegeos/design/native";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { textStyle } from "../../design/typography";
 import { FieldError } from "./FieldError";
+import { GlassSurface } from "./GlassSurface";
 import { Label } from "./Label";
 import { Modal } from "./Modal";
 
@@ -25,7 +26,8 @@ export interface SelectProps {
 
 /** A trigger that opens a picker sheet (built on the shared Modal) -- there's no native
  *  <select> equivalent on RN, and this keeps the same list-of-options mental model as
- *  ChipGroup/SegmentedControl rather than a platform-specific wheel. */
+ *  ChipGroup/SegmentedControl rather than a platform-specific wheel. The trigger is
+ *  `glass-sunken`, the same well material as Input. */
 export function Select({
   label,
   options,
@@ -43,28 +45,33 @@ export function Select({
   return (
     <View style={styles.container}>
       {label ? <Label required={required}>{label}</Label> : null}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={label ? `${label}, ${selected ? selected.label : placeholder}` : (selected ? selected.label : placeholder)}
-        accessibilityState={{ disabled, expanded: open }}
-        disabled={disabled}
-        onPress={() => setOpen(true)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        style={({ pressed }) => [
-          styles.trigger,
+      <GlassSurface
+        tier="sunken"
+        style={[
+          styles.clip,
           {
-            borderColor: error ? color.riskCritical : color.border,
-            opacity: disabled ? 0.6 : pressed ? 0.85 : 1,
+            borderColor: error ? color.riskCritical : glass.edgeHairline,
+            opacity: disabled ? 0.6 : 1,
           },
           focused && !disabled ? styles.focusRing : null,
         ]}
       >
-        <Text style={textStyle("body", selected ? color.ink : color.inkFaint)} numberOfLines={1}>
-          {selected ? selected.label : placeholder}
-        </Text>
-        <Text style={textStyle("bodyS", color.inkFaint)}>▾</Text>
-      </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={label ? `${label}, ${selected ? selected.label : placeholder}` : (selected ? selected.label : placeholder)}
+          accessibilityState={{ disabled, expanded: open }}
+          disabled={disabled}
+          onPress={() => setOpen(true)}
+          onFocus={() => setFocused(true)}
+          onBlur={() => setFocused(false)}
+          style={({ pressed }) => [styles.trigger, { opacity: pressed ? 0.85 : 1 }]}
+        >
+          <Text style={textStyle("body", selected ? color.ink : color.inkFaint)} numberOfLines={1}>
+            {selected ? selected.label : placeholder}
+          </Text>
+          <Text style={textStyle("bodyS", color.inkFaint)}>▾</Text>
+        </Pressable>
+      </GlassSurface>
       {error ? <FieldError>{error}</FieldError> : null}
 
       <Modal visible={open} onClose={() => setOpen(false)} title={label ?? "Select"}>
@@ -102,15 +109,16 @@ const styles = StyleSheet.create({
   container: {
     gap: space[2],
   },
+  clip: {
+    height: 44,
+    borderRadius: radius.md,
+  },
   trigger: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    height: 44,
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: space[3],
-    backgroundColor: color.surfaceSunken,
   },
   focusRing: {
     outlineWidth: 2,

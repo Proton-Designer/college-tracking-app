@@ -14,6 +14,8 @@ export { EmptyState } from "./EmptyState";
 export type { EmptyStateProps } from "./EmptyState";
 export { FieldError } from "./FieldError";
 export type { FieldErrorProps } from "./FieldError";
+export { GlassSurface } from "./GlassSurface";
+export type { GlassSurfaceProps, GlassTier } from "./GlassSurface";
 export { Input } from "./Input";
 export type { InputProps } from "./Input";
 export { Label } from "./Label";

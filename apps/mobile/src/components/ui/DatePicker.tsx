@@ -1,10 +1,11 @@
-import { color, radius, space } from "@collegeos/design/native";
+import { color, glass, radius, space } from "@collegeos/design/native";
 import DateTimePicker, { DateTimePickerAndroid, type DateTimePickerEvent } from "@react-native-community/datetimepicker";
 import { useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { textStyle } from "../../design/typography";
 import { Button } from "./Button";
 import { FieldError } from "./FieldError";
+import { GlassSurface } from "./GlassSurface";
 import { Label } from "./Label";
 import { Modal } from "./Modal";
 
@@ -70,24 +71,29 @@ export function DatePicker({ label, value, onValueChange, minDate, maxDate, disa
     <View style={styles.container}>
       {label ? <Label required={required}>{label}</Label> : null}
       <View style={styles.row}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={label ? `${label}, ${value ? formatDisplay(value) : "Set a date"}` : undefined}
-          accessibilityState={{ disabled }}
-          disabled={disabled}
-          onPress={open}
-          onFocus={() => setFocused(true)}
-          onBlur={() => setFocused(false)}
-          style={({ pressed }) => [
-            styles.trigger,
-            { borderColor: error ? color.riskCritical : color.border, opacity: disabled ? 0.6 : pressed ? 0.85 : 1 },
+        <GlassSurface
+          tier="sunken"
+          style={[
+            styles.clip,
+            { borderColor: error ? color.riskCritical : glass.edgeHairline, opacity: disabled ? 0.6 : 1 },
             focused && !disabled ? styles.focusRing : null,
           ]}
         >
-          <Text style={textStyle("body", value ? color.ink : color.inkFaint)}>
-            {value ? formatDisplay(value) : "Set a date"}
-          </Text>
-        </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={label ? `${label}, ${value ? formatDisplay(value) : "Set a date"}` : undefined}
+            accessibilityState={{ disabled }}
+            disabled={disabled}
+            onPress={open}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
+            style={({ pressed }) => [styles.trigger, { opacity: pressed ? 0.85 : 1 }]}
+          >
+            <Text style={textStyle("body", value ? color.ink : color.inkFaint)}>
+              {value ? formatDisplay(value) : "Set a date"}
+            </Text>
+          </Pressable>
+        </GlassSurface>
         {value && !disabled ? (
           <Pressable
             onPress={() => onValueChange(null)}
@@ -135,14 +141,15 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: space[3],
   },
-  trigger: {
+  clip: {
     flex: 1,
     height: 44,
-    justifyContent: "center",
     borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
+  },
+  trigger: {
+    flex: 1,
+    justifyContent: "center",
     paddingHorizontal: space[3],
-    backgroundColor: color.surfaceSunken,
   },
   focusRing: {
     outlineWidth: 2,
