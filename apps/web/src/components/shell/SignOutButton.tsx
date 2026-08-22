@@ -20,7 +20,7 @@ export function SignOutButton({ compact = false }: { compact?: boolean }) {
   return (
     <Button
       data-testid="sign-out"
-      variant="secondary"
+      variant="ghost"
       loading={submitting}
       onClick={handleSignOut}
       aria-label="Sign out"

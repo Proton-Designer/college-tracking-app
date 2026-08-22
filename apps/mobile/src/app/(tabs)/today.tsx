@@ -126,10 +126,10 @@ export default function TodayScreen() {
             {session?.user.email}
           </Text>
           <View style={styles.topBarActions}>
-            <Button testID="settings-link" variant="ghost" onPress={() => router.push("/settings")}>
+            <Button testID="settings-link" variant="secondary" onPress={() => router.push("/settings")}>
               Settings
             </Button>
-            <Button testID="sign-out" variant="secondary" loading={signingOut} onPress={handleSignOut}>
+            <Button testID="sign-out" variant="ghost" loading={signingOut} onPress={handleSignOut}>
               Sign out
             </Button>
           </View>
