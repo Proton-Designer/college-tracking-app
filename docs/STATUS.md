@@ -1,7 +1,23 @@
 # CollegeOS — Project Status
 
 **Always current.** Updated at every layer boundary by the Lead.
-Last updated: **2026-08-22**, end of the completion session.
+Last updated: **2026-08-23**, end of the v2 "Aurora" frontend revamp.
+
+---
+
+## Latest: the frontend is v2 "Aurora" (61 commits, 2026-08-22)
+
+The v1 surface was rejected by the user as *"primal and barebones."* Every one of the 17 web routes
+and 18 mobile routes has been converted to a cool iridescent glass language with a floating dark
+glass island for navigation. **`docs/DESIGN_LANGUAGE_V2.md` is the visual authority**;
+`DESIGN_SYSTEM.md` ("Instrument") is superseded — its structural rules survive, its surface does not.
+
+Both platforms walked a **full end-to-end journey** — mobile's was the first in the project's
+history. `npm run verify` exit 0, 362 tests, tree clean. Details and the defects it surfaced:
+`HANDOFF.md` §5.1 and §7.4.
+
+**P1 is still the highest-priority open item.** The revamp did not touch it: confirming a
+weekly-plan block still produces nothing, and Plan still never reaches Execute.
 
 ---
 
