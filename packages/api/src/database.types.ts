@@ -2242,6 +2242,7 @@ export type Database = {
           minutes: number
           start_at: string
           status: string
+          task_id: number | null
           user_id: string
           weekly_plan_id: number
         }
@@ -2254,6 +2255,7 @@ export type Database = {
           minutes: number
           start_at: string
           status?: string
+          task_id?: number | null
           user_id: string
           weekly_plan_id: number
         }
@@ -2266,6 +2268,7 @@ export type Database = {
           minutes?: number
           start_at?: string
           status?: string
+          task_id?: number | null
           user_id?: string
           weekly_plan_id?: number
         }
@@ -2282,6 +2285,13 @@ export type Database = {
             columns: ["deliverable_id"]
             isOneToOne: false
             referencedRelation: "deliverables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "weekly_plan_blocks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
             referencedColumns: ["id"]
           },
           {

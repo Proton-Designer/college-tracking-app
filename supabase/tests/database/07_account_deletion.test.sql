@@ -180,8 +180,8 @@ begin
     values (p_user_id, date_trunc('week', current_date)::date, 'moderate', 300, 600, false)
     returning id into v_weekly_plan_id;
 
-  insert into public.weekly_plan_blocks (user_id, weekly_plan_id, deliverable_id, course_id, block_date, start_at, end_at, minutes)
-    values (p_user_id, v_weekly_plan_id, v_deliverable_id, v_course_id, current_date, now(), now() + interval '45 minutes', 45);
+  insert into public.weekly_plan_blocks (user_id, weekly_plan_id, deliverable_id, course_id, block_date, start_at, end_at, minutes, status, task_id)
+    values (p_user_id, v_weekly_plan_id, v_deliverable_id, v_course_id, current_date, now(), now() + interval '45 minutes', 45, 'confirmed', v_task_id);
 
   insert into public.weekly_plan_unplaced (user_id, weekly_plan_id, deliverable_id, course_id, minutes_needed, minutes_placed, minutes_shortfall, reason)
     values (p_user_id, v_weekly_plan_id, v_deliverable_id, v_course_id, 60, 0, 60, 'insufficient_capacity');

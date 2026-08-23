@@ -350,6 +350,8 @@ export interface WeeklyPlanBlockView {
   endAt: string;
   minutes: number;
   status: WeeklyPlanBlockStatus;
+  /** P1: the real task this block became once confirmed -- null until then. */
+  taskId: number | null;
 }
 
 export interface WeeklyPlanUnplacedView {
@@ -428,7 +430,7 @@ export async function getWeeklyPlan(
   const [{ data: blockRows, error: blocksError }, { data: unplacedRows, error: unplacedError }] = await Promise.all([
     client
       .from('weekly_plan_blocks')
-      .select('id, deliverable_id, course_id, block_date, start_at, end_at, minutes, status')
+      .select('id, deliverable_id, course_id, block_date, start_at, end_at, minutes, status, task_id')
       .eq('weekly_plan_id', planRow.id)
       .order('start_at', { ascending: true }),
     client
@@ -472,6 +474,7 @@ export async function getWeeklyPlan(
     endAt: b.end_at,
     minutes: b.minutes,
     status: b.status as WeeklyPlanBlockStatus,
+    taskId: b.task_id,
   }));
 
   const unplaced: WeeklyPlanUnplacedView[] = (unplacedRows ?? []).map((u) => ({
@@ -528,10 +531,23 @@ export async function getWeeklyPlan(
   });
 }
 
+/** P1's category bucket for a block-generated task -- this codebase's own vocabulary for
+ *  this kind of time (deep_work_actual_min, historicalDeepWorkP50Minutes) rather than a
+ *  guess at the deliverable's task type, which the block itself doesn't know. */
+const WEEKLY_PLAN_TASK_CATEGORY = 'deep_work';
+
 /**
- * "You adjust once, the engine carries it forward" (the migration's own words) -- a plain,
- * user_id-scoped UPDATE, never a regeneration. user_id is redundant with RLS by design: RLS
- * is the backstop, not the only guard, same as every other write in this codebase.
+ * P1 (docs/FOLLOWUPS.md): confirming a block used to be a plain status flip nothing outside
+ * this module ever read. Now `confirmed` creates a real `tasks` row -- carrying
+ * planned_date, planned_start_at, estimated_minutes and the deliverable/course link -- and
+ * stores its id back on the block, so Today, the Day Trace and the friction engine all see
+ * it. `skipped` cancels that task rather than deleting or orphaning it: "planned, then
+ * abandoned" is real data. `suggested`/`completed` (and `skipped` on a block never
+ * confirmed) stay a plain status flip, same as before -- neither is asked for by the
+ * ratified fix, so neither gets new behavior here.
+ *
+ * user_id is redundant with RLS by design on every write below: RLS is the backstop, not
+ * the only guard, same as every other write in this codebase.
  */
 export async function updateWeeklyPlanBlockStatus(
   client: TypedSupabaseClient,
@@ -539,7 +555,113 @@ export async function updateWeeklyPlanBlockStatus(
   blockId: number,
   status: WeeklyPlanBlockStatus,
 ): Promise<DataResult<null>> {
+  const { data: block, error: blockError } = await client
+    .from('weekly_plan_blocks')
+    .select('id, task_id, deliverable_id, course_id, block_date, start_at, minutes, status')
+    .eq('id', blockId)
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (blockError) return dataErr(mapDataError(blockError));
+  // No row matched (wrong id, or someone else's block) -- same "zero rows, no error"
+  // semantics the plain UPDATE below already had.
+  if (!block) return dataOk(null);
+
+  if (status === 'confirmed') return confirmWeeklyPlanBlock(client, userId, block);
+  if (status === 'skipped' && block.task_id != null) return skipConfirmedWeeklyPlanBlock(client, userId, block.id, block.task_id);
+
   const { error } = await client.from('weekly_plan_blocks').update({ status }).eq('id', blockId).eq('user_id', userId);
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(null);
+}
+
+interface BlockForConfirm {
+  id: number;
+  task_id: number | null;
+  deliverable_id: number | null;
+  course_id: number | null;
+  block_date: string;
+  start_at: string;
+  minutes: number;
+}
+
+/**
+ * Idempotent: confirming an already-confirmed block with a live task is a no-op on the
+ * task (confirm twice, get one task). If the block was previously skipped -- its task
+ * cancelled, not deleted -- re-confirming reactivates that same task rather than minting a
+ * second one, so a block never accumulates more than one task across its lifetime.
+ */
+async function confirmWeeklyPlanBlock(
+  client: TypedSupabaseClient,
+  userId: string,
+  block: BlockForConfirm,
+): Promise<DataResult<null>> {
+  if (block.task_id != null) {
+    const { data: task, error: taskError } = await client.from('tasks').select('status').eq('id', block.task_id).eq('user_id', userId).maybeSingle();
+    if (taskError) return dataErr(mapDataError(taskError));
+    if (task?.status === 'cancelled') {
+      const { error: reactivateError } = await client.from('tasks').update({ status: 'pending' }).eq('id', block.task_id).eq('user_id', userId);
+      if (reactivateError) return dataErr(mapDataError(reactivateError));
+    }
+    const { error } = await client.from('weekly_plan_blocks').update({ status: 'confirmed' }).eq('id', block.id).eq('user_id', userId);
+    if (error) return dataErr(mapDataError(error));
+    return dataOk(null);
+  }
+
+  let title = 'Planned focus block';
+  if (block.deliverable_id != null) {
+    const { data: deliverable, error: deliverableError } = await client.from('deliverables').select('title').eq('id', block.deliverable_id).maybeSingle();
+    if (deliverableError) return dataErr(mapDataError(deliverableError));
+    if (deliverable) title = `Work on ${deliverable.title}`;
+  }
+
+  const { data: newTask, error: taskInsertError } = await client
+    .from('tasks')
+    .insert({
+      user_id: userId,
+      course_id: block.course_id,
+      deliverable_id: block.deliverable_id,
+      title,
+      category: WEEKLY_PLAN_TASK_CATEGORY,
+      estimated_minutes: block.minutes,
+      planned_date: block.block_date,
+      planned_start_at: block.start_at,
+      status: 'pending',
+    })
+    .select('id')
+    .single();
+  if (taskInsertError) return dataErr(mapDataError(taskInsertError));
+
+  const { error: blockUpdateError } = await client
+    .from('weekly_plan_blocks')
+    .update({ status: 'confirmed', task_id: newTask.id })
+    .eq('id', block.id)
+    .eq('user_id', userId);
+  if (blockUpdateError) return dataErr(mapDataError(blockUpdateError));
+  return dataOk(null);
+}
+
+/**
+ * Cancels the linked task rather than deleting it -- "planned, then abandoned" is real
+ * data the friction engine wants, same reasoning deleteTask's own doc comment gives for why
+ * a delete is reserved for a task that was never real. Never touches a task that's already
+ * `completed`: the user did the work: skipping the block after the fact must not erase
+ * that. Idempotent the same way confirm is -- skipping an already-cancelled task's block
+ * again just re-asserts the block's own status.
+ */
+async function skipConfirmedWeeklyPlanBlock(
+  client: TypedSupabaseClient,
+  userId: string,
+  blockId: number,
+  taskId: number,
+): Promise<DataResult<null>> {
+  const { data: task, error: taskError } = await client.from('tasks').select('status').eq('id', taskId).eq('user_id', userId).maybeSingle();
+  if (taskError) return dataErr(mapDataError(taskError));
+  if (task && (task.status === 'pending' || task.status === 'in_progress')) {
+    const { error: cancelError } = await client.from('tasks').update({ status: 'cancelled' }).eq('id', taskId).eq('user_id', userId);
+    if (cancelError) return dataErr(mapDataError(cancelError));
+  }
+
+  const { error } = await client.from('weekly_plan_blocks').update({ status: 'skipped' }).eq('id', blockId).eq('user_id', userId);
   if (error) return dataErr(mapDataError(error));
   return dataOk(null);
 }

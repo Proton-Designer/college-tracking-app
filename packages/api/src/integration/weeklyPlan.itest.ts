@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { addDays, localTimeToInstant } from '@collegeos/core';
 import { getUserLocalToday } from '../day/today';
+import { getDayView } from '../day/dayView';
 import { generateAndPersistWeeklyPlan, getWeeklyPlan, updateWeeklyPlanBlockStatus } from '../planning/weeklyPlan';
 import { createConfirmedUser, SUPABASE_ANON_KEY, SUPABASE_URL } from './testSupport';
 import type { Database } from '../database.types';
@@ -270,5 +271,215 @@ describe('getWeeklyPlan / updateWeeklyPlanBlockStatus', () => {
     expect(result.ok).toBe(true);
     const { data: changed } = await client.from('weekly_plan_blocks').select('status').eq('id', targetBlockId).single();
     expect(changed!.status).toBe('confirmed');
+  });
+});
+
+// P1 (docs/FOLLOWUPS.md): "Plan never reaches Execute" -- confirming a block used to be a
+// dead-end status flip nothing outside this module ever read. These prove the real fix: a
+// confirmed block becomes a real task Today's own query (planned_date = today) picks up,
+// the link survives a double-confirm and a skip-then-reconfirm without ever minting a
+// second task, and a future block never leaks into today's view.
+describe('updateWeeklyPlanBlockStatus links weekly-plan blocks to real tasks (P1)', () => {
+  let client: TypedSupabaseClient;
+  let userId: string;
+  let today: string;
+  let weekStart: string;
+
+  beforeAll(async () => {
+    const email = `itest-weeklyplan-p1-${Date.now()}@collegeos.test`;
+    const password = 'itest-weeklyplan-password-1';
+    const user = await createConfirmedUser(email, password);
+    userId = user.id;
+
+    client = createClient<Database>(SUPABASE_URL, SUPABASE_ANON_KEY!);
+    const { error: signInError } = await client.auth.signInWithPassword({ email, password });
+    if (signInError) throw signInError;
+    today = getUserLocalToday(TIMEZONE);
+    weekStart = today;
+
+    const reviewRows = Array.from({ length: 5 }, (_, i) => ({
+      user_id: userId,
+      local_date: addDays(today, -(i + 1)),
+      deep_work_actual_min: 180,
+    }));
+    const { error: reviewError } = await client.from('daily_reviews').insert(reviewRows);
+    if (reviewError) throw reviewError;
+  });
+
+  /** dueInDays > HARD_DEADLINE_WINDOW_DAYS (workload.ts) so the resulting task lands as
+   *  'discretionary' work, not a hard deadline -- irrelevant to what P1 tests, but picking
+   *  a due date close enough to trip that classification would make the fixture look like
+   *  it was testing something it wasn't. */
+  async function planWithTodayBlock(label: string): Promise<number> {
+    const { data: course } = await client
+      .from('courses')
+      .insert({ user_id: userId, code: `WKP1${Date.now() % 100000}`, name: label, term: 'Fall 2026' })
+      .select('id')
+      .single();
+    const dueDate = addDays(today, 10);
+    await client
+      .from('deliverables')
+      .insert({ user_id: userId, course_id: course!.id, title: label, type: 'problem_set', due_at: `${dueDate}T23:59:00Z`, local_due_date: dueDate, estimated_minutes: 90 });
+
+    const generated = await generateAndPersistWeeklyPlan(client, userId, weekStart, today, { force: true });
+    expect(generated.ok).toBe(true);
+    if (!generated.ok) throw new Error('setup: plan generation failed');
+
+    const { data: blocks } = await client
+      .from('weekly_plan_blocks')
+      .select('id, block_date')
+      .eq('weekly_plan_id', generated.data.planId)
+      .eq('block_date', today);
+    const todayBlock = blocks?.[0];
+    expect(todayBlock).toBeDefined();
+    return todayBlock!.id;
+  }
+
+  it('confirming a block creates a real task carrying planned_date, planned_start_at, estimated_minutes and the deliverable/course link', async () => {
+    const blockId = await planWithTodayBlock('P1 confirm fixture');
+
+    const { data: before } = await client.from('weekly_plan_blocks').select('deliverable_id, course_id, block_date, start_at, minutes, task_id').eq('id', blockId).single();
+    expect(before!.task_id).toBeNull();
+
+    const result = await updateWeeklyPlanBlockStatus(client, userId, blockId, 'confirmed');
+    expect(result.ok).toBe(true);
+
+    const { data: block } = await client.from('weekly_plan_blocks').select('task_id, status').eq('id', blockId).single();
+    expect(block!.status).toBe('confirmed');
+    expect(block!.task_id).not.toBeNull();
+
+    const { data: task } = await client.from('tasks').select('*').eq('id', block!.task_id!).single();
+    expect(task!.planned_date).toBe(before!.block_date);
+    expect(task!.planned_start_at).toBe(before!.start_at);
+    expect(task!.estimated_minutes).toBe(before!.minutes);
+    expect(task!.deliverable_id).toBe(before!.deliverable_id);
+    expect(task!.course_id).toBe(before!.course_id);
+    expect(task!.status).toBe('pending');
+  });
+
+  it('confirming twice produces exactly one task, not two', async () => {
+    const blockId = await planWithTodayBlock('P1 idempotent-confirm fixture');
+
+    const first = await updateWeeklyPlanBlockStatus(client, userId, blockId, 'confirmed');
+    expect(first.ok).toBe(true);
+    const { data: afterFirst } = await client.from('weekly_plan_blocks').select('task_id').eq('id', blockId).single();
+    const taskId = afterFirst!.task_id;
+    expect(taskId).not.toBeNull();
+
+    const second = await updateWeeklyPlanBlockStatus(client, userId, blockId, 'confirmed');
+    expect(second.ok).toBe(true);
+    const { data: afterSecond } = await client.from('weekly_plan_blocks').select('task_id').eq('id', blockId).single();
+    expect(afterSecond!.task_id).toBe(taskId); // same task, not a second one
+
+    const { data: deliverableTask } = await client.from('tasks').select('deliverable_id').eq('id', taskId!).single();
+    const { count } = await client.from('tasks').select('id', { count: 'exact', head: true }).eq('deliverable_id', deliverableTask!.deliverable_id!);
+    expect(count).toBe(1); // exactly one task exists for the fixture's deliverable, no matter how many times it was confirmed
+  });
+
+  it('skipping a confirmed block cancels its task rather than deleting or orphaning it', async () => {
+    const blockId = await planWithTodayBlock('P1 skip-cancels fixture');
+    await updateWeeklyPlanBlockStatus(client, userId, blockId, 'confirmed');
+    const { data: confirmed } = await client.from('weekly_plan_blocks').select('task_id').eq('id', blockId).single();
+    const taskId = confirmed!.task_id!;
+
+    const result = await updateWeeklyPlanBlockStatus(client, userId, blockId, 'skipped');
+    expect(result.ok).toBe(true);
+
+    const { data: block } = await client.from('weekly_plan_blocks').select('status, task_id').eq('id', blockId).single();
+    expect(block!.status).toBe('skipped');
+    expect(block!.task_id).toBe(taskId); // link preserved -- not orphaned
+
+    const { data: task } = await client.from('tasks').select('status').eq('id', taskId).single();
+    expect(task!.status).toBe('cancelled'); // cancelled, not deleted
+  });
+
+  it('re-confirming a skipped block reactivates the same task instead of minting a new one', async () => {
+    const blockId = await planWithTodayBlock('P1 reconfirm fixture');
+    await updateWeeklyPlanBlockStatus(client, userId, blockId, 'confirmed');
+    const { data: confirmed } = await client.from('weekly_plan_blocks').select('task_id').eq('id', blockId).single();
+    const taskId = confirmed!.task_id!;
+
+    await updateWeeklyPlanBlockStatus(client, userId, blockId, 'skipped');
+    const { data: cancelledTask } = await client.from('tasks').select('status').eq('id', taskId).single();
+    expect(cancelledTask!.status).toBe('cancelled');
+
+    const result = await updateWeeklyPlanBlockStatus(client, userId, blockId, 'confirmed');
+    expect(result.ok).toBe(true);
+
+    const { data: block } = await client.from('weekly_plan_blocks').select('task_id, status').eq('id', blockId).single();
+    expect(block!.task_id).toBe(taskId); // reactivated the SAME task
+    expect(block!.status).toBe('confirmed');
+
+    const { data: reactivatedTask } = await client.from('tasks').select('status').eq('id', taskId).single();
+    expect(reactivatedTask!.status).toBe('pending'); // uncancelled
+  });
+
+  it('skipping a block whose task is already completed leaves the completed task alone', async () => {
+    const blockId = await planWithTodayBlock('P1 skip-preserves-completed fixture');
+    await updateWeeklyPlanBlockStatus(client, userId, blockId, 'confirmed');
+    const { data: confirmed } = await client.from('weekly_plan_blocks').select('task_id').eq('id', blockId).single();
+    const taskId = confirmed!.task_id!;
+
+    await client.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', taskId);
+
+    const result = await updateWeeklyPlanBlockStatus(client, userId, blockId, 'skipped');
+    expect(result.ok).toBe(true);
+
+    const { data: task } = await client.from('tasks').select('status').eq('id', taskId).single();
+    expect(task!.status).toBe('completed'); // real finished work is never un-completed by skipping the plan block
+  });
+
+  it('the full walk: generate a plan, confirm today\'s block, and the task shows up in getDayView -- the acceptance test', async () => {
+    const blockId = await planWithTodayBlock('P1 full-walk fixture');
+    const result = await updateWeeklyPlanBlockStatus(client, userId, blockId, 'confirmed');
+    expect(result.ok).toBe(true);
+
+    const { data: block } = await client.from('weekly_plan_blocks').select('task_id').eq('id', blockId).single();
+    const taskId = block!.task_id!;
+
+    const dayViewResult = await getDayView(client, userId, new Date());
+    expect(dayViewResult.ok).toBe(true);
+    if (!dayViewResult.ok) return;
+
+    const task = dayViewResult.data.todayTasks.find((t) => t.id === taskId);
+    expect(task).toBeDefined(); // this is the whole bug: it used to never be here
+    expect(task!.planned_date).toBe(today);
+  });
+
+  it('a block confirmed for a future date does not appear in today\'s day view', async () => {
+    const { data: course } = await client
+      .from('courses')
+      .insert({ user_id: userId, code: `WKP1F${Date.now() % 100000}`, name: 'Future-block fixture', term: 'Fall 2026' })
+      .select('id')
+      .single();
+    const dueDate = addDays(today, 10);
+    await client
+      .from('deliverables')
+      .insert({ user_id: userId, course_id: course!.id, title: 'Future-block deliverable', type: 'problem_set', due_at: `${dueDate}T23:59:00Z`, local_due_date: dueDate, estimated_minutes: 90 });
+
+    const generated = await generateAndPersistWeeklyPlan(client, userId, weekStart, today, { force: true });
+    expect(generated.ok).toBe(true);
+    if (!generated.ok) return;
+
+    const { data: futureBlocks } = await client
+      .from('weekly_plan_blocks')
+      .select('id, block_date')
+      .eq('weekly_plan_id', generated.data.planId)
+      .gt('block_date', today)
+      .limit(1);
+    if (!futureBlocks || futureBlocks.length === 0) return; // nothing landed on a later day this run -- nothing to assert
+
+    const futureBlockId = futureBlocks[0]!.id;
+    const result = await updateWeeklyPlanBlockStatus(client, userId, futureBlockId, 'confirmed');
+    expect(result.ok).toBe(true);
+
+    const { data: futureBlock } = await client.from('weekly_plan_blocks').select('task_id').eq('id', futureBlockId).single();
+    const futureTaskId = futureBlock!.task_id!;
+
+    const dayViewResult = await getDayView(client, userId, new Date());
+    expect(dayViewResult.ok).toBe(true);
+    if (!dayViewResult.ok) return;
+
+    expect(dayViewResult.data.todayTasks.some((t) => t.id === futureTaskId)).toBe(false);
   });
 });
