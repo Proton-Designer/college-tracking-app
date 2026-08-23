@@ -45,6 +45,16 @@ superseded — its structural rules survive, its surface does not.
 
 ---
 
+## Setup mode
+
+This project runs against **either** a hosted Supabase project (`npm run bootstrap -- --cloud`,
+no Docker) **or** the local Docker stack (`npm run bootstrap`). The entire build was done locally;
+the product's future is cloud. `HANDOFF.md` §3.0 has the comparison table, §3.5 lists what is
+local-only and what a cloud-first setup gives up — most importantly **pgTAP's 463 RLS assertions**,
+which are the only thing proving the anon key is safe to ship.
+
+---
+
 ## Top of the queue
 
 1. 🔴 **P2's live pass.** The 10s REST timeout is written and unit-tested (13 tests, `1e9a49b`).

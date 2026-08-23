@@ -10,12 +10,58 @@ Observe → Plan → Execute → Detect deviation → Intervene → Reflect → 
 
 ## Setup
 
+Pick a mode first — it decides everything else.
+
+### Against a real Supabase project (no Docker)
+
+Have the project **URL** and **anon/publishable key** ready: dashboard → Project Settings → API
+Keys. Requires the [Supabase CLI](https://supabase.com/docs/guides/cli); does **not** require Docker.
+
+```bash
+git clone https://github.com/Proton-Designer/college-tracking-app College-app
+cd College-app
+npm run bootstrap -- --cloud    # prompts for credentials, or reads them from the environment
+                                # or a .env file, and writes every env file the apps need
+
+supabase login
+supabase link --project-ref <PROJECT_REF>
+
+supabase db push --dry-run      # review before touching the database
+supabase db push                # apply all 33 migrations
+supabase db diff --linked       # expect: no differences
+
+npm run db:types:cloud          # regenerate the typed client against the real project...
+git diff --stat packages/api/src/database.types.ts   # ...and expect NO change
+
+npm run verify                  # 383 tests. Needs no database at all.
+```
+
+Then Edge Function secrets and deploy:
+
+```bash
+supabase secrets set CRON_SHARED_SECRET=$(openssl rand -hex 16)
+supabase secrets set ANTHROPIC_API_KEY=...   # optional — without it the nightly report falls back
+                                             # to deterministic generation and says so on screen
+supabase functions deploy
+```
+
+> **Before anyone else uses the project, fix the four security items in `docs/SUPABASE_SETUP.md`
+> §5.** They are not theoretical — `collegeos://` is hijackable, and on a confirmation or reset
+> link that means an attacker intercepting a session.
+
+**Local-only — these do NOT work against a cloud project:** `db:reset` · `db:start` · `db:test`
+(pgTAP) · `test:e2e` · `test:integration` · `make:test-user`. Each needs the Docker stack and the
+seeded demo account. `npm run verify` does not. See `HANDOFF.md` §3.5 for what that costs and what
+to do instead.
+
+### Against the local Docker stack
+
 Docker must be running first (`open -a Docker` on macOS).
 
 ```bash
 git clone https://github.com/Proton-Designer/college-tracking-app College-app
 cd College-app
-npm run bootstrap    # prerequisites, npm install, git hook, local Supabase, all four .env.local files
+npm run bootstrap    # prerequisites, npm install, git hook, local Supabase, all four env files
 
 npm run db:reset     # 33 migrations + seed.sql
 npm run db:types     # regenerate the typed database client
@@ -33,8 +79,11 @@ cd apps/mobile && npx expo start                   # iOS / Android
 **Demo account:** `demo@collegeos.app` / `CollegeOS-Demo-2026` — a realistic seeded semester.
 Read from it; write against a throwaway (`npm run make:test-user`).
 
-`bootstrap` is idempotent and never prints a key value. `npm run bootstrap -- --force` regenerates
-the env files; `-- --no-start` skips starting Docker containers.
+`bootstrap` is idempotent in both modes, never overwrites an existing file without `--force`, and
+never prints a key value. In cloud mode it **refuses** rather than writes if the URL points at
+localhost, if it is not https, or if the value in the anon slot is really a `service_role` key —
+that last one would ship an RLS-bypassing credential to every browser, and it would work perfectly
+in testing.
 
 ---
 
@@ -45,7 +94,8 @@ this repo or this machine.
 
 | You need | Go to |
 |---|---|
-| Bringing this up on a new machine | `HANDOFF.md` §3 |
+| Bringing this up on a new machine (cloud or local) | `HANDOFF.md` §3 |
+| What only works against a local stack | `HANDOFF.md` §3.5 |
 | Supabase schema, all 33 migrations, the cloud move | `HANDOFF.md` §4 → `docs/SUPABASE_SETUP.md` |
 | Everything that exists, feature by feature | `HANDOFF.md` §5 |
 | What shipped recently | `HANDOFF.md` §6 |

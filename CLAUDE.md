@@ -8,11 +8,19 @@ Observe → Plan → Execute → Detect deviation → Intervene → Reflect → 
 
 ## Start here
 
-**Fresh clone? Run `npm run bootstrap` first.** It checks prerequisites, installs dependencies,
-reinstalls the untracked git hook, starts the local Supabase stack, and writes all four
-`.env.local` files (root, `apps/web`, `apps/mobile`, `supabase/`) — none of which are in git.
-Without them the app fails at *runtime* with an auth error rather than at build time, so nothing
-points at the real cause. Then `npm run db:reset && npm run db:types && npm run verify`.
+**Fresh clone? Run bootstrap first**, in the mode this machine uses:
+
+- **Cloud project (no Docker):** `npm run bootstrap -- --cloud`, then `supabase link` →
+  `supabase db push` → `npm run db:types:cloud` → `npm run verify`.
+- **Local Docker stack:** `npm run bootstrap`, then `npm run db:reset && npm run db:types &&
+  npm run verify`.
+
+Either way it installs dependencies, reinstalls the untracked git hook, and writes the env files
+(root, `apps/web`, `apps/mobile`, `supabase/`) — none of which are in git. Without them the app
+fails at *runtime* with an auth error rather than at build time, so nothing points at the real
+cause. **`npm run db:reset`, `db:test`, `test:e2e`, `test:integration` and `make:test-user` are
+local-only** and will not work against a cloud project; `npm run verify` needs no database at all.
+See `HANDOFF.md` §3.
 
 **Read `HANDOFF.md` next** — what exists, what was verified and how, what was *not* verified, and
 what remains before production.
