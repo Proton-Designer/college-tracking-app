@@ -196,9 +196,46 @@ translucent box. `shadowGlass` is what makes it float.
 
 ---
 
-## 5. The Island
+## 5. Navigation — the Island is mobile; the web app gets a sidebar
 
-The primary navigation on **both platforms**. A floating, detached, near-black glass dock.
+**Corrected 2026-08-23, by the user.** The original ruling put the floating island on both
+platforms. That was wrong, and it was a Lead error: a mobile reference was over-applied to a desktop
+app. *"When I said the bottom menu should be a liquid glass floating island I meant that for the
+mobile app, not the web app. The web app should have a left sidebar menu like a regular web app."*
+
+### 5.0 The three tiers
+
+One responsive shell, three states, chosen by viewport:
+
+| Viewport | Navigation |
+|---|---|
+| **≥ 1024px** | **Left sidebar**, ~248px, glass, fixed. Wordmark top, items as icon + label, account/settings pinned bottom. |
+| **768–1023px** | **Collapsed icon-only rail**, ~72px. Same destinations; every item needs an `aria-label` — an icon-only control without a name is the exact defect the a11y pass just fixed on the island. |
+| **< 768px** | **No sidebar. The floating island** (§5.1), unchanged. This *is* the mobile-optimised view. |
+
+**Mobile (`apps/mobile`) always uses the island.** It has no sidebar tier.
+
+The sidebar is **v2 glass** — not a re-checkout of v1's `NavRail`, which was hairlines and
+three-letter abbreviations. Real icons, the accent-pill active treatment that works on the island,
+proper hover and focus states against glass.
+
+### 5.0.1 "Optimised for web" is the larger half
+
+A ~1120px column floating in grey at 1440px is what a mobile-first layout looks like on a desktop,
+and that is the actual complaint. With a sidebar the content region shifts and widens; let it.
+
+Use **two columns only where a screen genuinely has two things to say** — `/today`'s ribbon and work
+as primary, with interventions/deadline radar/workload as a secondary rail, is the clear case.
+**Never split a screen to fill space.** §7 still binds: never fabricate, and a page that ends where
+its content ends is not a defect. Filling a desktop viewport with invented structure is the layout
+equivalent of fabricating a value.
+
+Every screen is checked at **1440, 1024, 768 and 390**. The 768→767 handoff (rail → island) is the
+most likely to break.
+
+### 5.1 The Island (mobile, and web below 768px)
+
+A floating, detached, near-black glass dock.
 
 ```
         ┌─────────────────────────────────────────┐
