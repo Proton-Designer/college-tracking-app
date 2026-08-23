@@ -557,9 +557,15 @@ DOMContentLoaded within 8 seconds.** `/today`, `/courses`, `/courses/[id]`, `/de
 `/calendar`, `/insights`. The server-rendered page simply does not respond.
 
 **Root cause, confirmed from config rather than inferred:**
-- Kong's own `kong.yml` sets `read_timeout: 150000` — **150 seconds** — with a comment saying it is
-  set deliberately *"to match hosted project"*. So this is **production behaviour, not a local
-  artifact.**
+- **CORRECTED 2026-08-23.** This row originally said Kong's ceiling for the data layer is
+  **150s**. It is **60s**. `kong.yml`'s `read_timeout: 150000` is scoped to the **`functions-v1`**
+  route (edge functions), deliberately, *"to match hosted project"*. **`rest-v1` — the PostgREST
+  route this finding is actually about — has no override**, so it runs Kong's bare defaults:
+  `read_timeout` / `connect_timeout` / `write_timeout` all **60000**. Confirmed from the live Kong
+  Admin API (`GET /services/rest-v1`), not from re-reading the YAML the original misread.
+  The verdict is unchanged — 60s is still far past human patience — but **the number a fix gets
+  sized against was wrong in the one place it mattered.** Another instance of the standing rule
+  that a filed row is a claim about the past.
 - There is **no `AbortSignal` or request timeout anywhere** in either app's Supabase client wrappers
   (`apps/web`, `apps/mobile`, `packages/api`). Nothing in application code caps how long a call may
   hang, so the effective failure-detection ceiling is however long Kong takes to give up.
