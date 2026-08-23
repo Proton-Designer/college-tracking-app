@@ -167,7 +167,7 @@ function ReportBody({ payload }: { payload: NightlyAgentReportPayload }) {
         <Section title="What this report couldn't assess">
           <ul className="flex flex-col gap-1">
             {gapsToShow.map((gap, i) => (
-              <li key={i} className="font-mono text-body-s text-ink-faint">
+              <li key={i} className="font-mono text-body-s text-ink-muted">
                 {gap}
               </li>
             ))}
@@ -225,7 +225,7 @@ function DeterministicSections({ report }: { report: DeterministicNightlyReport 
             </>
           ) : null}
         </div>
-        {!report.checkin && !report.review ? <p className="text-body-s text-ink-faint">No check-in or review recorded for this day.</p> : null}
+        {!report.checkin && !report.review ? <p className="text-body-s text-ink-muted">No check-in or review recorded for this day.</p> : null}
       </Section>
 
       <Section title="Recovery Mode">
@@ -253,7 +253,7 @@ function DeterministicSections({ report }: { report: DeterministicNightlyReport 
 
       <Section title="Course risk">
         {report.riskAssessment.courseRisks.length === 0 ? (
-          <p className="text-body-s text-ink-faint">No courses to assess.</p>
+          <p className="text-body-s text-ink-muted">No courses to assess.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {report.riskAssessment.courseRisks.map((cr) => (
@@ -263,7 +263,7 @@ function DeterministicSections({ report }: { report: DeterministicNightlyReport 
                 </span>
                 <div className="flex items-center gap-2">
                   <RiskPill band={cr.result.band} label={cr.result.band.toUpperCase()} />
-                  <span className="font-mono text-body-s tabular-nums text-ink-faint">{cr.result.score}</span>
+                  <span className="font-mono text-body-s tabular-nums text-ink-muted">{cr.result.score}</span>
                 </div>
               </li>
             ))}
@@ -277,7 +277,7 @@ function DeterministicSections({ report }: { report: DeterministicNightlyReport 
 
       <Section title="Kill list">
         {report.killLoop.length === 0 ? (
-          <p className="text-body-s text-ink-faint">No active kill-list habits.</p>
+          <p className="text-body-s text-ink-muted">No active kill-list habits.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {report.killLoop.map((k) => (

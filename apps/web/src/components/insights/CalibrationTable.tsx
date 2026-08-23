@@ -9,7 +9,7 @@ function categoryLabel(category: string): string {
  *  multiplier is a hypothesis about that category, not a measured fact yet. */
 export function CalibrationTable({ rows }: { rows: CalibrationTableRow[] }) {
   if (rows.length === 0) {
-    return <p className="text-body-s text-ink-faint">No completed sessions yet to calibrate against.</p>;
+    return <p className="text-body-s text-ink-muted">No completed sessions yet to calibrate against.</p>;
   }
 
   return (

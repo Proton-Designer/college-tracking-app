@@ -142,7 +142,7 @@ export function UploadSyllabusModal({ courseId }: { courseId: number }) {
           ) : (
             <>
               {state.items.length === 0 ? (
-                <p className="text-body-s text-ink-faint">Every item has been reviewed.</p>
+                <p className="text-body-s text-ink-muted">Every item has been reviewed.</p>
               ) : (
                 <ul className="flex flex-col gap-3">
                   {state.items.map((item) => (

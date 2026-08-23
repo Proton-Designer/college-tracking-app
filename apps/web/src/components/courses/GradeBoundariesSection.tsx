@@ -120,7 +120,7 @@ export function GradeBoundariesSection({ courseId, boundaries }: { courseId: num
             value={minPct}
             onChange={(e) => setMinPct(e.target.value)}
           />
-          <p className="text-body-s text-ink-faint">Saving a letter that already exists on this course replaces its cutoff.</p>
+          <p className="text-body-s text-ink-muted">Saving a letter that already exists on this course replaces its cutoff.</p>
           {error ? <p className="text-body-s text-risk-critical">{error}</p> : null}
         </div>
       </Modal>

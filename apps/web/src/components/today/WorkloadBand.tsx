@@ -37,7 +37,7 @@ export function WorkloadBand({ workload }: { workload: WorkloadLevels }) {
       </p>
 
       {stretchItems.length > 0 ? (
-        <p className="font-mono text-body-s text-ink-faint">
+        <p className="font-mono text-body-s text-ink-muted">
           +{stretchItems.length} more {stretchItems.length === 1 ? "task" : "tasks"} if there&apos;s time left over.
         </p>
       ) : null}

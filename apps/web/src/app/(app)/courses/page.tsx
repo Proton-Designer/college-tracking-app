@@ -73,17 +73,17 @@ function CourseRow({ row, today }: { row: CoursesIndexRow; today: string }) {
       <td className="py-3 pr-4">
         <Link href={`/courses/${course.id}`} className="flex flex-col hover:underline">
           <span className="font-mono text-body-s text-ink">{course.code}</span>
-          <span className="text-body-s text-ink-faint">{course.name}</span>
+          <span className="text-body-s text-ink-muted">{course.name}</span>
         </Link>
       </td>
       <td className="py-3 pr-4">
         {courseRisk ? (
           <div className="flex items-center gap-2">
             <RiskPill band={courseRisk.result.band} label={courseRisk.result.band.toUpperCase()} />
-            <span className="font-mono text-body-s tabular-nums text-ink-faint">{courseRisk.result.score}</span>
+            <span className="font-mono text-body-s tabular-nums text-ink-muted">{courseRisk.result.score}</span>
           </div>
         ) : (
-          <span className="text-body-s text-ink-faint">—</span>
+          <span className="text-body-s text-ink-muted">—</span>
         )}
       </td>
       <td className="py-3 pr-4 font-mono text-body-s tabular-nums text-ink">{formatPct(gradeResult?.currentGrade ?? null)}</td>

@@ -160,7 +160,7 @@ export function CheckinForm({
       <div className="flex flex-col gap-1">
         <p className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Morning check-in</p>
         <h1 className="font-sans text-display-l font-semibold tracking-[-0.025em] text-ink">Plan today</h1>
-        <p className="text-body-s text-ink-faint">About 60 seconds. Pre-filled — you&apos;re mostly correcting, not typing.</p>
+        <p className="text-body-s text-ink-muted">About 60 seconds. Pre-filled — you&apos;re mostly correcting, not typing.</p>
       </div>
 
       {todayHealth?.sleepHours != null || todayHealth?.whoopRecoveryPct != null ? (
@@ -250,7 +250,7 @@ export function CheckinForm({
               </li>
             );
           })}
-          {selectedIds.length === 0 ? <p className="text-body-s text-ink-faint">Nothing selected.</p> : null}
+          {selectedIds.length === 0 ? <p className="text-body-s text-ink-muted">Nothing selected.</p> : null}
         </ul>
         {selectedIds.length < 3 && remainingTasks.length > 0 ? (
           <select

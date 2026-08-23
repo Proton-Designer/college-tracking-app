@@ -152,7 +152,7 @@ export default async function TodayPage({
   const normalBody = (
     <div className="flex flex-col gap-8">
       {!hasAnyData ? (
-        <p className="text-body-s text-ink-faint">
+        <p className="text-body-s text-ink-muted">
           Nothing set up yet — this is what Today will look like once a course or task exists.
         </p>
       ) : null}

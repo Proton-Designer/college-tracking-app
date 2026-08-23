@@ -22,7 +22,7 @@ export function HorizonView({ data }: { data: CalendarData }) {
       </section>
 
       {data.obligations.length === 0 ? (
-        <p className="text-body-s text-ink-faint">Nothing open on the horizon.</p>
+        <p className="text-body-s text-ink-muted">Nothing open on the horizon.</p>
       ) : (
         <Panel>
           <ul className="flex flex-col">
@@ -59,7 +59,7 @@ function ObligationRow({
       {risk ? (
         <div className="flex items-center gap-2">
           <RiskPill band={risk.result.band} label={risk.result.band.toUpperCase()} />
-          <span className="font-mono text-body-s tabular-nums text-ink-faint">{risk.result.score}</span>
+          <span className="font-mono text-body-s tabular-nums text-ink-muted">{risk.result.score}</span>
         </div>
       ) : null}
     </li>

@@ -224,7 +224,7 @@ function ExperimentCard({ item, today }: { item: ActiveExperiment; today: string
 
 export function ActiveExperiments({ experiments, today }: { experiments: ActiveExperiment[]; today: string }) {
   if (experiments.length === 0) {
-    return <p className="text-body-s text-ink-faint">No experiments running right now.</p>;
+    return <p className="text-body-s text-ink-muted">No experiments running right now.</p>;
   }
 
   return (

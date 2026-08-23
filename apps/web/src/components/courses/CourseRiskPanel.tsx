@@ -6,7 +6,7 @@ import { explainMissingFactors, explainTopFactors } from "@/lib/riskExplain";
 /** The "Why:" list from the brief — the full explanation trace as evidence, not a debug view. */
 export function CourseRiskPanel({ deliverableRisks, today }: { deliverableRisks: DeliverableRisk[]; today: string }) {
   if (deliverableRisks.length === 0) {
-    return <p className="text-body-s text-ink-faint">Nothing open in this course right now.</p>;
+    return <p className="text-body-s text-ink-muted">Nothing open in this course right now.</p>;
   }
 
   const sorted = [...deliverableRisks].sort((a, b) => b.result.score - a.result.score);
@@ -25,7 +25,7 @@ export function CourseRiskPanel({ deliverableRisks, today }: { deliverableRisks:
               </div>
               <div className="flex items-center gap-2">
                 <RiskPill band={dr.result.band} label={dr.result.band.toUpperCase()} />
-                <span className="font-mono text-body-s tabular-nums text-ink-faint">{dr.result.score}</span>
+                <span className="font-mono text-body-s tabular-nums text-ink-muted">{dr.result.score}</span>
               </div>
             </div>
             {reasons.length > 0 ? (

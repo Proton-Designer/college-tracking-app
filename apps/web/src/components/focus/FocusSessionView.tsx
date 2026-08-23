@@ -92,7 +92,7 @@ export function FocusSessionView({ session, task, course }: { session: TaskSessi
           {course ? `${course.code} focus` : "Focus"}
         </p>
         <h1 className="font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">{task.title}</h1>
-        {session.location ? <p className="text-body-s text-ink-faint">{session.location}</p> : null}
+        {session.location ? <p className="text-body-s text-ink-muted">{session.location}</p> : null}
       </div>
 
       <p className="font-mono text-metric-xl tabular-nums text-ink">{formatElapsed(elapsedSeconds)}</p>

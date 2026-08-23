@@ -25,7 +25,7 @@ export function InsightsList({ insightsByTier }: { insightsByTier: InsightsByTie
   const hasAny = tiers.some((t) => insightsByTier[t].length > 0);
 
   if (!hasAny) {
-    return <p className="text-body-s text-ink-faint">No insights yet — these build up as the semester&apos;s data accumulates.</p>;
+    return <p className="text-body-s text-ink-muted">No insights yet — these build up as the semester&apos;s data accumulates.</p>;
   }
 
   return (

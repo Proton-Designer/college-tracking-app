@@ -123,7 +123,7 @@ export function ThisWeekView({ today, timezone, plan }: { today: string; timezon
 
       <div className="flex flex-wrap items-center gap-3">
         <Badge tone="accent">Academic load: {plan.academicLoad.toUpperCase()}</Badge>
-        <span className="font-mono text-body-s tabular-nums text-ink-faint">
+        <span className="font-mono text-body-s tabular-nums text-ink-muted">
           {formatMinutes(plan.totalNeededMinutes)} needed of {formatMinutes(plan.totalCapacityMinutes)} available
         </span>
       </div>
@@ -165,7 +165,7 @@ export function ThisWeekView({ today, timezone, plan }: { today: string; timezon
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Suggested focus blocks</h2>
         {plan.blocks.length === 0 ? (
-          <p className="text-body-s text-ink-faint">Nothing placed this week.</p>
+          <p className="text-body-s text-ink-muted">Nothing placed this week.</p>
         ) : (
           <Panel>
             <ul className="flex flex-col">

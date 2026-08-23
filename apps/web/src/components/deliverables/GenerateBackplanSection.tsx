@@ -60,7 +60,7 @@ export function GenerateBackplanSection({ deliverableId, chain }: { deliverableI
         </>
       ) : (
         <>
-          <p className="text-body-s text-ink-faint">No backplan generated yet.</p>
+          <p className="text-body-s text-ink-muted">No backplan generated yet.</p>
           <Button variant="secondary" onClick={() => generate(false)} loading={isPending} className="self-start">
             Generate backplan
           </Button>

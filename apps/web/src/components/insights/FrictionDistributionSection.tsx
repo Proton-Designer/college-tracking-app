@@ -16,7 +16,7 @@ export function FrictionDistributionSection({
   trend: CauseTrendEntry[];
 }) {
   if (distribution.totalCount === 0) {
-    return <p className="text-body-s text-ink-faint">No friction logged in the last 30 days.</p>;
+    return <p className="text-body-s text-ink-muted">No friction logged in the last 30 days.</p>;
   }
 
   const trendByCause = new Map(trend.map((t) => [t.cause, t]));

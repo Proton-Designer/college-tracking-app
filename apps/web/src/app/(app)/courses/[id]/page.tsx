@@ -65,7 +65,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
               {courseRisk ? (
                 <div className="flex items-center gap-2">
                   <RiskPill band={courseRisk.result.band} label={courseRisk.result.band.toUpperCase()} />
-                  <span className="font-mono text-body-s tabular-nums text-ink-faint">{courseRisk.result.score}</span>
+                  <span className="font-mono text-body-s tabular-nums text-ink-muted">{courseRisk.result.score}</span>
                 </div>
               ) : null}
               <EditCourseModal course={course} />
@@ -158,7 +158,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Office hours</h2>
         {officeHours.length === 0 ? (
-          <p className="text-body-s text-ink-faint">None recorded for this course.</p>
+          <p className="text-body-s text-ink-muted">None recorded for this course.</p>
         ) : (
           <Panel className="flex flex-col gap-2">
             {officeHours.map((oh) => (

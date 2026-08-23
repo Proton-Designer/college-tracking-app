@@ -32,7 +32,7 @@ export function AssignmentsTable({
   today: string;
 }) {
   if (deliverables.length === 0) {
-    return <p className="text-body-s text-ink-faint">Nothing recorded for this course yet.</p>;
+    return <p className="text-body-s text-ink-muted">Nothing recorded for this course yet.</p>;
   }
 
   const gradeItemById = new Map(gradeItems.map((i) => [i.id, i]));
@@ -64,7 +64,7 @@ export function AssignmentsTable({
                   </Link>
                   <BackplanChain chain={chain} />
                 </td>
-                <td className="py-3 pr-4 align-top font-mono text-body-s text-ink-faint">{typeLabel(d.type)}</td>
+                <td className="py-3 pr-4 align-top font-mono text-body-s text-ink-muted">{typeLabel(d.type)}</td>
                 <td className="py-3 pr-4 align-top font-mono text-body-s text-ink-muted">{daysRemainingLabel(today, d.local_due_date)}</td>
                 <td className="py-3 pr-4 align-top text-body-s text-ink-muted">{category?.name ?? "—"}</td>
                 <td className="py-3 pr-4 align-top font-mono text-body-s tabular-nums text-ink">{pointsLabel(item) ?? "—"}</td>

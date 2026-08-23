@@ -189,7 +189,7 @@ export function DeliverableTasksSection({
       </div>
       <Panel>
         {tasks.length === 0 ? (
-          <p className="text-body-s text-ink-faint">No tasks linked to this assignment yet.</p>
+          <p className="text-body-s text-ink-muted">No tasks linked to this assignment yet.</p>
         ) : (
           <ul className="flex flex-col gap-3">
             {tasks.map((task) => (

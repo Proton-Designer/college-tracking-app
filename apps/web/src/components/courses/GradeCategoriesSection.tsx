@@ -113,7 +113,7 @@ export function GradeCategoriesSection({ courseId, categories }: { courseId: num
       </div>
       <Panel className="flex flex-col gap-3">
         {categories.length === 0 ? (
-          <p className="text-body-s text-ink-faint">No weight categories yet.</p>
+          <p className="text-body-s text-ink-muted">No weight categories yet.</p>
         ) : (
           <ul className="flex flex-col gap-2">
             {categories.map((category) => (
