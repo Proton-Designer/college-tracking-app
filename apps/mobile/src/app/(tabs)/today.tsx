@@ -69,10 +69,21 @@ interface PlannedMitStatus {
  *  actually committed to at check-in (set by submitMorningCheckin, already selected in
  *  dayView.todayTasks -- no new query) and it stays on a task after it's completed, unlike
  *  suggestedMits. An empty result here means check-in was skipped or planned nothing; a
- *  non-empty result where every item is completed means the day's plan is actually done. */
+ *  non-empty result where every item is completed means the day's plan is actually done.
+ *
+ *  A cancelled MIT is excluded entirely, not just marked done. tasks.status is one of four
+ *  values (migration 0005): 'pending' | 'in_progress' | 'completed' | 'cancelled'. Cancelling
+ *  is how a real user reaches this via P1 -- skipping a confirmed weekly-plan block cancels
+ *  its task -- and a cancelled task is not "planned work I still owe today"; it's planned
+ *  work that was called off. Dropping it here, before the headline/count ever see it, means
+ *  `completed: t.status === "completed"` correctly reads "outstanding" for exactly
+ *  {pending, in_progress} -- the two states left once cancelled is gone -- instead of
+ *  `!== "completed"` silently doing that job by accident for whatever states happen to exist.
+ *  It must not become `completed: true` either: crediting a cancelled task as done would
+ *  inflate the "N of M done" count with work nobody actually did. */
 function buildPlannedMitStatus(dayView: DayView): PlannedMitStatus[] {
   return dayView.todayTasks
-    .filter((t): t is Task & { mit_rank: number } => t.mit_rank != null)
+    .filter((t): t is Task & { mit_rank: number } => t.mit_rank != null && t.status !== "cancelled")
     .sort((a, b) => a.mit_rank - b.mit_rank)
     .map((t) => ({ taskId: t.id, title: t.title, completed: t.status === "completed" }));
 }
