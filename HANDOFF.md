@@ -144,7 +144,8 @@ Recorded in `.brain/memory/environment.md`; re-verify on the new machine.
 ```
 Node v24.9.0  ·  npm 11.6.0        (engines requires >= 20.11.0)
 Docker 29.7.2                       (local mode only -- NOT needed for a cloud project)
-Supabase CLI 2.98.2                 (a 2.115.0 exists; not yet adopted)
+Supabase CLI 2.98.2                 (2.115.0 works, but see the note below -- it breaks
+                                     `functions deploy` unless config.toml names the import map)
 psql 17 at /opt/homebrew/opt/postgresql@17/bin/psql   (add to PATH)
 Playwright 1.62.1 via npx
 Xcode + iOS Simulator (iPhone 16 Pro). The iPhone 17 Pro record is CORRUPT — see N2.
@@ -161,6 +162,31 @@ seven landmines documented there. The three most dangerous:
   `npx expo install`. Expo SDK 57 is built against RN 0.86.2; npm's "latest" is 0.87 and produces
   native crashes rather than a clean dependency error.
 - **Jest stays on 29.7.0.** `jest-expo@57` depends directly on the Jest 29 line.
+
+**Supabase CLI 2.115.0 — adopted, with one required config change.** Verified 2026-08-23 against a
+real cloud project. The trap is `functions deploy`:
+
+- 2.98.2 auto-discovered `supabase/functions/deno.json` as the import map. **2.115.0 does not.**
+  Ten of the eleven edge functions import zod by bare specifier (`import { z } from "zod"`), so a
+  bare `supabase functions deploy` fails at bundle time with `Relative import path "zod" not
+  prefixed with / or ./ or ../`. Only `account-export` — the one function with no zod import —
+  survives. **`nightly-analysis` is among the ten**, so the nightly loop silently does not exist
+  while the deploy *looks* like it partially succeeded. This is §10.1's shape again: structurally
+  correct, practically unreachable.
+- Fixed by `import_map = "./functions/deno.json"` on every `[functions.*]` block in
+  `supabase/config.toml`. Both CLI versions honour the setting, so this is safe either way.
+  Passing `--import-map supabase/functions/deno.json` on the command line works too, but only
+  rescues the person who remembers to type it.
+
+Two further 2.115.0 differences, both harmless once you know them:
+
+- `supabase gen types` emits an `__InternalSupabase: { PostgrestVersion }` block and drops the
+  file's trailing newline. So §3.3's "expect NO change" from `npm run db:types:cloud` is wrong on
+  this CLI: you get a 4-line diff that is **not** schema drift. Read the diff before believing it.
+- `supabase db diff --linked` **still requires Docker** — it builds a shadow database to diff
+  against. It cannot run in the §3.3 no-Docker path at all; that step is listed there in error.
+  `db:types:cloud` is the closest Docker-free substitute (it sees tables, columns, enums and
+  function signatures, but not RLS policy or trigger drift).
 
 ### 3.3 First hour — cloud (no Docker)
 

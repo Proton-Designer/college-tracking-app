@@ -392,15 +392,25 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# Every function below sets `import_map` explicitly. Ten of the eleven import zod by bare
+# specifier (`import { z } from "zod"`), which only resolves through functions/deno.json.
+# Supabase CLI 2.98.2 discovered that file automatically; 2.115.0 does NOT, and deploys
+# fail at bundle time with `Relative import path "zod" not prefixed with / or ./ or ../`.
+# The failure is per-function and total -- 10 of 11 functions never reach the platform,
+# nightly-analysis among them, so the whole nightly loop silently does not exist.
+# Naming the map here fixes it on both CLI versions. See HANDOFF.md section 3.2.
+
 # verify_jwt = true is the default, but set explicitly per function rather than relying
 # on it -- these two are exactly the functions where "some caller forgot this was on"
 # would be a real security regression (syllabus-confirm is the ONLY server-side gate
 # between staged extractions and real academic data; see its own header comment).
 [functions.syllabus-confirm]
 verify_jwt = true
+import_map = "./functions/deno.json"
 
 [functions.syllabus-extract]
 verify_jwt = true
+import_map = "./functions/deno.json"
 
 # No user session drives this call -- it's cron-triggered (pg_cron/pg_net) and processes
 # every user in one invocation, so there is no single caller's JWT to verify. Gated
@@ -408,42 +418,51 @@ verify_jwt = true
 # docs/SUPABASE_SETUP.md §7/§8).
 [functions.nightly-analysis]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 [functions.weekly-synthesis]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 # brightspace-confirm is the ONLY server-side gate between staged ics_event_extractions
 # and real calendar_events writes (same reasoning as syllabus-confirm above).
 [functions.brightspace-sync]
 verify_jwt = true
+import_map = "./functions/deno.json"
 
 [functions.brightspace-confirm]
 verify_jwt = true
+import_map = "./functions/deno.json"
 
 # A real, logged-in caller connecting their own WHOOP account -- same trust model as
 # brightspace-sync's connect step.
 [functions.whoop-oauth-callback]
 verify_jwt = true
+import_map = "./functions/deno.json"
 
 # WHOOP calls this directly with no Supabase session -- the HMAC signature check inside
 # the handler (webhookSignature.ts) IS the authentication, same reasoning nightly-analysis
 # uses a shared-secret header instead of a JWT.
 [functions.whoop-webhook]
 verify_jwt = false
+import_map = "./functions/deno.json"
 
 # A real, logged-in caller connecting (or re-syncing) their own RescueTime account --
 # same trust model as whoop-oauth-callback / brightspace-sync.
 [functions.rescuetime-sync]
 verify_jwt = true
+import_map = "./functions/deno.json"
 
 # The most destructive function in this product -- verify_jwt = true is what makes
 # getVerifiedCaller's session round trip meaningful at all. userId is never accepted as a
 # request parameter; see account-delete/index.ts's header comment.
 [functions.account-delete]
 verify_jwt = true
+import_map = "./functions/deno.json"
 
 [functions.account-export]
 verify_jwt = true
+import_map = "./functions/deno.json"
 
 [edge_runtime]
 enabled = true
