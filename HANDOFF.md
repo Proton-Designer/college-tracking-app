@@ -29,11 +29,35 @@ Product intent: `docs/context/SOURCE_BRIEF.txt`. Architecture: `docs/MASTER_PLAN
 
 ---
 
-## 2. START HERE: the one thing that is still broken
+## 2. START HERE
 
-**Confirming a weekly-plan block produces nothing. The Plan step never reaches Execute.**
-Filed as **P1** in `docs/FOLLOWUPS.md` with a ratified fix. **This is the highest-priority
-remaining work in the repo.**
+### ✅ P1 is fixed (2026-08-23) — the loop closes
+
+**Confirming a weekly-plan block now creates a real task that Today can see.** Migration `0033` adds
+`weekly_plan_blocks.task_id`; confirming creates a task carrying `planned_date`,
+`planned_start_at`, `estimated_minutes` and the deliverable/course link; re-confirming is
+idempotent; **skipping cancels the task rather than orphaning it**, because "planned then abandoned"
+is data the friction engine wants. Setting `planned_start_at` from the block is what makes **start
+delay measurable for planned work** — the metric the brief names by example.
+
+Verified twice: in Postgres (pgTAP, 15 integration tests including skip-then-reconfirm never minting
+a second task), and then **walked end to end on a real iOS device** — plan generated, block
+confirmed, task row confirmed in psql, Today showing it ranked in Top 3 with workload updating.
+That native walk mattered: the first acceptance walk ran on Expo Web, where the form controls it
+needed were silently broken (see §7.4).
+
+**Plan reaches Execute for the first time in this product's history.**
+
+### The highest-priority remaining item is now P2
+
+**A backend outage hangs the page rather than erroring honestly.** With PostgREST stopped and auth
+still up, **6 of 6 routes never reached DOMContentLoaded in 8 seconds.** Kong's `read_timeout` is
+150s *by design, to match the hosted project*, and there is no request timeout anywhere in either
+app. All 9 `(app)` routes have correct error branches — and they are unreachable inside human
+patience. **A structurally-present error state that never renders is not an error state.**
+
+Its own open scope matters more than the hang: **the mutation-mid-flight case has never been run.**
+A failed read is visible; a write that appears to succeed is what costs real data.
 
 Generate a week's plan, confirm a suggested focus block for *today*, and Today still says
 *"Nothing scheduled yet today."* Empty Day Trace, empty Top 3. Verified:
