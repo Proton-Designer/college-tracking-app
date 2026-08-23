@@ -4,6 +4,7 @@ import { AppState, type AppStateStatus } from 'react-native';
 import type { AppEnvironment } from '../env';
 import type { Database } from '../database.types';
 import type { TypedSupabaseClient } from './types';
+import { createTimeoutFetch } from './timeoutFetch';
 
 /**
  * React Native does not pause JS timers in the background the way a browser tab does,
@@ -29,6 +30,11 @@ export function createNativeSupabaseClient(env: AppEnvironment): TypedSupabaseCl
       // redirected to a fragment-only URL and the app reported "link expired".
       flowType: 'pkce',
     },
+    // P2's REST timeout -- see timeoutFetch.ts. Mobile has no server render, so a hung
+    // request here has no `!result.ok` branch waiting server-side the way a web route's
+    // does; it's whatever loading/error state the calling screen's own hook already
+    // renders once the promise settles, which this is what actually makes settle at all.
+    global: { fetch: createTimeoutFetch() },
   });
 
   const handleAppStateChange = (state: AppStateStatus) => {

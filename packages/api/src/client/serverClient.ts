@@ -2,6 +2,7 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import type { AppEnvironment } from '../env';
 import type { Database } from '../database.types';
 import type { CookieAdapter, TypedSupabaseClient } from './types';
+import { createTimeoutFetch } from './timeoutFetch';
 
 /**
  * A fresh client per request, wired to whatever cookie store the caller's framework
@@ -32,5 +33,7 @@ export function createServerSupabaseClient(
         }
       },
     },
+    // P2's REST timeout -- see timeoutFetch.ts.
+    global: { fetch: createTimeoutFetch() },
   });
 }
