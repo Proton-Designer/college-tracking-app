@@ -99,13 +99,17 @@ const styles = StyleSheet.create({
   sheetShadow: {
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
+    // The cap lives HERE, not on sheetClip. A percentage height resolves against the parent's
+    // resolved height, and sheetClip's parent (this view) was auto-sized -- so `maxHeight: "85%"`
+    // one level down resolved against an indefinite height. `root` has flex:1, so it is definite
+    // and the percentage means something here.
+    maxHeight: "85%",
     ...shadow.lifted,
   },
   sheetClip: {
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     overflow: "hidden",
-    maxHeight: "85%",
   },
   sheetClipBorder: {
     borderBottomWidth: 0,
@@ -113,12 +117,20 @@ const styles = StyleSheet.create({
   sheetInner: {
     paddingHorizontal: space[5],
     paddingTop: space[5],
+    // Must yield too, or it demands full content height inside a capped sheetClip and the
+    // clipping just moves one level up. The whole chain root -> sheet -> inner -> body has to be
+    // shrinkable for the ScrollView to be the thing that gives.
+    flexShrink: 1,
   },
   title: {
     marginBottom: space[4],
   },
   body: {
-    flexGrow: 0,
+    // flexShrink is 0 by default in React Native. Without this the ScrollView demanded its full
+    // content height, the sheet exceeded its cap, and `overflow: hidden` silently CLIPPED THE
+    // FOOTER -- so on a long form the Cancel/Save row was cut in half and the primary action was
+    // unreachable. The body is the part that must yield; the footer is not optional chrome.
+    flexShrink: 1,
   },
   footer: {
     flexDirection: "row",
