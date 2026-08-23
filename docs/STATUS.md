@@ -16,8 +16,13 @@ Both platforms walked a **full end-to-end journey** — mobile's was the first i
 history. `npm run verify` exit 0, 362 tests, tree clean. Details and the defects it surfaced:
 `HANDOFF.md` §5.1 and §7.4.
 
-**P1 is still the highest-priority open item.** The revamp did not touch it: confirming a
-weekly-plan block still produces nothing, and Plan still never reaches Execute.
+**P1 is fixed (2026-08-23).** Confirming a weekly-plan block now creates a real task that Today
+sees — proven in Postgres *and* walked end to end on a real iOS device. **Plan reaches Execute for
+the first time.** `HANDOFF.md` §2.
+
+**P2 is now the top open item:** a data-layer outage hangs the page rather than erroring, because
+every route's error branch is correct and unreachable inside human patience. Its unexplored half
+matters more — the mutation-mid-flight case has never been run.
 
 ---
 
