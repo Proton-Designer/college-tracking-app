@@ -671,6 +671,54 @@ behaviour that makes a report trustworthy; the wrong lesson would be "don't repo
 
 ---
 
+## ✅ G5 — `overflow: hidden` made every mobile text input unfocusable. Four passes missed it.
+
+**Resolved in `b87afaf`.** Recorded because how it survived matters more than the fix.
+
+**Symptom, reported by the user:** on a real iOS device, tapping a text field did nothing — it
+appeared to focus then immediately deselect, and no text could be entered. **Sign-in was impossible,
+so the entire mobile app was unreachable.**
+
+**Cause:** `GlassSurface`'s root carried `overflow: "hidden"` so the blur/tint would clip to the
+rounded corners. On iOS that maps to `clipsToBounds = YES` and it silently broke touch delivery to
+every child. Every `Input`, `Textarea`, `Select`, `DatePicker` and `TimePicker` was affected.
+
+**Two plausible fixes that were NOT it** — recorded so nobody re-derives them: `pointerEvents="none"`
+on the decorative layers (kept anyway; a decoration should never take a touch), and removing
+`zIndex: 1` from the content wrapper. **The clipping was the cause.** Proven by moving one variable
+at a time on a real simulator: root clipped → `AXValue` stayed `""` after tap and type; clipping
+moved off the root → identical taps produced `"zzz"`.
+
+**Fix:** clipping moved onto a `pointerEvents="none"` decoration layer carrying the radius, read off
+the caller's own style so it cannot drift. The root is unclipped and owns borders and touches. The
+component carries a comment saying not to simplify it back.
+
+### Why four verification passes missed a fatal bug
+
+This is the entry's real content. The defect survived the primitives pass, a full accessibility
+audit, a complete 12-step mobile journey, and a final stacked-state sweep.
+
+- **Expo Web resolves pointer events through CSS**, where `overflow: hidden` does not affect
+  hit-testing. Every screen genuinely passed. The harness was not sloppy — it was *incapable*.
+- **The accessibility tree reported the TextField at the exact point where taps were being
+  swallowed.** `idb ui describe-point` returned a correct-looking answer about a broken interaction,
+  because the decorative layers were invisible to the a11y tree. This is the same trap as reading
+  `getComputedStyle().outlineColor` on an unfocused element (see the phantom focus-ring
+  investigation): **an inspector confidently confirming something untrue is worse than a tool that
+  errors.**
+- Typecheck, lint and jest are structurally blind to it.
+
+**Standing rule this produces: an inspection tool is not an interaction test.** Reading the tree,
+the computed style, or the props tells you what the framework *thinks*. Only tapping the control and
+asserting on the result tells you what a user gets. Both times an inspector disagreed with reality
+this session, the inspector was believed first.
+
+**It is also the fourth class of interaction the Expo-Web harness cannot reach** — after pickers
+(G3), auth confirmation (G3), and accessibility state (G4) — and the first that made the product
+completely unusable. See `HANDOFF.md` §7.4.
+
+---
+
 ## 🟡 G4 — `accessibilityState` is a no-op on react-native-web, and that blinds our a11y audit method
 
 Found in the v2 accessibility pass, by reading `react-native-web`'s `createDOMProps` source rather
