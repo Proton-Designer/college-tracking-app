@@ -8,28 +8,62 @@ export type GlassTier = "base" | "raised" | "sunken";
 export interface GlassSurfaceProps {
   tier: GlassTier;
   children: ReactNode;
-  /** Radius, borderColor overrides (focus/error rings), etc. -- applied to the clipped surface. */
+  /** Radius, borderColor overrides (focus/error rings), etc. -- applied to the outer surface. */
   style?: StyleProp<ViewStyle>;
-  /** Applied to the content wrapper, e.g. padding. Content itself never needs its own
-   *  position/zIndex -- that's this component's job, not each caller's. */
+  /** Applied to the content wrapper, e.g. padding. */
   contentStyle?: StyleProp<ViewStyle>;
 }
 
-/** DESIGN_LANGUAGE_V2 §2.2 -- the structural fix for the stacking bug found independently on
- *  both platforms (web: backdrop-filter's own stacking context ate a modal's clicks; native:
- *  RN-web's <input> painted behind a sibling BlurView and had its own text blurred). The blur
- *  and tint paint into THIS wrapper; content is a genuinely separate layer on top of it, not a
- *  sibling that has to out-rank two absolutely-positioned views on its own. No caller of this
- *  component needs its own position/zIndex patch again.
+/**
+ * DESIGN_LANGUAGE_V2 2.2 -- blur and tint paint into a decoration layer; content is a separate
+ * sibling on top of it, so no caller needs its own position/zIndex patch.
  *
- *  Android renders `tier`'s fill as a solid fill here, never a blur, unless `blurTarget` is
- *  wired -- see FOLLOWUPS G1. Readable either way; the tint alone is the mandatory fallback. */
+ * ---------------------------------------------------------------------------------------------
+ * WHY THE CLIPPING LIVES ON AN INNER LAYER AND NOT ON THE ROOT -- do not "simplify" this back.
+ *
+ * The root used to carry `overflow: "hidden"` so the blur/tint clipped to the rounded corners. On
+ * iOS that maps to `clipsToBounds = YES`, and it SILENTLY BROKE TOUCH DELIVERY TO EVERY CHILD: a
+ * TextInput inside a GlassSurface could not be focused at all. Tapping a text field did nothing,
+ * which made signing in on a real device impossible.
+ *
+ * It was invisible to every check we had:
+ *   - Expo Web (the entire mobile verification path) resolves pointer events through CSS, where
+ *     `overflow: hidden` does not affect hit-testing. Every screen "passed".
+ *   - The accessibility tree still reported the TextField at that exact point, so
+ *     `idb ui describe-point` looked correct while every real tap was swallowed.
+ *   - Typecheck, lint and jest are all blind to it.
+ *
+ * Confirmed by bisection on a real simulator: with the root clipped, AXValue stayed "" after
+ * tapping and typing; with clipping moved off the root, the identical taps produced "zzz".
+ *
+ * So the root is unclipped and owns borders and touches; a pointerEvents="none" decoration layer
+ * carries the clipping and the radius. `pointerEvents="none"` alone was NOT sufficient -- the
+ * clipping was the cause -- but both are kept, because a decorative layer should never take a
+ * touch regardless.
+ * ---------------------------------------------------------------------------------------------
+ *
+ * Android renders `tier`'s fill as a solid fill here, never a blur, unless `blurTarget` is wired
+ * -- see FOLLOWUPS G1. Readable either way; the tint alone is the mandatory fallback.
+ */
 export function GlassSurface({ tier, children, style, contentStyle }: GlassSurfaceProps) {
+  // The decoration layer must clip to the same corner radius the caller asked for. Read it off the
+  // caller's style rather than taking a second prop that could drift out of sync with it.
+  const flattened = StyleSheet.flatten(style) ?? {};
+  const cornerRadius: ViewStyle = {
+    borderRadius: flattened.borderRadius,
+    borderTopLeftRadius: flattened.borderTopLeftRadius,
+    borderTopRightRadius: flattened.borderTopRightRadius,
+    borderBottomLeftRadius: flattened.borderBottomLeftRadius,
+    borderBottomRightRadius: flattened.borderBottomRightRadius,
+  };
+
   return (
-    <View style={[styles.clip, glassEdge, style]}>
-      <BlurView intensity={TIER_INTENSITY[tier]} tint="light" style={StyleSheet.absoluteFill} />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: TIER_FILL[tier] }]} />
-      <View style={[styles.content, contentStyle]}>{children}</View>
+    <View style={[glassEdge, style]}>
+      <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.decoration, cornerRadius]}>
+        <BlurView intensity={TIER_INTENSITY[tier]} tint="light" style={StyleSheet.absoluteFill} />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: TIER_FILL[tier] }]} />
+      </View>
+      <View style={contentStyle}>{children}</View>
     </View>
   );
 }
@@ -49,11 +83,8 @@ const TIER_INTENSITY: Record<GlassTier, number> = {
 };
 
 const styles = StyleSheet.create({
-  clip: {
+  /** Clipping lives here, on a layer that takes no touches -- never on the root. See above. */
+  decoration: {
     overflow: "hidden",
-  },
-  content: {
-    position: "relative",
-    zIndex: 1,
   },
 });
