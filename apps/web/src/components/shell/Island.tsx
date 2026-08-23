@@ -54,8 +54,15 @@ export function Island() {
               className={cn(
                 "flex h-11 min-w-11 items-center justify-center gap-2 rounded-pill px-3",
                 "font-sans text-body-s font-medium outline-none transition-[background-color,color] duration-150 ease-[cubic-bezier(0.2,0,0,1)]",
-                "focus-visible:[outline:2px_solid_var(--color-accent)] focus-visible:outline-offset-2",
-                active ? "bg-accent text-white" : "text-island-ink-dim hover:text-island-ink",
+                "focus-visible:outline-offset-2",
+                active
+                  ? // Ruled exception to §7's blanket "2px accent everywhere": the active item's
+                    // own fill IS accent, so an accent ring on it is invisible -- the one color
+                    // that can't signal focus here is the one every other control uses. White
+                    // reads against both the accent pill and the near-black dock. Scoped to this
+                    // one case; don't generalize it.
+                    "bg-accent text-white focus-visible:[outline:2px_solid_var(--color-island-ink)]"
+                  : "text-island-ink-dim hover:text-island-ink focus-visible:[outline:2px_solid_var(--color-accent)]",
               )}
             >
               <Icon size={18} strokeWidth={active ? 2.25 : 2} />
