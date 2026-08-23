@@ -671,6 +671,66 @@ behaviour that makes a report trustworthy; the wrong lesson would be "don't repo
 
 ---
 
+## ✅ G6 — Select/DatePicker/TimePicker collapsed to zero size on device. A *different* bug from G5.
+
+**Resolved in `867b1a4`.** Filed separately from G5 on purpose: the Lead initially framed these as "two
+bugs from `overflow: hidden`" and **that was wrong.** `b87afaf` had already moved clipping onto the
+decoration layer for all of them. This collapse was **pure flex sizing** — the trigger `Pressable`
+was `flex: 1` inside `GlassSurface`'s content wrapper, which had no size of its own, so a flex child
+had nothing to grow into and collapsed. The two bugs share a *file*, not a mechanism.
+
+The distinction changes what to watch for. "Audit every `overflow: hidden`" would have been the
+wrong lesson: a sweep of all 11 hits in `apps/mobile/src` found **no** third touch-blocker, and the
+three that wrap real interactive content (`Panel`, `Island`, `Modal`) were **driven live** — a real
+checkbox toggled inside a `Panel`, island tabs navigated, the modal typed into — rather than
+reasoned about.
+
+**Symptom worth recognising:** the trigger neither painted its placeholder *nor* received touches.
+Two symptoms from one cause (a zero-sized view cannot paint its `Text` children) beat two
+coincidences — that reasoning is what located it.
+
+**The shared fix was tried first and rejected on evidence.** Giving `GlassSurface`'s content wrapper
+a default size regressed `NavLink` with a **784pt void** on course detail, confirmed live. Reverted;
+`contentStyle={{ flexGrow: 1 }}` applied to the three consumers instead. Recorded because the failed
+approach is worth as much as the fix: six other consumers have auto height, and a shared default
+serves the three at their expense.
+
+`TimePicker` is verified partially and honestly: trigger and sheet-open confirmed on device,
+wheel-commit not reproducible through idb's touch primitives against a real `UIPickerView`.
+
+### The lesson that generalises beyond this bug
+
+While driving the modal, the engineer found its buttons tappable only in the top half of their
+reported frame and **worked around it by tapping higher** rather than reporting it. That was the
+G7 footer clip, in hand and unrecognised.
+
+**A workaround that gets your test moving is also a workaround that hides a user-facing bug.** A
+script can tap higher; a thumb landing in the dead half just experiences a button that does not
+work. **Anything you compensate for to keep a test running is a finding — the compensation is the
+evidence.** Caught and reported unprompted, which is the standard.
+
+---
+
+## ✅ G7 — The modal sheet clipped its own footer, hiding the primary action
+
+**Resolved in `6820662`**, confirmed on device: Cancel / Add assignment are now tappable across
+their full 44pt frame, scanned every ~10pt with none falling through to the backdrop.
+
+Reported by the user from a screenshot. Two compounding faults:
+
+1. `maxHeight: "85%"` sat on `sheetClip`, whose parent was auto-sized. **A percentage height
+   resolves against the parent's *resolved* height**, so it was a percentage of an indefinite
+   value and never applied. Moved to `sheetShadow`, whose parent has `flex: 1`.
+2. **`flexShrink` is 0 by default in React Native.** The `ScrollView` body demanded its full content
+   height, the sheet exceeded its cap, and `overflow: hidden` clipped whatever fell past — the
+   footer, because it is last. The chain root → sheet → inner → body must all yield so the body
+   scrolls and the footer survives.
+
+**The failure mode is the point:** a form long enough to overflow loses its submit button entirely,
+and the taller the form the more certain it is. Nothing errors, nothing logs.
+
+---
+
 ## ✅ G5 — `overflow: hidden` made every mobile text input unfocusable. Four passes missed it.
 
 **Resolved in `b87afaf`.** Recorded because how it survived matters more than the fix.
