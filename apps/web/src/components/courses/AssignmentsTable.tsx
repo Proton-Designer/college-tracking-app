@@ -8,6 +8,13 @@ function typeLabel(type: string): string {
   return type.replace(/_/g, " ");
 }
 
+/** Sentence case, matching EditDeliverableModal's own STATUS_OPTIONS labels exactly
+ *  ("Not started", "In progress", "Completed") -- a raw enum here read as unfinished. */
+function statusLabel(status: string): string {
+  const spaced = status.replace(/_/g, " ");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
 function pointsLabel(item: GradeItemRow | undefined): string | null {
   if (!item) return null;
   if (item.is_excused) return "Excused";
@@ -68,7 +75,7 @@ export function AssignmentsTable({
                 <td className="py-3 pr-4 align-top font-mono text-body-s text-ink-muted">{daysRemainingLabel(today, d.local_due_date)}</td>
                 <td className="py-3 pr-4 align-top text-body-s text-ink-muted">{category?.name ?? "—"}</td>
                 <td className="py-3 pr-4 align-top font-mono text-body-s tabular-nums text-ink">{pointsLabel(item) ?? "—"}</td>
-                <td className="py-3 pr-4 align-top font-mono text-caption uppercase tracking-[0.08em] text-ink-faint">{d.status}</td>
+                <td className="py-3 pr-4 align-top font-mono text-caption uppercase tracking-[0.08em] text-ink-faint">{statusLabel(d.status)}</td>
               </tr>
             );
           })}
