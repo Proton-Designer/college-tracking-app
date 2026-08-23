@@ -44,6 +44,30 @@ export interface GlassSurfaceProps {
  *
  * Android renders `tier`'s fill as a solid fill here, never a blur, unless `blurTarget` is wired
  * -- see FOLLOWUPS G1. Readable either way; the tint alone is the mandatory fallback.
+ *
+ * ---------------------------------------------------------------------------------------------
+ * THE CONTENT WRAPPER DELIBERATELY HAS NO DEFAULT `flexGrow` -- tried it, reverted it, don't
+ * retry it here.
+ *
+ * A caller whose root `style` gives GlassSurface a fixed size (Input/Textarea/Select/DatePicker/
+ * TimePicker's `height: 44`) needs its content to fill that box, or a `flex: 1` child of the
+ * content wrapper (Select/DatePicker/TimePicker's trigger Pressable) has no real space to grow
+ * into and collapses toward zero -- confirmed live on device: `describe-point` across the whole
+ * visible trigger box for `Select`/`DatePicker` found nothing, and their placeholder text never
+ * painted either (a zero-sized view doesn't lay out its `Text` children).
+ *
+ * The obvious fix is a default `flexGrow: 1` on the content wrapper. That regressed `NavLink`
+ * live: `NavLink` is the one consumer that both passes its own `contentStyle`
+ * (`{ alignSelf: 'flex-start' }`, so it sizes to its label instead of stretching) AND sits in an
+ * auto-height root -- combining a default `flexGrow: 1` with that `alignSelf` produced a ~784pt
+ * void above the course-detail screen's title in the real device sweep. Six of the ten consumers
+ * have an auto-height root; a single shared default can't safely serve both that group and the
+ * five fixed-height ones without knowing which case it's in. So the fix lives on the three
+ * fixed-height callers that actually need it (`Select`/`DatePicker`/`TimePicker`'s own
+ * `contentStyle={{ flexGrow: 1 }}`), not here. Three local patches, chosen deliberately over a
+ * shared one that reshaped a component that never asked for it -- see FOLLOWUPS for the fuller
+ * record.
+ * ---------------------------------------------------------------------------------------------
  */
 export function GlassSurface({ tier, children, style, contentStyle }: GlassSurfaceProps) {
   // The decoration layer must clip to the same corner radius the caller asked for. Read it off the

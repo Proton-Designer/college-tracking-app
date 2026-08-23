@@ -69,6 +69,10 @@ export function TimePicker({ label, value, onValueChange, disabled = false, erro
             { borderColor: error ? color.riskCritical : glass.edgeHairline, opacity: disabled ? 0.6 : 1 },
             focused && !disabled ? styles.focusRing : null,
           ]}
+          // See Select.tsx's identical comment -- the trigger below is `flex: 1` and needs
+          // real space from the content wrapper to grow into, or it collapses to zero (both
+          // invisibly and to touch). Confirmed live on device (DatePicker's identical shape).
+          contentStyle={styles.content}
         >
           <Pressable
             accessibilityRole="button"
@@ -129,6 +133,9 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 44,
     borderRadius: radius.md,
+  },
+  content: {
+    flexGrow: 1,
   },
   trigger: {
     flex: 1,

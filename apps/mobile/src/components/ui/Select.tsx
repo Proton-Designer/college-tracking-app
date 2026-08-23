@@ -55,6 +55,12 @@ export function Select({
           },
           focused && !disabled ? styles.focusRing : null,
         ]}
+        // GlassSurface's content wrapper has no size of its own by default -- without this,
+        // the trigger below (styled `flex: 1`) has no real space to grow into and collapses
+        // toward zero, both invisibly (its placeholder/chevron Text never paints) and to touch
+        // (nothing there to tap). Confirmed live on device; see GlassSurface's own doc comment
+        // for why this is a per-caller fix and not a GlassSurface default.
+        contentStyle={styles.content}
       >
         <Pressable
           accessibilityRole="button"
@@ -112,6 +118,9 @@ const styles = StyleSheet.create({
   clip: {
     height: 44,
     borderRadius: radius.md,
+  },
+  content: {
+    flexGrow: 1,
   },
   trigger: {
     flex: 1,
