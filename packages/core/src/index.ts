@@ -25,6 +25,8 @@ export * from './bounceback/bounceBack';
 export * from './recovery/trigger';
 export * from './recovery/mvd';
 
+export * from './checkin/plannedMits';
+
 export * from './workload/capacity';
 export * from './workload/levels';
 export * from './workload/recoveryAdjustment';

@@ -1,6 +1,6 @@
-import type { Course, DayView, InterventionRow, KillHabitRow, Task, TaskSessionRow } from "@collegeos/api";
+import type { Course, DayView, InterventionRow, KillHabitRow, TaskSessionRow } from "@collegeos/api";
 import { signOut } from "@collegeos/api";
-import { deriveDayBand } from "@collegeos/core";
+import { derivePlannedMits, deriveDayBand, type TaskStatus } from "@collegeos/core";
 import { color, space } from "@collegeos/design/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { LogOut, Settings as SettingsIcon } from "lucide-react-native";
@@ -54,38 +54,14 @@ function buildMitItems(dayView: DayView, courses: Record<number, Course>): MitIt
   });
 }
 
-interface PlannedMitStatus {
-  taskId: number;
-  title: string;
-  completed: boolean;
-}
-
-/** "Did I finish what I planned" is a different question from MitList's "what should I work
- *  on right now" (suggestedMits -- a live, algorithmic ranking of outstanding discretionary
- *  work, which correctly empties out as things get done). Answering the first question from
- *  the second one is exactly the R1 shape this codebase has been bitten by before: an empty
- *  suggestedMits means *both* "nothing was ever planned" and "everything planned is done,"
- *  and those must not render identically. tasks.mit_rank is the real record of what the user
- *  actually committed to at check-in (set by submitMorningCheckin, already selected in
- *  dayView.todayTasks -- no new query) and it stays on a task after it's completed, unlike
- *  suggestedMits. An empty result here means check-in was skipped or planned nothing; a
- *  non-empty result where every item is completed means the day's plan is actually done.
- *
- *  A cancelled MIT is excluded entirely, not just marked done. tasks.status is one of four
- *  values (migration 0005): 'pending' | 'in_progress' | 'completed' | 'cancelled'. Cancelling
- *  is how a real user reaches this via P1 -- skipping a confirmed weekly-plan block cancels
- *  its task -- and a cancelled task is not "planned work I still owe today"; it's planned
- *  work that was called off. Dropping it here, before the headline/count ever see it, means
- *  `completed: t.status === "completed"` correctly reads "outstanding" for exactly
- *  {pending, in_progress} -- the two states left once cancelled is gone -- instead of
- *  `!== "completed"` silently doing that job by accident for whatever states happen to exist.
- *  It must not become `completed: true` either: crediting a cancelled task as done would
- *  inflate the "N of M done" count with work nobody actually did. */
-function buildPlannedMitStatus(dayView: DayView): PlannedMitStatus[] {
-  return dayView.todayTasks
-    .filter((t): t is Task & { mit_rank: number } => t.mit_rank != null && t.status !== "cancelled")
-    .sort((a, b) => a.mit_rank - b.mit_rank)
-    .map((t) => ({ taskId: t.id, title: t.title, completed: t.status === "completed" }));
+/** "Did I finish what I planned" (the headline) is a different question from MitList's "what
+ *  should I work on right now" (suggestedMits) -- see derivePlannedMits's own doc comment in
+ *  packages/core for why that distinction, and the cancelled-task exclusion, live there and
+ *  not here: it's a domain rule (what a commitment is, when it stops counting), not
+ *  presentation, so both platforms share one definition rather than each filtering
+ *  dayView.todayTasks the same way by convention. */
+function buildPlannedMitStatus(dayView: DayView) {
+  return derivePlannedMits(dayView.todayTasks.map((t) => ({ id: t.id, title: t.title, mitRank: t.mit_rank, status: t.status as TaskStatus })));
 }
 
 /** §8's ratified headline rule: the top *outstanding* planned MIT's title, "All N done" once

@@ -28,6 +28,8 @@ export * from './bounceback/bounceBack.ts';
 export * from './recovery/trigger.ts';
 export * from './recovery/mvd.ts';
 
+export * from './checkin/plannedMits.ts';
+
 export * from './workload/capacity.ts';
 export * from './workload/levels.ts';
 export * from './workload/recoveryAdjustment.ts';

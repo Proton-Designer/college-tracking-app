@@ -1,0 +1,72 @@
+/**
+ * "Did I finish what I planned" is a different question from "what should I work on right
+ * now" (a live, algorithmic ranking of outstanding discretionary work, which correctly
+ * empties out as things get done). Answering the first question from the second one is the
+ * R1 shape this codebase has been bitten by before: an empty live ranking means *both*
+ * "nothing was ever planned" and "everything planned is done," and those must not render
+ * identically.
+ *
+ * A task's `mitRank` is the durable record of what the user actually committed to at
+ * check-in — set once, and unlike a live ranking it stays on the task after the task is
+ * completed (or cancelled). That durability is exactly why this needs its own boundary
+ * check rather than reusing whatever a re-ranked list happens to contain: an empty result
+ * here means check-in was skipped or nothing was planned; a non-empty result where every
+ * item is completed means the day's plan is actually done.
+ *
+ * WHY THIS IS A CORE FUNCTION, and not two platforms each filtering `todayTasks` the same
+ * way: it very nearly wasn't the same way. Mobile derived this from `mit_rank`; web derived
+ * its equivalent headline from the live ranking, which cannot make the R1 distinction at
+ * all. Two components independently deciding what counts as a planned commitment is how
+ * that drift happens — this is a domain rule (what a commitment is, when it stops counting,
+ * how cancellation differs from completion), not presentation, so by law 2 it lives here,
+ * unit-tested, imported by both.
+ */
+
+/** `tasks.status`'s full check constraint (migration 0005) — enumerated explicitly rather
+ *  than inferred, so a new status added to the enum fails a type check here instead of
+ *  silently falling through whatever `!== 'completed'` happens to mean that day. */
+export type TaskStatus = 'pending' | 'in_progress' | 'completed' | 'cancelled';
+
+/** The minimal task shape this needs — deliberately not the full generated `tasks` row.
+ *  packages/core has no dependency on packages/api's database types; api depends on core,
+ *  never the reverse. */
+export interface PlannedMitCandidate {
+  id: number;
+  title: string;
+  /** Null for a task never selected as a Top-3 priority at check-in. */
+  mitRank: number | null;
+  status: TaskStatus;
+}
+
+export interface PlannedMit {
+  taskId: number;
+  title: string;
+  completed: boolean;
+}
+
+function hasMitRank(task: PlannedMitCandidate): task is PlannedMitCandidate & { mitRank: number } {
+  return task.mitRank != null;
+}
+
+/**
+ * The ordered set of today's real planned commitments, ranked-first, cancelled excluded.
+ *
+ * A cancelled task is dropped entirely — not marked `completed: true` (that would credit
+ * work nobody did) and not left as an "outstanding" item either (a cancelled commitment is
+ * not work still owed today; it's work that was called off). Confirming a weekly-plan block
+ * and then skipping it is a real, ordinary way a task ends up cancelled after already being
+ * chosen as a MIT at check-in — the two are independent actions that can land on the same
+ * task, and cancellation must win over the stale `mitRank` left behind.
+ *
+ * `completed: status === 'completed'` is correct here precisely because cancelled has
+ * already been removed: with all four `TaskStatus` values enumerated, the two that remain
+ * (`pending`, `in_progress`) are unambiguously "outstanding" by construction, not by
+ * whatever `!== 'completed'` happened to leave over.
+ */
+export function derivePlannedMits(tasks: readonly PlannedMitCandidate[]): PlannedMit[] {
+  return tasks
+    .filter(hasMitRank)
+    .filter((task) => task.status !== 'cancelled')
+    .sort((a, b) => a.mitRank - b.mitRank)
+    .map((task) => ({ taskId: task.id, title: task.title, completed: task.status === 'completed' }));
+}
