@@ -84,15 +84,19 @@ proof of a usable product.**
 ## 4. Measured state
 
 ```
-188 commits · 32 migrations · 46 tables · 0 without RLS · 11 edge functions
-web: 17 routes · mobile: 16 routes · 23 integration-test files · 8 E2E specs
+251 commits · 32 migrations · 46 tables · 0 without RLS · 11 edge functions
+web: 17 routes · mobile: 18 routes · 23 integration-test files · 8 E2E specs
 ```
+
+> **The visual layer is v2 "Aurora" as of 2026-08-22.** `docs/DESIGN_SYSTEM.md` ("Instrument") is
+> superseded — its structural rules survive, its surface does not. **`docs/DESIGN_LANGUAGE_V2.md` is
+> the visual authority.** See §5.1.
 
 Full regression, every number executed rather than recalled:
 
 | Suite | Result |
 |---|---|
-| `npm run verify` | **PASS** — 4 guards, typecheck ×5 workspaces, lint, **354 unit tests** |
+| `npm run verify` | **PASS** (exit 0, re-run by the Lead) — 4 guards, typecheck ×5 workspaces, lint, **362 tests**: core 343 / api 17 / mobile 2 |
 | pgTAP | **459 assertions**, 10 files |
 | `packages/api` integration (real DB) | **101 / 101**, twice consecutively (D14) |
 | Deno edge, offline | **86 / 86** |
@@ -133,6 +137,52 @@ account pass · structural accessibility audit · **the RLS guard fixed so it ca
 
 ---
 
+## 5.1 The v2 "Aurora" revamp (2026-08-22, 61 commits)
+
+The v1 surface was rejected by the user as *"primal and barebones."* That was a fair reading: cream
+ground, serif display, hairline boxes, 3/5/8 radii, a text-only tab bar. Internally consistent, and
+cold. **`docs/DESIGN_LANGUAGE_V2.md` is now the visual authority** and carries every ruling with its
+reasoning; what follows is the shape.
+
+Cool `#F4F6FB` ground · indigo `#3A56F0` (deliberately not Apple's blue — that would make it a copy
+of the reference) · IBM Plex Serif removed entirely for **Instrument Sans + Geist Mono** · radii
+10/14/20/28 · three glass tiers with a mandatory opaque fallback · a **floating dark glass island**
+replacing the left rail on web and the text tab bar on mobile. All 17 web routes and all 18 mobile
+routes converted, on both platforms, verified live.
+
+**The one design idea that is ours rather than the reference's:** the ambient field is an
+*instrument reading*. Its hue mix derives from a real computed `RiskBand` via `deriveDayBand()` in
+`packages/core` — a maximum, not an average, because a day holding one critical deliverable is a
+critical day. **An account with no computed risk gets no atmosphere**, and six screens legitimately
+get none at all. Under that sits a fixed neutral *resting wash* that reports nothing and never
+varies (§6.0), because glass is only legible as glass when there is something behind it to refract.
+The two layers never stack.
+
+**Real defects found and fixed during the revamp** — none of them styling bugs:
+
+- The **gray band** the user reported: `TabScreenScrollView` applied a `marginBottom` while the tab
+  bar was already in normal flow, reserving its height twice. Fixed structurally by the island.
+- **`z-index` tokens compiled to nothing** — Tailwind v4 only emits `z-*` utilities from a
+  `--z-index-*` namespace. Latent through all of v1 because a flat UI never created a competing
+  stacking context; `backdrop-filter` made it real, and a glass panel began swallowing clicks on a
+  modal's footer. **The revamp did not introduce it; it removed the condition hiding it.**
+- **`Modal` had no focus trap at all** — three Tab presses escaped the dialog onto a live link
+  behind the scrim.
+- **`accessibilityState` is a no-op on react-native-web** (G4) — correct role, correct name, no
+  state announced.
+- Two independent **stale-state contradictions** on `/today`, where a headline and the list beneath
+  it read different sources.
+- **A real zero rendered identically to an absent value** — twice, once *inside the fix for it*.
+
+**Two verification techniques earned their keep** and should be reused: **manufacture the state your
+data cannot produce** (a synthetic archived report to prove a page reads the recorded band and not
+today's; a zero-duration session; a low-band fixture, now `scripts/make-calm-user.mjs`), and
+**measure a `:focus-visible` style only while the element is actually focus-visible** — otherwise
+`getComputedStyle` returns a plausible, wrong answer instead of an error. That artifact was reported
+as the pass's most severe finding before being disproved with CDP matched-rules output.
+
+---
+
 ## 6. What was verified, and how
 
 **The standard: verify the write, not the success state.** Nearly every UI verification confirmed the
@@ -169,6 +219,19 @@ Checkbox announcing as *"check, No Instagram before 6 PM"*.
 interrupts, and whether a name makes sense *spoken*. **A real VoiceOver/TalkBack pass on a physical
 device is a required pre-launch item.**
 
+**v2 re-audited what it introduced** and fixed a missing `Modal` focus trap, an unlabelled
+icon-only nav (v1's tab bar was text — the most accessible possible — and v2 replaced it with
+icons), an `Aurora` reachable by assistive tech on mobile, an invisible focus ring on the active
+island tab (accent ring on an accent fill), and **35 instances of real 13px body copy using
+`inkFaint`**, whose own token comment says *never body text* — 3.00:1 against the required 4.5:1.
+Web's reduced-motion and reduced-transparency guards were driven via CDP emulation and genuinely
+collapse the glass; mobile's could only be confirmed structurally.
+
+**But see G4: our audit method is blind to state.** `accessibilityState` is a no-op on
+react-native-web, which is what the Expo-Web ARIA-tree audit reads — so every `checked`,
+`selected`, `disabled` and `busy` in the app is **unverifiable by that method**, not
+verified-and-passing. Ten files still carry the gap.
+
 ### 7.3 Failure and offline states
 All 9 `(app)` routes have explicit error branches — **and the failure pass proved that is not
 enough.** With PostgREST stopped and auth still up, **6 of 6 routes tested never reached
@@ -184,10 +247,34 @@ real data.
 **Offline is unimplemented** and deliberately deferred: "last-known data with an explicit staleness
 timestamp" is a caching *feature*, not a hardening task.
 
-### 7.4 Native pickers on mobile
-`@react-native-community/datetimepicker` **does not render under Expo Web**, which is how most mobile
-verification was done. Every other mobile surface was verified live; the picker submit path was not.
-Needs a simulator or device.
+### 7.4 The Expo-Web harness is blind to three whole classes of interaction
+
+Read this before trusting any mobile verification claim. Nearly all mobile checking runs through
+Expo Web, and it **structurally cannot reach**:
+
+1. **Date/time pickers** (G3). `DatePicker.open()` branches android → native picker, else →
+   `setIosOpen(true)` — and that modal is gated on `Platform.OS === "ios"`, so on web neither fires.
+   `TimePicker` is identical. **Not a user-facing defect:** `apps/mobile` is an iOS/Android app (the
+   web product is the separate `apps/web`), and a branch fires on both shipping platforms.
+2. **Auth confirmation.** The local redirect allowlist permits `exp://127.0.0.1:8081/**` and
+   `collegeos://**` only, so a confirmation link cannot complete through a browser-preview port.
+   That is the config correctly refusing an unlisted target, not a bug.
+3. **Accessibility state** (G4) — see §7.2.
+
+Everything else verified through Expo Web stands; none of it touches these paths. But **anything on
+them needs a simulator or device before it can be claimed.** Where there was one reason a device
+pass could not be skipped, there are now three, each found independently.
+
+**The first full mobile journey in this project's history** was walked on 2026-08-22 — 12 steps,
+signup through nightly report, zero console errors, one real bug (G3). Two steps used admin-API
+workarounds and are flagged as such: the account was confirmed via `updateUserById` rather than the
+link, and one deliverable was created directly because of (1). **The confirmation-link/deep-link
+mechanism itself remains unexercised on any platform.**
+
+A full **web** journey the same day found **zero product defects** — four apparent bugs all traced
+to the test harness, one of them the `new Date().toISOString()` day-boundary bug *this project
+already fixed across 15 sites in the product*, reappearing in a fixture. The rule ("never derive a
+day boundary from UTC") binds test code too.
 
 ### 7.5 `/today` issues round trips, though fewer
 A shared `calendar_events` read took `/today` from 5 reads of that table to 2, proven by a
@@ -208,7 +295,8 @@ Supabase** at 30–50 ms RTT. `docs/L11_HARDENING.md` §1.
 - **Redirect allow-list must use exact hosts, no wildcards.**
 
 **3. Must verify:** cloud deploy · Anthropic activation (§7.1) · a real VoiceOver pass (§7.2) · the
-mid-request failure pass (§7.3) · native pickers on a device (§7.4).
+mid-request failure pass (§7.3) · **a real device run (§7.4) — now three independent reasons, not
+one: pickers, auth confirmation, and accessibility state are all unreachable from our harness.**
 
 **4. Open items:** `docs/FOLLOWUPS.md`. Notably **S13** — "journal content is never logged" is
 currently true *because the feature does not exist yet*, not because redaction is tested. **Re-test
