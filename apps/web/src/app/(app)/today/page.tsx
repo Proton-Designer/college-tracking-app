@@ -2,7 +2,7 @@ import type { Course, DayView } from "@collegeos/api";
 import { deriveDayBand } from "@collegeos/core";
 import type { ReactNode } from "react";
 import type { FocusBlock } from "@/components/today/FocusLauncher";
-import { MitList, type MitItem } from "@/components/today/MitList";
+import type { MitItem } from "@/components/today/MitList";
 import { Aurora } from "@/components/ui/Aurora";
 import { Panel } from "@/components/ui/Panel";
 import { DayTrace } from "@/components/today/DayTrace";
@@ -195,24 +195,24 @@ export default async function TodayPage({
   }
 
   return (
-    <MitFocusProvider initialItems={mitItems}>
+    <MitFocusProvider initialItems={mode === "recovery" ? recoveryMitItems : mitItems}>
     <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-8 px-8 py-10">
       <Aurora band={dayBand} />
 
       {/* §8 — the one thing this screen exists to tell the user, at displayL+, in the header
           where a lead statement actually leads (not two-thirds down the page inside a card --
           RecoveryBanner's own "Recovery mode active" label is detail now, not the lead).
-          Cross-platform match: mobile's recovery header states "Recovery day" the same way.
+          Recovery mode names the kept task the same way normal mode names the top MIT --
+          ratified cross-platform after an audit found web special-cased Recovery to a fixed
+          "Recovery day" string with no stated reason, which silently drifted from mobile's
+          actual behavior (name the kept task, "Recovery day" only when nothing was kept).
           TodayHeader (the date) renders AFTER this, not before -- two stacked eyebrows above
           the headline was the bug: the headline gets the top slot, the date supports it
           underneath, same order as mobile. */}
       {mode === "normal" ? (
         <TodayFocusHeadline />
       ) : mode === "recovery" ? (
-        <div className="flex flex-col gap-1">
-          <p className="font-mono text-label uppercase tracking-[0.1em] text-ink-faint">Today&apos;s focus</p>
-          <h1 className="font-sans text-display-l font-semibold tracking-[-0.025em] text-ink">Recovery day</h1>
-        </div>
+        <TodayFocusHeadline fallbackHeadline="Recovery day" />
       ) : null}
 
       <TodayHeader today={dayView.today} health={dayView.todayHealth} sleepBaselineHours={dayView.profile.sleep_baseline_hours} />
@@ -254,7 +254,7 @@ export default async function TodayPage({
           />
           {recoveryMitItems.length > 0 ? (
             <Section title="Today's minimum">
-              <MitList items={recoveryMitItems} taskSessions={dayView.todayTaskSessions} />
+              <ConnectedMitList taskSessions={dayView.todayTaskSessions} />
             </Section>
           ) : null}
           <FocusLauncher block={recoveryFocusBlock} activeSession={activeFocusSession} taskSessions={dayView.todayTaskSessions} />

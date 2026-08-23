@@ -103,10 +103,18 @@ function buildHeadlineText(items: MitItem[]): TodayHeadlineText | null {
 }
 
 /** The page's §8 lead statement -- reads the exact same live items as ConnectedMitList, so the
- *  two most prominent things on the screen can never name a different task or a different count. */
-export function TodayFocusHeadline() {
+ *  two most prominent things on the screen can never name a different task or a different count.
+ *
+ *  `fallbackHeadline`: Recovery mode's kept set is exactly analogous to normal mode's Top 3 --
+ *  it *is* the one thing the user is meant to do today, arguably more so, since a struggling
+ *  user is precisely who needs to be told the one thing rather than a mode label. So Recovery
+ *  goes through this same component with `recoveryMitItems` as its provider's items; the only
+ *  difference is what to say when there's nothing to name -- normal mode says nothing (there
+ *  genuinely is no MIT yet), Recovery says "Recovery day" (the mode is still real information
+ *  when the kept set is empty). Ratified cross-platform, matching mobile's computeHeadline. */
+export function TodayFocusHeadline({ fallbackHeadline }: { fallbackHeadline?: string } = {}) {
   const { items } = useMitFocus();
-  const text = buildHeadlineText(items);
+  const text = buildHeadlineText(items) ?? (fallbackHeadline ? { eyebrow: "Today's focus", headline: fallbackHeadline, supporting: null } : null);
   if (!text) return null;
 
   return (
