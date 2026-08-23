@@ -20,6 +20,7 @@
     "verify": "npm run check:imports && npm run check:core-mirror && npm run check:barrel-exports && npm run check:demo-clean && npm run typecheck && npm run lint && npm run test",
     "test:e2e": "npm run test:e2e --workspace=@collegeos/web",
     "test:integration": "npm run test:integration --workspace=@collegeos/api",
+    "bootstrap": "node scripts/bootstrap.mjs",
     "sim:shot": "bash scripts/sim-shot.sh",
     "db:start": "supabase start",
     "db:stop": "supabase stop",

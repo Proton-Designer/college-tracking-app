@@ -8,8 +8,14 @@ Observe → Plan → Execute → Detect deviation → Intervene → Reflect → 
 
 ## Start here
 
-**New to this repo? Read `HANDOFF.md` first** — what exists, what was verified and how, what was
-*not* verified, and what remains before production.
+**Fresh clone? Run `npm run bootstrap` first.** It checks prerequisites, installs dependencies,
+reinstalls the untracked git hook, starts the local Supabase stack, and writes all four
+`.env.local` files (root, `apps/web`, `apps/mobile`, `supabase/`) — none of which are in git.
+Without them the app fails at *runtime* with an auth error rather than at build time, so nothing
+points at the real cause. Then `npm run db:reset && npm run db:types && npm run verify`.
+
+**Read `HANDOFF.md` next** — what exists, what was verified and how, what was *not* verified, and
+what remains before production.
 
 | You need | Read |
 |---|---|

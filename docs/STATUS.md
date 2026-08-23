@@ -12,7 +12,7 @@ Last updated: **2026-08-23**. Numbers below were executed on that date, not reca
 ## Measured state
 
 ```
-270 commits · 33 migrations · 46 tables · 0 without RLS · 11 edge functions
+272 commits · 33 migrations · 46 tables · 0 without RLS · 11 edge functions
 web: 17 routes · mobile: 16 routes · 8 E2E specs · 23 api integration files
 ```
 

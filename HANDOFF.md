@@ -56,7 +56,7 @@ e2e/            Playwright specs
 | **Top open feature gap** | The **web app still uses the floating Island for navigation.** It was ruled to get a **left sidebar** with a responsive collapse to the island under 768px. Designed, not built. |
 | **Blocked on credentials** | Cloud Supabase deploy · Anthropic API key. Both have complete ordered runbooks. |
 | **Blocked on hardware** | A real VoiceOver/TalkBack pass. A real Android device (blur does not exist there — G1). |
-| **Tree state** | `main` clean, 270 commits, pushed to `origin` (`Proton-Designer/college-tracking-app`). |
+| **Tree state** | `main` clean, 272 commits, pushed to `origin` (`Proton-Designer/college-tracking-app`). |
 
 ### ✅ P1 is fixed — the loop closes
 
@@ -104,12 +104,17 @@ inventory of what is deliberately *not* in git.**
 | Missing | How to recreate |
 |---|---|
 | `node_modules/` | `npm install` at the repo root (npm **workspaces** — not pnpm, not yarn) |
-| `.env.local` (root) | Only the Supabase CLI's **well-known local demo keys**. Regenerate: `npm run db:start && supabase status -o env`. Not secret. |
-| `supabase/.env.local` | Contains `CRON_SHARED_SECRET` only. Any value works locally; generate a fresh one. |
+| **Four** `.env.local` files — root, `apps/web/`, `apps/mobile/`, `supabase/` | `npm run bootstrap` writes all four. The first three are identical and hold only the Supabase CLI's **well-known local demo keys** (not secret); `supabase/.env.local` holds a `CRON_SHARED_SECRET`, and any value works locally. **Next.js and Expo each load `.env.local` relative to their own app directory** — the root copy alone is not enough, which is why there are three. |
+| `.git/hooks/commit-msg` | `.git/hooks` is untracked, so the trailer-stripping hook does not survive a clone. `npm run bootstrap` reinstalls it. |
 | `.env` (cloud) | Does not exist yet. Copy `.env.example` and fill from the cloud project — see §4.4. |
 | Local Postgres data | `npm run db:reset` re-applies all 33 migrations + `seed.sql`. The seed **is** the demo semester. |
 | `.expo/`, `.next/`, build output | Regenerated. |
 | Verification screenshots | Deliberately untracked (`.brain/*.png`) — 93 of them once pushed `.git` to 40MB. `.brain/memory/*.md` **is** tracked and is the durable part. |
+
+> **Why this list matters more than it looks.** A missing `NEXT_PUBLIC_SUPABASE_URL` does not fail
+> the build — it fails at *runtime* as an auth error, with nothing pointing at the real cause. That
+> is the same "structurally correct, practically unreachable" shape as P2 and as §10.1.
+> `npm run bootstrap` exists so nobody has to rediscover it.
 
 ### 3.2 Toolchain the build machine had (verify, don't assume)
 
@@ -139,21 +144,27 @@ seven landmines documented there. The three most dangerous:
 ### 3.3 First hour on a new machine
 
 ```bash
+open -a Docker      # the daemon must be up before you start
+
 git clone https://github.com/Proton-Designer/college-tracking-app College-app
 cd College-app
-npm install
+npm run bootstrap   # checks prerequisites, npm install, installs the git hook,
+                    # starts the local Supabase stack, writes all four .env.local files
 
-open -a Docker                        # wait for the daemon
-npm run db:start                      # local Supabase (Postgres, GoTrue, Kong, PostgREST, Studio)
-supabase status -o env > .env.local   # then split into the NEXT_PUBLIC_*/EXPO_PUBLIC_* vars
-                                      #   per .env.example
-printf 'CRON_SHARED_SECRET=%s\n' "$(openssl rand -hex 16)" > supabase/.env.local
-
-npm run db:reset                      # 33 migrations + seed.sql + Kong refresh
-npm run db:types                      # regenerate packages/api/src/database.types.ts
-npm run verify                        # 4 guards → typecheck ×5 → lint → 383 tests. MUST exit 0.
-npm run db:test                       # pgTAP: 11 files, 463 assertions
+npm run db:reset    # 33 migrations + seed.sql + Kong refresh
+npm run db:types    # regenerate packages/api/src/database.types.ts
+npm run verify      # 4 guards → typecheck ×5 → lint → 383 tests. MUST exit 0.
+npm run db:test     # pgTAP: 11 files, 463 assertions
 ```
+
+`bootstrap` is **idempotent** — it never overwrites an existing file and never prints a key value.
+`npm run bootstrap -- --force` regenerates the env files against the running stack;
+`-- --no-start` skips starting Docker containers.
+
+**This sequence was executed against a real fresh clone on 2026-08-23**, not written from memory:
+clone → `bootstrap` → `verify` returned **exit 0 with 383 tests passing**. Doing it is what
+surfaced that there are *four* env files rather than two — this document previously said two, and a
+new machine following it would have hit a runtime auth error with nothing explaining why.
 
 Then, in separate terminals:
 
@@ -466,7 +477,7 @@ actually fail).
 ## 7. Measured state — executed 2026-08-23
 
 ```
-270 commits · 33 migrations · 46 tables · 0 without RLS · 11 edge functions
+272 commits · 33 migrations · 46 tables · 0 without RLS · 11 edge functions
 web: 17 routes · mobile: 16 routes (+2 layouts) · 8 E2E specs
 23 `packages/api` integration-test files · 15 Deno edge integration tests
 ```
