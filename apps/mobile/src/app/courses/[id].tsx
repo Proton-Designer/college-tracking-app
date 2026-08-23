@@ -98,7 +98,7 @@ function CourseDetailReady({
           {courseRisk ? (
             <View style={styles.riskRow}>
               <RiskPill band={courseRisk.result.band} label={courseRisk.result.band.toUpperCase()} />
-              <Text style={textStyle("bodyS", color.inkFaint)}>{courseRisk.result.score}</Text>
+              <Text style={textStyle("bodyS", color.inkMuted)}>{courseRisk.result.score}</Text>
             </View>
           ) : null}
         </View>
@@ -169,7 +169,7 @@ function CourseDetailReady({
           spent its time removing. */}
       <Section title="Office hours">
         {officeHours.length === 0 ? (
-          <Text style={textStyle("bodyS", color.inkFaint)}>None recorded for this course.</Text>
+          <Text style={textStyle("bodyS", color.inkMuted)}>None recorded for this course.</Text>
         ) : (
           <Panel style={styles.policyPanel}>
             {officeHours.map((oh) => (

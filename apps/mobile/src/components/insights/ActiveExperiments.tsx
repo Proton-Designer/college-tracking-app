@@ -222,7 +222,7 @@ export function ActiveExperiments({
   onChanged: () => void;
 }) {
   if (experiments.length === 0) {
-    return <Text style={textStyle("bodyS", color.inkFaint)}>No experiments running right now.</Text>;
+    return <Text style={textStyle("bodyS", color.inkMuted)}>No experiments running right now.</Text>;
   }
 
   return (

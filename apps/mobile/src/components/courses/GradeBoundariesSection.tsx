@@ -119,7 +119,7 @@ export function GradeBoundariesSection({
         <View style={{ gap: space[4] }}>
           <Input label="Letter" required placeholder="e.g. A" value={letter} onChangeText={setLetter} />
           <Input label="Minimum percent" required keyboardType="numeric" value={minPct} onChangeText={setMinPct} />
-          <Text style={textStyle("bodyS", color.inkFaint)}>Saving a letter that already exists on this course replaces its cutoff.</Text>
+          <Text style={textStyle("bodyS", color.inkMuted)}>Saving a letter that already exists on this course replaces its cutoff.</Text>
           {error ? <FieldError>{error}</FieldError> : null}
         </View>
       </Modal>

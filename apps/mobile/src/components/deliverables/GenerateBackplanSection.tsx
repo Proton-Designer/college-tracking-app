@@ -73,7 +73,7 @@ export function GenerateBackplanSection({
         </>
       ) : (
         <>
-          <Text style={textStyle("bodyS", color.inkFaint)}>No backplan generated yet.</Text>
+          <Text style={textStyle("bodyS", color.inkMuted)}>No backplan generated yet.</Text>
           <View style={{ alignSelf: "flex-start" }}>
             <Button variant="secondary" onPress={() => generate(false)} loading={isPending}>
               Generate backplan

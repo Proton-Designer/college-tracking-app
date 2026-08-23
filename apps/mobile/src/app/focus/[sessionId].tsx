@@ -139,7 +139,7 @@ function FocusActive({
       <View style={{ alignItems: "center", gap: 4 }}>
         <Text style={textStyle("label", color.inkMuted)}>{course ? `${course.code} focus` : "Focus"}</Text>
         <Text style={[textStyle("displayM", color.ink), { textAlign: "center" }]}>{task.title}</Text>
-        {session.location ? <Text style={textStyle("bodyS", color.inkFaint)}>{session.location}</Text> : null}
+        {session.location ? <Text style={textStyle("bodyS", color.inkMuted)}>{session.location}</Text> : null}
       </View>
 
       <Text style={textStyle("metricXl", color.ink)}>{formatElapsed(elapsedSeconds)}</Text>

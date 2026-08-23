@@ -26,7 +26,7 @@ export function InsightsList({ userId, insightsByTier }: { userId: string; insig
   const hasAny = tiers.some((t) => insightsByTier[t].length > 0);
 
   if (!hasAny) {
-    return <Text style={textStyle("bodyS", color.inkFaint)}>No insights yet — these build up as the semester&apos;s data accumulates.</Text>;
+    return <Text style={textStyle("bodyS", color.inkMuted)}>No insights yet — these build up as the semester&apos;s data accumulates.</Text>;
   }
 
   return (
@@ -160,7 +160,7 @@ function RunExperimentForm({
           />
         </View>
         <View style={{ width: 96 }}>
-          <Input label="Days" keyboardType="numeric" value={durationDays} onChangeText={setDurationDays} />
+          <Input label="Duration (days)" keyboardType="numeric" value={durationDays} onChangeText={setDurationDays} />
         </View>
       </View>
       {error ? <Text style={textStyle("bodyS", color.riskCritical)}>{error}</Text> : null}

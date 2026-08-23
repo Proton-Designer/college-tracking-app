@@ -15,7 +15,7 @@ const DIAGNOSIS_PROSE: Record<PlanningExecutionResult["diagnosis"], string> = {
  *  complete day with a submitted review. */
 export function PlanningExecutionQuadrant({ result }: { result: PlanningExecutionResult | null }) {
   if (!result) {
-    return <Text style={textStyle("bodyS", color.inkFaint)}>No review submitted yesterday to diagnose against.</Text>;
+    return <Text style={textStyle("bodyS", color.inkMuted)}>No review submitted yesterday to diagnose against.</Text>;
   }
 
   return (

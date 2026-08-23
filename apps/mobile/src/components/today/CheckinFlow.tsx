@@ -250,7 +250,7 @@ export function CheckinFlow({
               ) : null}
             </View>
             {selectedIds.length === 0 ? (
-              <Text style={textStyle("bodyS", color.inkFaint)}>Nothing selected.</Text>
+              <Text style={textStyle("bodyS", color.inkMuted)}>Nothing selected.</Text>
             ) : (
               selectedIds.map((taskId) => {
                 const task = tasksById.get(taskId);

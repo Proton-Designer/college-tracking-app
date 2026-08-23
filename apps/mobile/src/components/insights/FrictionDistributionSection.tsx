@@ -12,7 +12,7 @@ const TREND_GLYPH: Record<CauseTrendEntry["direction"], string> = { up: "↑", d
 /** Ported from web's FrictionDistributionSection. */
 export function FrictionDistributionSection({ distribution, trend }: { distribution: FrictionDistribution; trend: CauseTrendEntry[] }) {
   if (distribution.totalCount === 0) {
-    return <Text style={textStyle("bodyS", color.inkFaint)}>No friction logged in the last 30 days.</Text>;
+    return <Text style={textStyle("bodyS", color.inkMuted)}>No friction logged in the last 30 days.</Text>;
   }
 
   const trendByCause = new Map(trend.map((t) => [t.cause, t]));

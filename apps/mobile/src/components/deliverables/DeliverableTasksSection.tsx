@@ -7,6 +7,13 @@ import { useToast } from "../ui/ToastProvider";
 import { textStyle } from "../../design/typography";
 import { addDeliverableTaskAction, setTaskProofOfWorkAction } from "../../lib/deliverableActions";
 
+/** J2: a raw enum value ("in_progress") leaking straight into UI text reads as unfinished --
+ *  sentence case matches how every other label in this app is written. */
+function statusLabel(status: string): string {
+  const spaced = status.replace(/_/g, " ");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
 const PROOF_TYPE_OPTIONS: { value: TaskProofOfWorkType; label: string }[] = [
   { value: "confirmation_attachment", label: "Attachment" },
   { value: "practice_question_count", label: "Practice question count" },
@@ -56,7 +63,7 @@ function TaskRow({ userId, task, isLast }: { userId: string; task: Task; isLast:
       <View>
         <Text style={textStyle("bodyS", color.ink)}>{task.title}</Text>
         <Text style={textStyle("caption", color.inkFaint)}>
-          {task.planned_date} · {task.status}
+          {task.planned_date} · {statusLabel(task.status)}
         </Text>
       </View>
       <View style={{ flexDirection: "row", alignItems: "center", gap: space[3] }}>
@@ -186,7 +193,7 @@ export function DeliverableTasksSection({
       </View>
       <Panel>
         {tasks.length === 0 ? (
-          <Text style={textStyle("bodyS", color.inkFaint)}>No tasks linked to this assignment yet.</Text>
+          <Text style={textStyle("bodyS", color.inkMuted)}>No tasks linked to this assignment yet.</Text>
         ) : (
           <View style={{ gap: space[3] }}>
             {tasks.map((task, i) => (

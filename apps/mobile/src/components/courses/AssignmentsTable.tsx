@@ -37,7 +37,7 @@ export function AssignmentsTable({
   const router = useRouter();
 
   if (deliverables.length === 0) {
-    return <Text style={textStyle("bodyS", color.inkFaint)}>Nothing recorded for this course yet.</Text>;
+    return <Text style={textStyle("bodyS", color.inkMuted)}>Nothing recorded for this course yet.</Text>;
   }
 
   const gradeItemById = new Map(gradeItems.map((i) => [i.id, i]));

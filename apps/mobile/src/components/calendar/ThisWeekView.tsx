@@ -154,10 +154,10 @@ export function ThisWeekView({
           <Text style={textStyle("label", color.inkMuted)}>Highest risk</Text>
           {plan.highestRisk.map((r, i) => (
             <View key={r.deliverableId} style={styles.riskItem}>
-              <Text style={textStyle("bodyS", color.inkFaint)}>{i + 1}.</Text>
+              <Text style={textStyle("bodyS", color.inkMuted)}>{i + 1}.</Text>
               <View style={styles.riskItemText}>
                 <Text style={textStyle("bodyS", color.ink)}>
-                  <Text style={textStyle("bodyS", color.inkFaint)}>{r.courseCode} </Text>
+                  <Text style={textStyle("bodyS", color.inkMuted)}>{r.courseCode} </Text>
                   {r.title}
                 </Text>
                 <Text style={textStyle("caption", color.inkFaint)}>{daysRemainingLabel(today, r.dueDate)}</Text>
@@ -174,7 +174,7 @@ export function ThisWeekView({
           <View style={styles.allocationRow}>
             {plan.courseAllocations.map((a) => (
               <Text key={a.courseId} style={textStyle("bodyS", color.ink)}>
-                {a.courseCode} <Text style={textStyle("bodyS", color.inkFaint)}>{formatMinutes(a.minutesAllocated)}</Text>
+                {a.courseCode} <Text style={textStyle("bodyS", color.inkMuted)}>{formatMinutes(a.minutesAllocated)}</Text>
               </Text>
             ))}
           </View>
@@ -184,7 +184,7 @@ export function ThisWeekView({
       <View style={{ gap: space[3] }}>
         <Text style={textStyle("label", color.inkMuted)}>Suggested focus blocks</Text>
         {plan.blocks.length === 0 ? (
-          <Text style={textStyle("bodyS", color.inkFaint)}>Nothing placed this week.</Text>
+          <Text style={textStyle("bodyS", color.inkMuted)}>Nothing placed this week.</Text>
         ) : (
           <View style={styles.list}>
             {plan.blocks.map((block) => (

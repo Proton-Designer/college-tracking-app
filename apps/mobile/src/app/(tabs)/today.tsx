@@ -84,8 +84,9 @@ function computeHeadline(items: { title: string; completed: boolean }[]): { head
   if (items.length === 0) return { headline: null, progressLine: null };
   const doneCount = items.filter((i) => i.completed).length;
   const outstanding = items.find((i) => !i.completed);
+  const noun = items.length === 1 ? "priority" : "priorities";
   if (!outstanding) {
-    return { headline: `All ${items.length} done`, progressLine: null };
+    return { headline: `All ${items.length} ${noun} done`, progressLine: null };
   }
   return { headline: outstanding.title, progressLine: `${doneCount} of ${items.length} priorities done` };
 }
@@ -331,7 +332,7 @@ function TodayReady({
   const normalBody = (
     <View style={styles.sectionGap}>
       {!hasAnyData ? (
-        <Text style={textStyle("bodyS", color.inkFaint)}>
+        <Text style={textStyle("bodyS", color.inkMuted)}>
           Nothing set up yet — this is what Today will look like once a course or task exists.
         </Text>
       ) : null}

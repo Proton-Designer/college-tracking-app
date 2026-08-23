@@ -220,7 +220,7 @@ function ReportContent({ payload }: { payload: NightlyAgentReportPayload }) {
         <Section title="What this report couldn't assess">
           <View style={{ gap: 2 }}>
             {gapsToShow.map((gap, i) => (
-              <Text key={i} style={textStyle("bodyS", color.inkFaint)}>
+              <Text key={i} style={textStyle("bodyS", color.inkMuted)}>
                 {gap}
               </Text>
             ))}
@@ -278,7 +278,7 @@ function DeterministicSections({ report }: { report: DeterministicNightlyReport 
             </>
           ) : null}
         </View>
-        {!report.checkin && !report.review ? <Text style={textStyle("bodyS", color.inkFaint)}>No check-in or review recorded for this day.</Text> : null}
+        {!report.checkin && !report.review ? <Text style={textStyle("bodyS", color.inkMuted)}>No check-in or review recorded for this day.</Text> : null}
       </Section>
 
       <Section title="Recovery Mode">
@@ -306,7 +306,7 @@ function DeterministicSections({ report }: { report: DeterministicNightlyReport 
 
       <Section title="Course risk">
         {report.riskAssessment.courseRisks.length === 0 ? (
-          <Text style={textStyle("bodyS", color.inkFaint)}>No courses to assess.</Text>
+          <Text style={textStyle("bodyS", color.inkMuted)}>No courses to assess.</Text>
         ) : (
           <View style={{ gap: space[3] }}>
             {report.riskAssessment.courseRisks.map((cr) => (
@@ -316,7 +316,7 @@ function DeterministicSections({ report }: { report: DeterministicNightlyReport 
                 </Text>
                 <View style={styles.riskBandRow}>
                   <RiskPill band={cr.result.band} label={cr.result.band.toUpperCase()} />
-                  <Text style={textStyle("bodyS", color.inkFaint)}>{cr.result.score}</Text>
+                  <Text style={textStyle("bodyS", color.inkMuted)}>{cr.result.score}</Text>
                 </View>
               </View>
             ))}
@@ -330,7 +330,7 @@ function DeterministicSections({ report }: { report: DeterministicNightlyReport 
 
       <Section title="Kill list">
         {report.killLoop.length === 0 ? (
-          <Text style={textStyle("bodyS", color.inkFaint)}>No active kill-list habits.</Text>
+          <Text style={textStyle("bodyS", color.inkMuted)}>No active kill-list habits.</Text>
         ) : (
           <View style={{ gap: space[3] }}>
             {report.killLoop.map((k) => (

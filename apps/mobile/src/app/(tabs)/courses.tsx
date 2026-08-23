@@ -177,15 +177,15 @@ function CourseRow({ row, today, isLast }: { row: CoursesIndexRow; today: string
       <View style={styles.rowTop}>
         <View style={styles.rowText}>
           <Text style={textStyle("bodyS", color.ink)}>{course.code}</Text>
-          <Text style={textStyle("bodyS", color.inkFaint)}>{course.name}</Text>
+          <Text style={textStyle("bodyS", color.inkMuted)}>{course.name}</Text>
         </View>
         {courseRisk ? (
           <View style={styles.riskRow}>
             <RiskPill band={courseRisk.result.band} label={courseRisk.result.band.toUpperCase()} />
-            <Text style={textStyle("bodyS", color.inkFaint)}>{courseRisk.result.score}</Text>
+            <Text style={textStyle("bodyS", color.inkMuted)}>{courseRisk.result.score}</Text>
           </View>
         ) : (
-          <Text style={textStyle("bodyS", color.inkFaint)}>—</Text>
+          <Text style={textStyle("bodyS", color.inkMuted)}>—</Text>
         )}
       </View>
       <Text style={textStyle("caption", color.inkMuted)}>
@@ -228,7 +228,7 @@ function CalendarView({ state }: { state: ReturnType<typeof useCalendarData> }) 
       </View>
 
       {obligations.length === 0 ? (
-        <Text style={textStyle("bodyS", color.inkFaint)}>Nothing open on the horizon.</Text>
+        <Text style={textStyle("bodyS", color.inkMuted)}>Nothing open on the horizon.</Text>
       ) : (
         <View style={styles.list}>
           {obligations.map((o, i) => (
@@ -271,7 +271,7 @@ function ObligationRow({
         {risk ? (
           <View style={styles.riskRow}>
             <RiskPill band={risk.result.band} label={risk.result.band.toUpperCase()} />
-            <Text style={textStyle("bodyS", color.inkFaint)}>{risk.result.score}</Text>
+            <Text style={textStyle("bodyS", color.inkMuted)}>{risk.result.score}</Text>
           </View>
         ) : null}
       </View>

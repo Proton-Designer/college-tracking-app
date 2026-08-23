@@ -89,7 +89,7 @@ function PendingIcsEventsCard({ events }: { events: IcsEventExtractionRow[] }) {
         Staged from your synced feed. Nothing here is on your real calendar until you confirm it.
       </Text>
       {remaining.length === 0 ? (
-        <Text style={textStyle("bodyS", color.inkFaint)}>Every staged deadline has been reviewed.</Text>
+        <Text style={textStyle("bodyS", color.inkMuted)}>Every staged deadline has been reviewed.</Text>
       ) : (
         <View style={{ gap: space[3] }}>
           {remaining.map((event, i) => {

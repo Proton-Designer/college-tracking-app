@@ -39,11 +39,11 @@ export function WorkloadBand({ workload }: { workload: WorkloadLevels }) {
           </>
         ) : null}
         {" "}
-        <Text style={textStyle("bodyS", color.inkFaint)}>of ~{fmtMinutes(capacityMinutes)} realistic today.</Text>
+        <Text style={textStyle("bodyS", color.inkMuted)}>of ~{fmtMinutes(capacityMinutes)} realistic today.</Text>
       </Text>
 
       {stretchItems.length > 0 ? (
-        <Text style={textStyle("bodyS", color.inkFaint)}>
+        <Text style={textStyle("bodyS", color.inkMuted)}>
           +{stretchItems.length} more {stretchItems.length === 1 ? "task" : "tasks"} if there&apos;s time left over.
         </Text>
       ) : null}

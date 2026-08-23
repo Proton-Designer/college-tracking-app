@@ -117,7 +117,7 @@ export function GradeCategoriesSection({
       </View>
       <Panel style={{ gap: space[3] }}>
         {categories.length === 0 ? (
-          <Text style={textStyle("bodyS", color.inkFaint)}>No weight categories yet.</Text>
+          <Text style={textStyle("bodyS", color.inkMuted)}>No weight categories yet.</Text>
         ) : (
           <View style={{ gap: space[2] }}>
             {categories.map((category, i) => (

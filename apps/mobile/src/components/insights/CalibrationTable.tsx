@@ -16,7 +16,7 @@ function sourceLabel(source: CalibrationTableRow["result"]["source"]): string {
 /** Ported from web's CalibrationTable as a card list (mobile has no HTML table idiom). */
 export function CalibrationTable({ rows }: { rows: CalibrationTableRow[] }) {
   if (rows.length === 0) {
-    return <Text style={textStyle("bodyS", color.inkFaint)}>No completed sessions yet to calibrate against.</Text>;
+    return <Text style={textStyle("bodyS", color.inkMuted)}>No completed sessions yet to calibrate against.</Text>;
   }
 
   return (

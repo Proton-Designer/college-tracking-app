@@ -9,7 +9,7 @@ const TREND_GLYPH: Record<string, string> = { improving: "↓", worsening: "↑"
  *  the trend glyph reads inverted from a naive "up is good". */
 export function BounceBackSection({ items }: { items: HabitBounceBack[] }) {
   if (items.length === 0) {
-    return <Text style={textStyle("bodyS", color.inkFaint)}>No active kill-list commitments yet.</Text>;
+    return <Text style={textStyle("bodyS", color.inkMuted)}>No active kill-list commitments yet.</Text>;
   }
 
   return (

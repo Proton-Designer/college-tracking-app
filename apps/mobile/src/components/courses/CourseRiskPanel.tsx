@@ -10,7 +10,7 @@ import { RiskPill } from "../ui";
  *  from web's CourseRiskPanel. */
 export function CourseRiskPanel({ deliverableRisks, today }: { deliverableRisks: DeliverableRisk[]; today: string }) {
   if (deliverableRisks.length === 0) {
-    return <Text style={textStyle("bodyS", color.inkFaint)}>Nothing open in this course right now.</Text>;
+    return <Text style={textStyle("bodyS", color.inkMuted)}>Nothing open in this course right now.</Text>;
   }
 
   const sorted = [...deliverableRisks].sort((a, b) => b.result.score - a.result.score);
@@ -29,7 +29,7 @@ export function CourseRiskPanel({ deliverableRisks, today }: { deliverableRisks:
               </View>
               <View style={styles.riskRow}>
                 <RiskPill band={dr.result.band} label={dr.result.band.toUpperCase()} />
-                <Text style={textStyle("bodyS", color.inkFaint)}>{dr.result.score}</Text>
+                <Text style={textStyle("bodyS", color.inkMuted)}>{dr.result.score}</Text>
               </View>
             </View>
             {reasons.length > 0 ? (
