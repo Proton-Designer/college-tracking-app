@@ -27,8 +27,44 @@ export function Modal({ open, onClose, title, children, footer, dismissable = tr
     const previouslyFocused = document.activeElement as HTMLElement | null;
     dialogRef.current?.focus();
 
+    // A modal that lets Tab escape into the dimmed page behind it isn't really modal --
+    // a keyboard user ends up interacting with content they can't see is still live. Cycle
+    // focus within the dialog's own focusable elements instead of letting the browser's
+    // default tab order walk out of it.
+    function focusableElements(): HTMLElement[] {
+      const root = dialogRef.current;
+      if (!root) return [];
+      return Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((el) => el.offsetParent !== null);
+    }
+
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && dismissable) onClose();
+      if (e.key === "Escape" && dismissable) {
+        onClose();
+        return;
+      }
+      if (e.key !== "Tab") return;
+
+      const focusable = focusableElements();
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (!first || !last) {
+        e.preventDefault();
+        dialogRef.current?.focus();
+        return;
+      }
+      const active = document.activeElement;
+
+      if (e.shiftKey && (active === first || active === dialogRef.current)) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && active === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     document.addEventListener("keydown", handleKeyDown);
     const previousOverflow = document.body.style.overflow;
