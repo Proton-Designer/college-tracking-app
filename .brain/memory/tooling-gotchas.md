@@ -261,3 +261,32 @@ single-stacking-context page is now live.
 
 Found by ATLAS during the v2 primitive pass, from a symptom ("modal footer buttons don't respond")
 that points at event handling or `pointer-events`, not at a design-token name.
+
+## Gotcha 5 — `idb ui text` can drop trailing characters even on a genuinely fresh field
+
+Gotcha 1 above says a **first** interaction with a field is reliable and only a *second* touch
+corrupts state. That's not universally true: a single `idb ui text "verify-1787462100541@collegeos.test"`
+call into a field that had never been touched before (freshly relaunched app, first tap, first type)
+landed as `"verify-1787462100541@collegeos."` — the trailing `test` silently dropped mid-type, no
+error, no indication anything was wrong. Sign-in then failed with "That email and password
+combination doesn't match our records" against what looked like the right account, and — because
+the previous session's still-valid persisted auth token was sitting underneath the failed login
+screen and got reached anyway via an `openurl` deep link past `/login` — the app actually rendered
+signed in as a **different, already-deleted account**, producing a convincing but totally unrelated
+"That record could not be found" error chased for several minutes before the real cause surfaced.
+
+**The trap inside the trap:** the on-screen crop of a `TextField` visually clips to the field's
+width, so a screenshot of `"verify-...@collegeos.test"` in a narrow box can look complete even when
+it isn't — the visible characters just happen to end where the box does. A screenshot cannot prove
+a value is complete; only the field's real `AXValue` can.
+
+**The rule, generalized beyond email fields:** after any `idb ui text` call whose value matters
+(not just "did something render"), immediately read it back with `idb ui describe-point` at that
+field's coordinates and compare the full `AXValue` string against what was intended, before tapping
+submit. Don't trust the screenshot crop, and don't assume a single fresh-field type is safe just
+because Gotcha 1 says repeated touches are the risky case — this was a first touch. If the value is
+short, fix it the same way as Gotcha 1: clear (tap near the field's right edge to move the cursor to
+the end first, then `idb ui key-sequence` with backspace, keycode 42) and retype once, then verify
+again before moving on.
+
+Found by NOVA while re-verifying P1 natively after the GlassSurface/Modal fixes, 2026-08-23.
