@@ -14,7 +14,11 @@ Observe → Plan → Execute → Detect deviation → Intervene → Reflect → 
 | You need | Read |
 |---|---|
 | **Full handoff — start here** | **`HANDOFF.md`** |
-| Remaining work & testing plan | `docs/REMAINING_WORK.md`, `docs/L11_HARDENING.md` |
+| **Setting this up on a new machine** | **`HANDOFF.md` §3** |
+| Supabase schema, migrations, cloud move | `HANDOFF.md` §4 → `docs/SUPABASE_SETUP.md` |
+| Everything that remains | `HANDOFF.md` §8 |
+| Recurring problems this build kept hitting | `HANDOFF.md` §10 |
+| Testing plan | `docs/L11_HARDENING.md` |
 | Architecture, phases, scope | `docs/MASTER_PLAN.md` |
 | Current project state | `docs/STATUS.md` |
 | Original product brief (requirements) | `docs/context/SOURCE_BRIEF.txt` |
