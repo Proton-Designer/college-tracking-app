@@ -255,6 +255,47 @@ export type Database = {
           },
         ]
       }
+      cards: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: number
+          text: string
+          type: Database["public"]["Enums"]["card_type"]
+          updated_at: string
+          user_id: string
+          weight: number
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: never
+          text: string
+          type: Database["public"]["Enums"]["card_type"]
+          updated_at?: string
+          user_id: string
+          weight?: number
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: never
+          text?: string
+          type?: Database["public"]["Enums"]["card_type"]
+          updated_at?: string
+          user_id?: string
+          weight?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cards_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       commitment_escalation_events: {
         Row: {
           from_level: Database["public"]["Enums"]["commitment_level"]
@@ -1273,6 +1314,95 @@ export type Database = {
           },
           {
             foreignKeyName: "grade_snapshots_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habit_logs: {
+        Row: {
+          created_at: string
+          done: boolean
+          habit_id: number
+          id: number
+          local_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          habit_id: number
+          id?: never
+          local_date: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          habit_id?: number
+          id?: never
+          local_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_logs_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "habit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habits: {
+        Row: {
+          active: boolean
+          created_at: string
+          id: number
+          identity: string
+          name: string
+          paused: boolean
+          schedule: Json
+          updated_at: string
+          user_id: string
+          why_card: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          id?: never
+          identity: string
+          name: string
+          paused?: boolean
+          schedule?: Json
+          updated_at?: string
+          user_id: string
+          why_card?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          id?: never
+          identity?: string
+          name?: string
+          paused?: boolean
+          schedule?: Json
+          updated_at?: string
+          user_id?: string
+          why_card?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habits_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -2548,6 +2678,41 @@ export type Database = {
           },
         ]
       }
+      worries: {
+        Row: {
+          created_at: string
+          id: number
+          status: string
+          text: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          status?: string
+          text: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          status?: string
+          text?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "worries_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2588,6 +2753,7 @@ export type Database = {
       }
     }
     Enums: {
+      card_type: "goal" | "motivation" | "thought_habit" | "trait" | "tenx"
       commitment_level:
         | "l0_reminder"
         | "l1_stronger_notification"
@@ -2750,6 +2916,7 @@ export const Constants = {
   },
   public: {
     Enums: {
+      card_type: ["goal", "motivation", "thought_habit", "trait", "tenx"],
       commitment_level: [
         "l0_reminder",
         "l1_stronger_notification",
