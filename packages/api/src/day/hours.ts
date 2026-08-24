@@ -206,6 +206,93 @@ export async function listCompletedHoursInRange(
   return dataOk(hours);
 }
 
+/** The stored row for one local day, or null if the day has never been touched. */
+export async function getDay(
+  client: TypedSupabaseClient,
+  userId: string,
+  localDate: LocalDate,
+): Promise<DataResult<DayRow | null>> {
+  const { data, error } = await client
+    .from('days')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('local_date', localDate)
+    .maybeSingle();
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(data);
+}
+
+/**
+ * "Start Day" -- records the wake time Delta is measured from.
+ *
+ * Deliberately idempotent, and deliberately NOT an overwrite: tapping Start Day a second
+ * time returns the day unchanged rather than resetting `wake_at`. Delta is a race against
+ * the moment you got up, so a later tap that moved the start line would silently improve
+ * every number derived from it -- the one kind of dishonesty this metric cannot tolerate.
+ *
+ * Written as insert-ignore then update-where-null so two taps racing each other end with
+ * one row and one wake time, rather than relying on the client to check first.
+ */
+export async function startDay(
+  client: TypedSupabaseClient,
+  userId: string,
+  localDate: LocalDate,
+  now: Date = new Date(),
+): Promise<DataResult<DayRow>> {
+  const { error: insertError } = await client
+    .from('days')
+    .upsert({ user_id: userId, local_date: localDate }, { onConflict: 'user_id,local_date', ignoreDuplicates: true });
+  if (insertError) return dataErr(mapDataError(insertError));
+
+  const { error: updateError } = await client
+    .from('days')
+    .update({ wake_at: now.toISOString() })
+    .eq('user_id', userId)
+    .eq('local_date', localDate)
+    .is('wake_at', null);
+  if (updateError) return dataErr(mapDataError(updateError));
+
+  const { data, error } = await client
+    .from('days')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('local_date', localDate)
+    .single();
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(data);
+}
+
+/**
+ * Closes the day: the Night Plan's sleep-intent stamp.
+ *
+ * Unlike `startDay` this DOES overwrite. Re-running the Night Plan is a normal thing to do
+ * -- you closed the day, then stayed up another hour and closed it again -- and the latest
+ * stated intent is the true one. The DB's days_sleep_after_wake check refuses a sleep
+ * intent that precedes the wake time, so a wrong-day tap surfaces as an error rather than
+ * a negative day length.
+ */
+export async function setSleepIntent(
+  client: TypedSupabaseClient,
+  userId: string,
+  localDate: LocalDate,
+  now: Date = new Date(),
+): Promise<DataResult<DayRow>> {
+  const { error: insertError } = await client
+    .from('days')
+    .upsert({ user_id: userId, local_date: localDate }, { onConflict: 'user_id,local_date', ignoreDuplicates: true });
+  if (insertError) return dataErr(mapDataError(insertError));
+
+  const { data, error } = await client
+    .from('days')
+    .update({ sleep_intent_at: now.toISOString() })
+    .eq('user_id', userId)
+    .eq('local_date', localDate)
+    .select('*')
+    .single();
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(data);
+}
+
 /** The stored day facts for a range, mapped for `packages/core`. */
 export async function listDayFactsInRange(
   client: TypedSupabaseClient,

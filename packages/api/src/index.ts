@@ -102,6 +102,9 @@ export type {
 } from "./day/focusSessions";
 export {
   startHour,
+  startDay,
+  setSleepIntent,
+  getDay,
   logDistraction,
   listDistractionsForSession,
   listHoursForDate,
