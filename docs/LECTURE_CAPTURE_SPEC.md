@@ -8,8 +8,8 @@
 
 ## The one-paragraph recommendation
 
-**Import-first, Deepgram, landing with S3 (Tier 3.5), with its LLM halves gated to
-Tier 4.** File import via `expo-document-picker` is the floor because Apple Voice Memos
+**Import-only (probe-confirmed), Deepgram, landing with S3 (Tier 3.5), with its LLM
+halves gated to Tier 4.** File import via `expo-document-picker` is the floor because Apple Voice Memos
 already records perfectly with the screen locked — the capability in-app recording has to
 prove it can match. Deepgram over Whisper because Whisper's 25 MB request cap forces
 audio chunking that a Deno edge function cannot do (no ffmpeg), while Deepgram takes a
@@ -24,25 +24,26 @@ N5 mistake this repo already documented once.
 
 | | In-app recording (`expo-audio`) | Import (`expo-document-picker`) |
 |---|---|---|
-| In Expo Go SDK 54? | Module ships (`~1.1.1`). **Foreground recording: yes. Background/locked-screen recording: UNVERIFIED — probe required.** | Module ships (`~14.0.8`). No background question exists: Voice Memos did the recording. |
+| In Expo Go SDK 54? | Module ships (`~1.1.1`). **Probed 2026-08-24: FAILS — suspension at lock, and the file is lost entirely (0 s reported), not truncated.** Dev-build only. | Module ships (`~14.0.8`). No background question exists: Voice Memos did the recording. |
 | Failure mode | Screen locks 10 minutes into a 75-minute lecture and the recording silently stops — the worst possible failure, discovered at review time. | User forgets to record. No silent-loss mode: the file either exists or it doesn't. |
 | N5 status | — | N5 denied the picker *for lacking a consumer*. The denial's own text says to revisit when a consumer exists. Transcription is that consumer; the denial no longer applies. |
 
-**The probe (same discipline as the notifications probe, run at the Tier 2 boundary):**
-a temporary screen that starts an `expo-audio` recording; user locks the phone for 3+
-minutes, unlocks, stops. Pass = duration includes the locked stretch and audio is intact.
-The concern is real: background audio recording on iOS requires the `audio`
-`UIBackgroundModes` entitlement, and whether **Expo Go's own shell app** carries it (it
-ships audio *playback*) in a way that covers *recording* is precisely the kind of thing
-Expo has narrowed before. Do not design around the answer before having it.
+**The probe — RUN 2026-08-24, on a real device, in Expo Go SDK 54. VERDICT: FAILED.**
+iOS suspended the recording at screen lock. Worse than truncation: in a ~35 s window with
+~15 s of active-app time, the recorder reported **0 s** — so suspension appears to
+**destroy the recording entirely, not merely cut it short at the lock**. Design
+consequence: in-app recording in Expo Go cannot be shipped even as a
+"foreground-only, keep the screen awake" compromise, because a single accidental lock
+would not cost the tail of a lecture — it would cost the lecture. There is no partial
+file to salvage.
 
-- Probe **passes** → build both: record in-app as the convenient path, import as the
-  recovery path (phone died, used Voice Memos, friend's recording).
-- Probe **fails** → import-only until the Phase 4 dev build (which grants the
-  entitlement); in-app recording moves to the dev-build fork with the widget and push.
+**Ruling (2026-08-24): import-only until the Phase 4 dev build**, which grants the
+`audio` `UIBackgroundModes` entitlement. In-app recording moves to the dev-build fork
+alongside the widget and push, and must re-run this probe under the dev client before
+being trusted there.
 
-**Either way, import ships.** That is what "import as the floor" buys: the feature's
-viability never depends on the probe.
+Import ships regardless — that is what "import as the floor" bought: the feature's
+viability never depended on the probe.
 
 ## Fork 2 — Transcription
 
@@ -111,8 +112,8 @@ be decided when both exist, not now.
 
 ## Costs, summarized
 
-- **Build**: capture/import + upload + transcribe + store + per-course transcript view:
-  **4–6 days** (probe outcome swings it by ~1 day). LLM halves are Tier 4's estimate, not
+- **Build**: import + upload + transcribe + store + per-course transcript view:
+  **4–5 days** (probe settled the capture fork: no in-app recording path to build). LLM halves are Tier 4's estimate, not
   this one's.
 - **Run**: ~$52/semester transcription (Deepgram, cutoff pricing) + Supabase storage for
   ~8 GB/semester of audio the user can prune. Zero Anthropic cost until Tier 4.
