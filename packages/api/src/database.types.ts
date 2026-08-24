@@ -1119,6 +1119,53 @@ export type Database = {
           },
         ]
       }
+      goals: {
+        Row: {
+          active: boolean
+          created_at: string
+          deadline: string | null
+          id: number
+          number: string | null
+          position: number
+          reason: string | null
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          deadline?: string | null
+          id?: never
+          number?: string | null
+          position: number
+          reason?: string | null
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          deadline?: string | null
+          id?: never
+          number?: string | null
+          position?: number
+          reason?: string | null
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "goals_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       grade_boundaries: {
         Row: {
           course_id: number
@@ -1866,6 +1913,54 @@ export type Database = {
           },
         ]
       }
+      milestones: {
+        Row: {
+          created_at: string
+          done: boolean
+          goal_id: number
+          id: number
+          month: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          done?: boolean
+          goal_id: number
+          id?: never
+          month: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          done?: boolean
+          goal_id?: number
+          id?: never
+          month?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "milestones_goal_id_fkey"
+            columns: ["goal_id"]
+            isOneToOne: false
+            referencedRelation: "goals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "milestones_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       monthly_summaries: {
         Row: {
           created_at: string
@@ -1958,6 +2053,7 @@ export type Database = {
           sleep_baseline_hours: number | null
           timezone: string
           updated_at: string
+          weekday_baselines: Json
         }
         Insert: {
           created_at?: string
@@ -1968,6 +2064,7 @@ export type Database = {
           sleep_baseline_hours?: number | null
           timezone?: string
           updated_at?: string
+          weekday_baselines?: Json
         }
         Update: {
           created_at?: string
@@ -1978,6 +2075,7 @@ export type Database = {
           sleep_baseline_hours?: number | null
           timezone?: string
           updated_at?: string
+          weekday_baselines?: Json
         }
         Relationships: []
       }
