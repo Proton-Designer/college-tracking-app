@@ -22,6 +22,8 @@ export * from './backplan/buildBackplan';
 
 export * from './bounceback/bounceBack';
 export * from './hours/hours';
+export * from './habits/habitScore';
+export * from './cards/rotation';
 
 export * from './recovery/trigger';
 export * from './recovery/mvd';

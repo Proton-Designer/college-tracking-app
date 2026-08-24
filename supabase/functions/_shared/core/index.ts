@@ -25,6 +25,8 @@ export * from './backplan/buildBackplan.ts';
 
 export * from './bounceback/bounceBack.ts';
 export * from './hours/hours.ts';
+export * from './habits/habitScore.ts';
+export * from './cards/rotation.ts';
 
 export * from './recovery/trigger.ts';
 export * from './recovery/mvd.ts';
