@@ -112,6 +112,8 @@ export {
   listDayFactsInRange,
 } from "./day/hours";
 export type { StartHourInput, DistractionRow, DistractionCause, DayRow } from "./day/hours";
+export { saveNightPlan, NIGHT_PLAN_DEFAULT_CATEGORY } from "./day/nightPlan";
+export type { NightPlanItem, SaveNightPlanResult } from "./day/nightPlan";
 export { computeHabitBounceBack } from "./day/killLoopBounceBack";
 export { createKillHabit, listKillHabits, deactivateKillHabit, setMaxEscalationLevel } from "./data/killHabits";
 export type { KillHabitRow, CommitmentLevel, CreateKillHabitInput } from "./data/killHabits";
