@@ -100,6 +100,15 @@ export type {
   EndFocusSessionInput,
   FocusSessionContext,
 } from "./day/focusSessions";
+export {
+  startHour,
+  logDistraction,
+  listDistractionsForSession,
+  listHoursForDate,
+  listCompletedHoursInRange,
+  listDayFactsInRange,
+} from "./day/hours";
+export type { StartHourInput, DistractionRow, DistractionCause, DayRow } from "./day/hours";
 export { computeHabitBounceBack } from "./day/killLoopBounceBack";
 export { createKillHabit, listKillHabits, deactivateKillHabit, setMaxEscalationLevel } from "./data/killHabits";
 export type { KillHabitRow, CommitmentLevel, CreateKillHabitInput } from "./data/killHabits";
