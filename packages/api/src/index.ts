@@ -130,6 +130,16 @@ export {
   MAX_ACTIVE_HABITS,
 } from "./data/habits";
 export type { HabitRow, HabitLogRow, CreateHabitInput, UpdateHabitInput } from "./data/habits";
+export {
+  listGoalsWithMilestones,
+  createGoal,
+  retireGoal,
+  setMilestone,
+  setMilestoneDone,
+  monthOf,
+  MAX_ACTIVE_GOALS,
+} from "./data/goals";
+export type { GoalRow, MilestoneRow, GoalWithMilestone, CreateGoalInput } from "./data/goals";
 export { listSchoolTodayItems } from "./day/schoolToday";
 export type { SchoolTodayItem } from "./day/schoolToday";
 export { saveNightPlan, NIGHT_PLAN_DEFAULT_CATEGORY } from "./day/nightPlan";

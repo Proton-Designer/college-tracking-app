@@ -12,6 +12,7 @@ import {
   saveNightPlanAction,
   NIGHT_PLAN_CATEGORY_LABEL,
 } from "../lib/nightPlanActions";
+import { loadMilestonesForDump } from "../lib/goalsActions";
 import {
   cancelNightPlanReminder,
   ensureNightPlanReminder,
@@ -72,15 +73,23 @@ export default function NightPlanScreen() {
   const [seeded, setSeeded] = useState(false);
   useEffect(() => {
     if (userId == null || seeded) return;
-    void loadSchoolTodayForDump(userId).then((r) => {
-      setSeeded(true);
-      if (!r.ok || r.data.length === 0) return;
-      setItems((prev) => {
-        const startId = prev.length + 1;
-        return [...prev, ...r.data.map((it, i) => ({ id: startId + i, title: it.text, rank: null }))];
-      });
-      setNextId((n) => n + r.data.length);
-    });
+    void Promise.all([loadSchoolTodayForDump(userId), loadMilestonesForDump(userId)]).then(
+      ([school, milestones]) => {
+        setSeeded(true);
+        const texts = [
+          ...(school.ok ? school.data.map((it) => it.text) : []),
+          // War Map milestones after school items: deadlines outrank ambitions on any
+          // given night, and the user re-orders by starring anyway.
+          ...(milestones.ok ? milestones.data.map((it) => it.text) : []),
+        ];
+        if (texts.length === 0) return;
+        setItems((prev) => {
+          const startId = prev.length + 1;
+          return [...prev, ...texts.map((title, i) => ({ id: startId + i, title, rank: null }))];
+        });
+        setNextId((n) => n + texts.length);
+      },
+    );
   }, [userId, seeded]);
 
   useEffect(() => {

@@ -28,6 +28,8 @@ const QUICK_LINKS = [
   ["Cards", "/cards"],
   ["Habits", "/habits"],
   ["Worries", "/worries"],
+  ["Goals", "/goals"],
+  ["Baselines", "/baselines"],
 ] as const;
 
 /**
