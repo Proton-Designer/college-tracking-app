@@ -24,6 +24,7 @@ export * from './backplan/phaseTemplates.ts';
 export * from './backplan/buildBackplan.ts';
 
 export * from './bounceback/bounceBack.ts';
+export * from './hours/hours.ts';
 
 export * from './recovery/trigger.ts';
 export * from './recovery/mvd.ts';

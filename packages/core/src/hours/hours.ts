@@ -1,0 +1,99 @@
+import type { LocalDate } from '../types';
+import type { DayOutcome } from '../bounceback/bounceBack';
+
+/**
+ * The Deep Work Hour, as domain values rather than database rows -- packages/core knows
+ * nothing about Supabase. The API layer maps `task_sessions` rows (hour_index not null,
+ * status = 'completed') into these.
+ */
+export interface CompletedHour {
+  /** The local calendar day the Hour belongs to. Always local; never derived from UTC. */
+  localDate: LocalDate;
+  /** 1-based position within that day. */
+  hourIndex: number;
+  /** ISO instant the Hour finished. */
+  endedAt: string;
+}
+
+/** A day's stored facts, as the Work Engine needs them. Mirrors the `days` table. */
+export interface DayFacts {
+  localDate: LocalDate;
+  /** ISO instant of "Start Day". Null when the day was never started. */
+  wakeAt: string | null;
+  /** Hours required for this day to be Won. */
+  baselineHours: number;
+}
+
+/** How many Hours were completed on a given local day. */
+export function countCompletedHours(hours: CompletedHour[], date: LocalDate): number {
+  return hours.filter((h) => h.localDate === date).length;
+}
+
+/**
+ * Day Won: the day's baseline was met.
+ *
+ * A per-day binary against a standard the user set, NOT a streak -- see D23. Nothing here
+ * knows or cares what happened yesterday, which is the entire point: winning a day is a
+ * statement about that day, and cannot be taken away by a later miss.
+ */
+export function isDayWon(completedHours: number, baselineHours: number): boolean {
+  return completedHours >= baselineHours;
+}
+
+/**
+ * Delta: wake -> the first Hour *completed*, in seconds. The course's headline race
+ * metric, automated.
+ *
+ * Null, never 0, in every case where the number is unknown: no Start Day tap (no wake
+ * time to measure from) or no completed Hour yet (nothing to measure to). This is the same
+ * null-vs-zero rule `tasks.planned_start_at` states for start delay, and it matters for
+ * exactly the same reason -- a 0 here would read as "won the race instantly" when the
+ * truth is "we have no idea".
+ *
+ * An Hour that finished before the recorded wake time is treated as unknown rather than
+ * returned as a negative delta. That combination means the data is wrong (a mis-set wake
+ * time, an Hour spanning midnight), and a negative race time is not a fact worth
+ * reporting with confidence.
+ */
+export function computeDeltaSeconds(wakeAt: string | null, hoursForDay: CompletedHour[]): number | null {
+  if (wakeAt === null || hoursForDay.length === 0) return null;
+
+  const wakeMs = Date.parse(wakeAt);
+  if (Number.isNaN(wakeMs)) return null;
+
+  let earliestMs: number | null = null;
+  for (const hour of hoursForDay) {
+    const endedMs = Date.parse(hour.endedAt);
+    if (Number.isNaN(endedMs)) continue;
+    if (earliestMs === null || endedMs < earliestMs) earliestMs = endedMs;
+  }
+  if (earliestMs === null) return null;
+  if (earliestMs < wakeMs) return null;
+
+  return Math.round((earliestMs - wakeMs) / 1000);
+}
+
+/**
+ * Turns the Work Engine's days into the series `computeBounceBack` already consumes.
+ *
+ * This is the whole of D23 in one function: there is no chain and no streak counter, so
+ * consistency is measured by how fast the user returns after a missed baseline, using the
+ * bounce-back engine that already exists and already means exactly that.
+ *
+ * The 'untracked' case is load-bearing. A day with no Start Day tap and no Hours is a day
+ * we know nothing about -- a phone left at home, a day off. `computeBounceBack` treats
+ * 'untracked' as a gap that neither opens nor closes a lapse, so classifying it as
+ * 'failure' would manufacture lapses out of silence, and classifying it as 'success' would
+ * manufacture recoveries. Neither is honest.
+ */
+export function toDayOutcomes(days: DayFacts[], hours: CompletedHour[]): DayOutcome[] {
+  return days.map((day) => {
+    const completed = countCompletedHours(hours, day.localDate);
+    const observed = day.wakeAt !== null || completed > 0;
+    if (!observed) return { date: day.localDate, outcome: 'untracked' };
+    return {
+      date: day.localDate,
+      outcome: isDayWon(completed, day.baselineHours) ? 'success' : 'failure',
+    };
+  });
+}

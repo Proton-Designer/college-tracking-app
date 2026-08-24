@@ -21,6 +21,7 @@ export * from './backplan/phaseTemplates';
 export * from './backplan/buildBackplan';
 
 export * from './bounceback/bounceBack';
+export * from './hours/hours';
 
 export * from './recovery/trigger';
 export * from './recovery/mvd';
