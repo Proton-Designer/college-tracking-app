@@ -165,6 +165,14 @@ per-weekday baselines, repair tokens.
 
 ---
 
+## Lecture capture (specced 2026-08-24, builds with S3)
+
+`docs/LECTURE_CAPTURE_SPEC.md` — record/import lectures, Deepgram transcription via the
+whoop-webhook pattern, per-course transcripts with lecture-date anchors. Import-first
+(Voice Memos floor); in-app recording gated on an expo-audio background-recording probe at
+the Tier 2 boundary. Question-drafting and topic-extraction halves activate in Tier 4 with
+the key. First non-Anthropic vendor (DEEPGRAM_API_KEY).
+
 ## Phase 3.5 — S3: Question Bank, Modes, calibration
 
 **Expo Go:** ✅. **Credentials:** optional — AI question drafting needs the key; self-authored
