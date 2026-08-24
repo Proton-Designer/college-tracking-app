@@ -108,7 +108,23 @@ export function CheckinFlow({
   function updateTimebox(taskId: number, patch: Partial<TimeboxFieldState>) {
     setTimeboxes((prev) => ({ ...prev, [taskId]: { ...timeboxFor(taskId), ...patch } }));
   }
-  const [selectedIds, setSelectedIds] = useState<number[]>(() => suggestedMits.map((m) => m.taskId).slice(0, 3));
+  // C3: MIT-setting moved to the Night Plan, so a plan made last night arrives here as
+  // tasks already carrying mit_rank -- and the check-in CONFIRMS it rather than
+  // re-selecting from suggestions. Suggested MITs remain only as the fallback for the
+  // no-plan-last-night failure mode, which the blueprint budgets friction for rather than
+  // punishing.
+  const plannedMitIds = useMemo(
+    () =>
+      todayTasks
+        .filter((t) => t.mit_rank != null && t.status !== "completed" && t.status !== "cancelled")
+        .sort((a, b) => (a.mit_rank ?? 4) - (b.mit_rank ?? 4))
+        .map((t) => t.id),
+    [todayTasks],
+  );
+  const hasNightPlan = plannedMitIds.length > 0;
+  const [selectedIds, setSelectedIds] = useState<number[]>(() =>
+    hasNightPlan ? plannedMitIds : suggestedMits.map((m) => m.taskId).slice(0, 3),
+  );
   // No default: a completion prediction is a claim about work, and a pre-set value that
   // submits unchanged is indistinguishable from a real answer. Stays null (never
   // answered) whenever there are no MITs to predict against -- goNext/goBack skip the
@@ -242,13 +258,20 @@ export function CheckinFlow({
         {step === "mits" ? (
           <View style={styles.stepGap}>
             <View style={styles.mitsHeader}>
-              <Text style={textStyle("title", color.ink)}>Top 3 for today</Text>
+              <Text style={textStyle("title", color.ink)}>
+                {hasNightPlan ? "Confirm last night's plan" : "Top 3 for today"}
+              </Text>
               {selectedIds.length === 0 ? (
                 <TextLink onPress={() => setSelectedIds(suggestedMits.map((m) => m.taskId).slice(0, 3))}>
                   <Text style={textStyle("caption", color.accent)}>Accept all</Text>
                 </TextLink>
               ) : null}
             </View>
+            {hasNightPlan ? (
+              <Text style={textStyle("bodyS", color.inkMuted)}>
+                Starred and crowned last night. Adjust only if the day has changed.
+              </Text>
+            ) : null}
             {selectedIds.length === 0 ? (
               <Text style={textStyle("bodyS", color.inkMuted)}>Nothing selected.</Text>
             ) : (
