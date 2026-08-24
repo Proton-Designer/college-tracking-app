@@ -18,6 +18,7 @@ import { type MitItem, MitList } from "../../components/today/MitList";
 import { OnboardingGate } from "../../components/today/OnboardingGate";
 import { QuickAddTaskModal } from "../../components/today/QuickAddTaskModal";
 import { RecoveryBanner } from "../../components/today/RecoveryBanner";
+import { WorkEngineSection } from "../../components/today/WorkEngineSection";
 import { WorkloadBand } from "../../components/today/WorkloadBand";
 import { textStyle } from "../../design/typography";
 import { getMobileSupabaseClient } from "../../lib/supabase/client";
@@ -355,6 +356,11 @@ function TodayReady({
         headline={headline}
         progressLine={progressLine}
       />
+
+      {/* D24: the Work Engine is the base of the merged surface, above every mode's body --
+          the Hour engine doesn't stop existing while a check-in is open or a day is scaled
+          down. Everything academic below feeds this spine. */}
+      <WorkEngineSection userId={userId} />
 
       <DayTrace
         today={dayView.today}

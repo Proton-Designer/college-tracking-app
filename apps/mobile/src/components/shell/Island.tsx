@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, ClipboardCheck, Home, Timer } from "lucide-react-native";
+import { BarChart3, BookOpen, ClipboardCheck, Home } from "lucide-react-native";
 import { BlurView } from "expo-blur";
 // SDK 54's expo-router (6.x) re-exports only the `Tabs` navigator from `expo-router/tabs`,
 // not the tab-bar prop types -- those live in @react-navigation/bottom-tabs, which expo-router
@@ -21,7 +21,6 @@ type IconComponent = typeof Home;
 
 const ICON_BY_ROUTE: Record<string, IconComponent> = {
   today: Home,
-  day: Timer,
   courses: BookOpen,
   review: ClipboardCheck,
   insights: BarChart3,

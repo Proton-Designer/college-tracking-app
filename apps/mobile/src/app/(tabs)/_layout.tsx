@@ -18,12 +18,9 @@ export default function TabsLayout() {
         headerShown: false,
       }}
     >
+      {/* D24: the Work Engine merged into Today as its base; the separate Hours tab is
+          retired. Today is the default open, so the merged surface is the default. */}
       <Tabs.Screen name="today" options={{ title: "Today" }} />
-      {/* The Work Engine. Labelled "Hours" rather than "Day" so it does not read as a second
-          "Today" -- Part VIII keeps the vocabulary tiny and "Hour" is the atomic unit. Placed
-          second rather than first: making it the app's landing surface is a product decision,
-          not a wiring one, and post-login still routes to /today. */}
-      <Tabs.Screen name="day" options={{ title: "Hours" }} />
       <Tabs.Screen name="courses" options={{ title: "Courses" }} />
       <Tabs.Screen name="review" options={{ title: "Review" }} />
       <Tabs.Screen name="insights" options={{ title: "Insights" }} />
