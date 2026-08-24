@@ -290,3 +290,31 @@ obviously so.
 **How we found it:** not from a failure. Atlas read his own diff after the fact, saw his writing
 under someone else's commit message, and reported it rather than shrugging. Reviewing what you
 actually committed — not just what you meant to commit — is what caught this.
+
+## D23 — No Chain. Bounce-back stays the recovery metric (2026-08-24)
+`docs/BLUEPRINT.md` (Part IV-A, Part VII) specifies a Seinfeld chain calendar of consecutive Days
+Won, with earned repair tokens patching a gap. **Ruled against.** `packages/core/src/bounceback/`
+already carries the opposing position in its own header — *"Measures time-to-recovery, not
+streaks"* — and that stays the core metric.
+
+**Why the blueprint's own argument does not overturn this.** The blueprint reaches for the Chain to
+get loss-aversion pull, then immediately has to defuse it: repair tokens, decaying scores, no-shame
+copy. Those mitigations exist because the habit research it cites says streaks cause guilt-churn and
+quit-events. Bounce-back measures the thing the mitigations are trying to protect — how fast you
+came back — **directly**, with no guilt mechanic to defuse. Adopting the Chain would mean building a
+motivational device and its own antidote, when the antidote alone is the better instrument.
+
+**What is kept from that part of the blueprint:**
+- **Day Won** — hitting a per-weekday baseline. A per-day binary against a standard, not a streak,
+  and compatible with bounce-back.
+- **The Wall** — the proof surface. It only ever grows and carries no penalty, which is exactly the
+  "proof compounds, never debt" property (Part VII item 6) the Chain was meant to deliver.
+
+**What is not built:** consecutive-day counters, chain calendars, repair tokens, `chain_repair_used`.
+
+**Consequence:** the `days` table drops `chain_repair_used`. Recovery is surfaced as bounce-back
+(time from a missed baseline back to a Day Won), reusing the engine that already exists rather than
+adding a second, competing notion of consistency.
+
+This is a deliberate divergence from the blueprint, made by the repo owner on 2026-08-24, not an
+oversight. Do not reintroduce the Chain without superseding this entry.
