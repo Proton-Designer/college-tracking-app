@@ -12,7 +12,7 @@ import {
   type DistractionRow,
   type TaskSessionRow,
 } from "@collegeos/api";
-import { countCompletedHours, isDayWon } from "@collegeos/core";
+import { baselineForWeekday, countCompletedHours, isDayWon } from "@collegeos/core";
 import { getMobileSupabaseClient } from "./supabase/client";
 
 export interface HourActionResult {
@@ -126,13 +126,12 @@ export async function loadTodayHours(
   if (!facts.ok) return { ok: false, error: facts.error.message };
 
   const completedHours = countCompletedHours(hours.data, localDate);
-  const baselineHours = facts.data[0]?.baselineHours ?? DEFAULT_BASELINE_HOURS;
+  const baselineHours =
+    facts.data[0]?.baselineHours ??
+    baselineForWeekday(profileResult.data.weekday_baselines as Record<string, unknown> | null, localDate);
   return {
     ok: true,
     data: { localDate, completedHours, baselineHours, dayWon: isDayWon(completedHours, baselineHours) },
   };
 }
 
-/** Mirrors the `days.baseline_hours` column default. Kept in sync deliberately: a day
- *  with no row yet must read the same baseline it will get once Start Day creates one. */
-const DEFAULT_BASELINE_HOURS = 4;

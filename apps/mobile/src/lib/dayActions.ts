@@ -9,6 +9,7 @@ import {
   type DayRow,
 } from "@collegeos/api";
 import {
+  baselineForWeekday,
   computeDeltaSeconds,
   computeEfficiency,
   countCompletedHours,
@@ -34,9 +35,6 @@ export interface DayState {
   efficiency: EfficiencyResult;
 }
 
-/** Mirrors the `days.baseline_hours` column default, for days with no row yet. */
-const DEFAULT_BASELINE_HOURS = 4;
-
 export async function loadDay(
   userId: string,
 ): Promise<{ ok: true; data: DayState } | { ok: false; error: string }> {
@@ -55,7 +53,11 @@ export async function loadDay(
   if (!factsResult.ok) return { ok: false, error: factsResult.error.message };
 
   const completedHours = countCompletedHours(hoursResult.data, localDate);
-  const baselineHours = factsResult.data[0]?.baselineHours ?? DEFAULT_BASELINE_HOURS;
+  // A day with a row keeps its snapshot; a day without one previews what it WILL inherit
+  // -- the standing weekday map -- so the number on screen never changes at the moment
+  // Start Day happens to write the row.
+  const weekdayMap = profileResult.data.weekday_baselines as Record<string, unknown> | null;
+  const baselineHours = factsResult.data[0]?.baselineHours ?? baselineForWeekday(weekdayMap, localDate);
 
   return {
     ok: true,
@@ -88,7 +90,8 @@ export async function startDayAction(userId: string): Promise<DayActionResult> {
   if (!profileResult.ok) return { ok: false, error: profileResult.error.message };
   const localDate = getUserLocalToday(profileResult.data.timezone, new Date());
 
-  const result = await startDay(client, userId, localDate);
+  const weekdayMap = profileResult.data.weekday_baselines as Record<string, unknown> | null;
+  const result = await startDay(client, userId, localDate, new Date(), baselineForWeekday(weekdayMap, localDate));
   if (!result.ok) return { ok: false, error: result.error.message };
   return { ok: true };
 }
@@ -100,7 +103,8 @@ export async function setSleepIntentAction(userId: string): Promise<DayActionRes
   if (!profileResult.ok) return { ok: false, error: profileResult.error.message };
   const localDate = getUserLocalToday(profileResult.data.timezone, new Date());
 
-  const result = await setSleepIntent(client, userId, localDate);
+  const weekdayMap = profileResult.data.weekday_baselines as Record<string, unknown> | null;
+  const result = await setSleepIntent(client, userId, localDate, new Date(), baselineForWeekday(weekdayMap, localDate));
   if (!result.ok) return { ok: false, error: result.error.message };
   return { ok: true };
 }

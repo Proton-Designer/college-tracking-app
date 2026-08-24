@@ -1,5 +1,6 @@
 import type { LocalDate } from '../types';
 import type { DayOutcome } from '../bounceback/bounceBack';
+import { isoWeekday } from '../util/date';
 
 /**
  * The Deep Work Hour, as domain values rather than database rows -- packages/core knows
@@ -150,4 +151,26 @@ export function computeEfficiency(
   if (awakeMinutes <= 0) return { ratio: null, workedMinutes, awakeMinutes: null, settled };
 
   return { ratio: workedMinutes / awakeMinutes, workedMinutes, awakeMinutes, settled };
+}
+
+/** The `days.baseline_hours` column default, mirrored -- the one fallback both sides share. */
+export const DEFAULT_BASELINE_HOURS = 4;
+
+/**
+ * Resolves the day's baseline from the standing per-weekday map
+ * (`profiles.weekday_baselines`, ISO weekday number as a string key -> Hours).
+ *
+ * Defensive about the map's contents on purpose: it is jsonb a future surface might
+ * hand-edit, and a malformed entry must degrade to the default rather than poison Day Won
+ * -- a baseline of NaN would make every day unwinnable, silently.
+ */
+export function baselineForWeekday(
+  map: Record<string, unknown> | null | undefined,
+  date: LocalDate,
+  fallback: number = DEFAULT_BASELINE_HOURS,
+): number {
+  if (map == null) return fallback;
+  const raw = map[String(isoWeekday(date))];
+  if (typeof raw !== 'number' || !Number.isInteger(raw) || raw < 0) return fallback;
+  return raw;
 }

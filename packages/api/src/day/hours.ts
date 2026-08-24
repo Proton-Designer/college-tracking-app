@@ -243,10 +243,21 @@ export async function startDay(
   userId: string,
   localDate: LocalDate,
   now: Date = new Date(),
+  // Resolved by the caller from profiles.weekday_baselines via core's baselineForWeekday.
+  // Inherited only at row CREATION (ignoreDuplicates): an existing day keeps its snapshot,
+  // so editing the standing map never rewrites history -- see migration 38's comment.
+  baselineHours?: number,
 ): Promise<DataResult<DayRow>> {
   const { error: insertError } = await client
     .from('days')
-    .upsert({ user_id: userId, local_date: localDate }, { onConflict: 'user_id,local_date', ignoreDuplicates: true });
+    .upsert(
+      {
+        user_id: userId,
+        local_date: localDate,
+        ...(baselineHours != null ? { baseline_hours: baselineHours } : {}),
+      },
+      { onConflict: 'user_id,local_date', ignoreDuplicates: true },
+    );
   if (insertError) return dataErr(mapDataError(insertError));
 
   const { error: updateError } = await client
@@ -281,10 +292,18 @@ export async function setSleepIntent(
   userId: string,
   localDate: LocalDate,
   now: Date = new Date(),
+  baselineHours?: number,
 ): Promise<DataResult<DayRow>> {
   const { error: insertError } = await client
     .from('days')
-    .upsert({ user_id: userId, local_date: localDate }, { onConflict: 'user_id,local_date', ignoreDuplicates: true });
+    .upsert(
+      {
+        user_id: userId,
+        local_date: localDate,
+        ...(baselineHours != null ? { baseline_hours: baselineHours } : {}),
+      },
+      { onConflict: 'user_id,local_date', ignoreDuplicates: true },
+    );
   if (insertError) return dataErr(mapDataError(insertError));
 
   const { data, error } = await client

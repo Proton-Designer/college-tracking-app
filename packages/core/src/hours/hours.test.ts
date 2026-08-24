@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { computeBounceBack } from '../bounceback/bounceBack';
 import {
+  baselineForWeekday,
   computeDeltaSeconds,
   computeEfficiency,
   countCompletedHours,
@@ -192,5 +193,30 @@ describe('computeEfficiency', () => {
   it('is null rather than a confident lie when the awake span is non-positive', () => {
     const result = computeEfficiency(wake, '2026-08-24T11:00:00Z', [hour('2026-08-24', 1, 'x')], now);
     expect(result.ratio).toBeNull();
+  });
+});
+
+describe('baselineForWeekday', () => {
+  // 2026-08-24 = Monday (ISO 1), 2026-08-29 = Saturday (ISO 6).
+  const map = { '1': 4, '2': 2, '6': 0 };
+
+  it('resolves the weekday entry', () => {
+    expect(baselineForWeekday(map, '2026-08-24')).toBe(4);
+    expect(baselineForWeekday(map, '2026-08-25')).toBe(2);
+  });
+
+  it('honours an explicit zero -- a deliberate rest day, not a missing key', () => {
+    expect(baselineForWeekday(map, '2026-08-29')).toBe(0);
+  });
+
+  it('falls back to the default for a missing weekday', () => {
+    expect(baselineForWeekday(map, '2026-08-26')).toBe(4); // Wednesday, no key
+  });
+
+  it('falls back for a null map and for malformed entries rather than poisoning Day Won', () => {
+    expect(baselineForWeekday(null, '2026-08-24')).toBe(4);
+    expect(baselineForWeekday({ '1': 'four' }, '2026-08-24')).toBe(4);
+    expect(baselineForWeekday({ '1': -2 }, '2026-08-24')).toBe(4);
+    expect(baselineForWeekday({ '1': 3.5 }, '2026-08-24')).toBe(4);
   });
 });
