@@ -8,6 +8,13 @@ import { Aurora, Button, Input, Panel } from "../components/ui";
 import { textStyle } from "../design/typography";
 import { loadDay, setSleepIntentAction, type DayState } from "../lib/dayActions";
 import { saveNightPlanAction, NIGHT_PLAN_CATEGORY_LABEL } from "../lib/nightPlanActions";
+import {
+  cancelNightPlanReminder,
+  ensureNightPlanReminder,
+  getNightPlanReminderState,
+  NIGHT_PLAN_REMINDER_LABEL,
+  type NightPlanReminderState,
+} from "../lib/nightPlanNotifications";
 import { useAuthSession } from "../lib/useAuthSession";
 
 interface DumpItem {
@@ -43,6 +50,7 @@ export default function NightPlanScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
   const [today, setToday] = useState<DayState | null>(null);
+  const [reminder, setReminder] = useState<NightPlanReminderState | null>(null);
 
   useEffect(() => {
     if (userId == null) return;
@@ -50,6 +58,23 @@ export default function NightPlanScreen() {
       if (r.ok) setToday(r.data);
     });
   }, [userId]);
+
+  useEffect(() => {
+    void getNightPlanReminderState().then(setReminder);
+  }, []);
+
+  // The one place that may prompt for notification permission, because this is the one
+  // screen where the reason is visible. Part VII calls the nightly anchor the highest
+  // -leverage retention choice in the design, so it gets an explicit control rather than
+  // being silently on or silently off.
+  const onToggleReminder = useCallback(async () => {
+    if (reminder?.scheduled === true) {
+      await cancelNightPlanReminder();
+    } else {
+      await ensureNightPlanReminder(true);
+    }
+    setReminder(await getNightPlanReminderState());
+  }, [reminder]);
 
   const tomorrow = today != null ? addDays(today.localDate, 1) : null;
   const starredCount = items.filter((i) => i.rank != null).length;
@@ -203,6 +228,24 @@ export default function NightPlanScreen() {
             <Button onPress={onSave} disabled={busy || items.length === 0 || tomorrow == null}>
               Save tomorrow&apos;s plan
             </Button>
+
+            {reminder != null ? (
+              <Panel>
+                <Text style={textStyle("label", color.inkMuted)}>Nightly reminder</Text>
+                <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+                  {reminder.scheduled
+                    ? `On, every day at ${NIGHT_PLAN_REMINDER_LABEL}.`
+                    : reminder.permitted
+                      ? `Off. A reminder at ${NIGHT_PLAN_REMINDER_LABEL} is what makes this a habit.`
+                      : `Notifications are off for CollegeOS, so the ${NIGHT_PLAN_REMINDER_LABEL} reminder can't run.`}
+                </Text>
+                <View style={styles.spacedTop}>
+                  <Button variant="secondary" onPress={onToggleReminder}>
+                    {reminder.scheduled ? "Turn reminder off" : "Remind me nightly"}
+                  </Button>
+                </View>
+              </Panel>
+            ) : null}
           </>
         ) : (
           <Panel>

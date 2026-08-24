@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ToastProvider } from "../components/ui/ToastProvider";
 import { useDesignFonts } from "../design/fonts";
+import { ensureNightPlanReminder } from "../lib/nightPlanNotifications";
 import { useAuthSession } from "../lib/useAuthSession";
 
 SplashScreen.preventAutoHideAsync();
@@ -66,6 +67,15 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  // Re-assert the nightly Night Plan reminder on launch. Deliberately does NOT prompt: if
+  // permission was never granted this silently does nothing, and the Night Plan screen
+  // carries the explicit control where the reason for it is on screen. Scheduling uses one
+  // fixed identifier, so repeating this on every launch replaces the schedule rather than
+  // stacking a second nightly banner.
+  useEffect(() => {
+    void ensureNightPlanReminder();
+  }, []);
 
   // Never render text before the design system's fonts are loaded — a fallback-face flash is
   // exactly the kind of thing an instrument doesn't do.

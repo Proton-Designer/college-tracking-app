@@ -1,4 +1,5 @@
 import * as Notifications from "expo-notifications";
+import { ensureNotificationPermission } from "./notifications";
 
 /**
  * The Hour's 60:00 alert.
@@ -15,36 +16,9 @@ import * as Notifications from "expo-notifications";
  * alert when the Hour finally ends.
  */
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
-
 const identifierFor = (sessionId: number): string => `hour-end-${sessionId}`;
 
-/**
- * Asks for notification permission if it has not been decided yet.
- *
- * Called when an Hour actually starts rather than at app launch: a permission prompt with
- * no context attached is the one most likely to be denied, and a denial here is
- * permanent-ish. Returns false rather than throwing -- a denied prompt must never stop the
- * Hour from starting, it just means no alert at 60:00.
- */
-export async function ensureNotificationPermission(): Promise<boolean> {
-  try {
-    const current = await Notifications.getPermissionsAsync();
-    if (current.status === "granted") return true;
-    if (!current.canAskAgain) return false;
-    const asked = await Notifications.requestPermissionsAsync();
-    return asked.status === "granted";
-  } catch {
-    return false;
-  }
-}
+export { ensureNotificationPermission };
 
 /**
  * Schedules (or re-schedules) the alert for one Hour.
