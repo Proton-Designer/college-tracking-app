@@ -1,12 +1,11 @@
 import { color, radius, space } from "@collegeos/design/native";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { AppState, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Aurora, Button, Panel } from "../components/ui";
-import { textStyle } from "../design/typography";
-import { loadDay, startDayAction, type DayState } from "../lib/dayActions";
-import { useAuthSession } from "../lib/useAuthSession";
+import { AppState, StyleSheet, Text, View } from "react-native";
+import { Aurora, Button, Panel, TabScreenScrollView } from "../../components/ui";
+import { textStyle } from "../../design/typography";
+import { loadDay, startDayAction, type DayState } from "../../lib/dayActions";
+import { useAuthSession } from "../../lib/useAuthSession";
 
 function formatClock(totalSeconds: number): string {
   const clamped = Math.max(0, totalSeconds);
@@ -33,7 +32,6 @@ function formatClock(totalSeconds: number): string {
  * metric as "time since waking", which is not what it measures.
  */
 export default function DayScreen() {
-  const insets = useSafeAreaInsets();
   const router = useRouter();
   const { session: authSession } = useAuthSession();
   const userId = authSession?.user.id ?? null;
@@ -97,12 +95,7 @@ export default function DayScreen() {
   return (
     <View style={styles.screen}>
       <Aurora band={null} />
-      <ScrollView
-        contentContainerStyle={[
-          styles.content,
-          { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] },
-        ]}
-      >
+      <TabScreenScrollView transparent>
         <Text style={textStyle("label", color.inkMuted)}>{state?.localDate ?? ""}</Text>
 
         {error != null ? (
@@ -194,14 +187,13 @@ export default function DayScreen() {
             </Button>
           </>
         )}
-      </ScrollView>
+      </TabScreenScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.ground },
-  content: { paddingHorizontal: space[5], gap: space[4] },
   spacedTop: { marginTop: space[2] },
   clockBlock: { alignItems: "center", gap: space[2], paddingVertical: space[6] },
   clock: { fontVariant: ["tabular-nums"] },
