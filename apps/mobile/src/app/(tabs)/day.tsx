@@ -185,6 +185,9 @@ export default function DayScreen() {
             <Button variant="secondary" onPress={() => router.push("/nightplan")}>
               Night Plan
             </Button>
+            <Button variant="secondary" onPress={() => router.push("/cards")}>
+              Cards
+            </Button>
           </>
         )}
       </TabScreenScrollView>

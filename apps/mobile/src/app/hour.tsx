@@ -1,4 +1,5 @@
 import type { DistractionCause, DistractionRow, TaskSessionRow } from "@collegeos/api";
+import type { RotationCard } from "@collegeos/core";
 import { color, radius, space } from "@collegeos/design/native";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -14,6 +15,7 @@ import {
   startHourAction,
   type TodayHoursState,
 } from "../lib/hourActions";
+import { drawRotation } from "../lib/cardsActions";
 import {
   cancelHourEndAlert,
   ensureNotificationPermission,
@@ -65,6 +67,9 @@ export default function HourScreen() {
   const [today, setToday] = useState<TodayHoursState | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [causePickerOpen, setCausePickerOpen] = useState(false);
+  // Non-null = the End-of-Hour flow is open. Holds the drawn rotation (possibly empty).
+  const [ending, setEnding] = useState<RotationCard[] | null>(null);
+  const [cardIndex, setCardIndex] = useState(0);
 
   const refresh = useCallback(async () => {
     if (userId == null) return;
@@ -157,7 +162,24 @@ export default function HourScreen() {
     [userId, active, refresh],
   );
 
-  const onEnd = useCallback(async () => {
+  /**
+   * Step 1 of the End-of-Hour flow (BLUEPRINT Part III: log -> cards -> submit). Opens the
+   * ritual; nothing is written yet, so "Keep working" backs out with the timer untouched.
+   * The rotation is drawn here, once -- redrawing on every render would let the user
+   * shuffle for a card they like, which defeats the variable-reward mechanic.
+   */
+  const onBeginEnd = useCallback(async () => {
+    if (userId == null || active == null) return;
+    setCausePickerOpen(false);
+    const drawn = await drawRotation(userId);
+    // A failed draw degrades to a card-less ritual rather than blocking the end of the
+    // Hour: the cards are the garnish, the log is the meal.
+    setEnding(drawn.ok ? drawn.data : []);
+    setCardIndex(0);
+  }, [userId, active]);
+
+  /** Step 3: submit. This is the write. */
+  const onSubmitHour = useCallback(async () => {
     if (userId == null || active == null) return;
     setBusy(true);
     setError(null);
@@ -172,7 +194,7 @@ export default function HourScreen() {
       setError(result.error ?? "Could not end the Hour.");
       return;
     }
-    setCausePickerOpen(false);
+    setEnding(null);
     await refresh();
   }, [userId, active, refresh]);
 
@@ -270,9 +292,60 @@ export default function HourScreen() {
               {distractions.length} distraction{distractions.length === 1 ? "" : "s"} this Hour
             </Text>
 
-            <Button variant="secondary" onPress={onEnd} disabled={busy}>
-              End Hour
-            </Button>
+            {ending == null ? (
+              <Button variant="secondary" onPress={onBeginEnd} disabled={busy}>
+                End Hour
+              </Button>
+            ) : (
+              <Panel>
+                <Text style={textStyle("label", color.inkMuted)}>End of Hour</Text>
+                <Text style={[textStyle("body", color.ink), styles.spacedTop]}>
+                  {active.deliverable}
+                </Text>
+                <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+                  {distractions.length} distraction{distractions.length === 1 ? "" : "s"} logged
+                </Text>
+
+                {cardIndex < ending.length ? (
+                  <Pressable
+                    onPress={() => setCardIndex((i) => i + 1)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Next card"
+                    style={styles.rotationCard}
+                  >
+                    <Text style={textStyle("label", color.inkMuted)}>
+                      {cardIndex + 1} of {ending.length}
+                    </Text>
+                    <Text style={[textStyle("bodyL", color.ink), styles.spacedTop]}>
+                      {ending[cardIndex]!.text}
+                    </Text>
+                    <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+                      Tap to continue
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <>
+                    {ending.length === 0 ? (
+                      <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+                        No cards yet — add goals and motivation in Cards to make this ritual
+                        yours.
+                      </Text>
+                    ) : null}
+                    <View style={styles.spacedTop}>
+                      <Button onPress={onSubmitHour} disabled={busy}>
+                        Submit Hour
+                      </Button>
+                    </View>
+                  </>
+                )}
+
+                <View style={styles.spacedTop}>
+                  <Button variant="secondary" onPress={() => setEnding(null)} disabled={busy}>
+                    Keep working
+                  </Button>
+                </View>
+              </Panel>
+            )}
           </>
         )}
       </ScrollView>
@@ -296,6 +369,14 @@ const styles = StyleSheet.create({
     gap: space[1],
   },
   causeGrid: { flexDirection: "row", flexWrap: "wrap", gap: space[2], marginTop: space[3] },
+  rotationCard: {
+    marginTop: space[3],
+    borderWidth: 1,
+    borderColor: color.accent,
+    borderRadius: radius.lg,
+    backgroundColor: color.accentWash,
+    padding: space[5],
+  },
   causeChip: {
     borderWidth: 1,
     borderColor: color.border,
