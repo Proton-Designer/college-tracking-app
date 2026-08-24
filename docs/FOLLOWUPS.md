@@ -369,6 +369,112 @@ other pretends the capability doesn't exist, is worse than text-only.
 
 ---
 
+## 🟡 V2 — Voice *capture* for tasks: "remind me to submit my econ homework tomorrow at 6pm"
+
+Requested 2026-08-24. **Spec only — nothing built.** Scope: speak one sentence, get the right row
+with the right local time, indistinguishable from one typed by hand.
+
+### What already exists, and what this request actually adds
+
+V1 above already settled *dictation*: web has `DictatedTextarea` (built, `SpeechRecognition`,
+degrades to text where absent), and mobile needs no mic UI because every iOS/Android soft keyboard
+ships a dictation key — a `TextInput` **is** a voice field. That ruling stands and nothing here
+reopens it.
+
+So "speak instead of type" is already solved on both platforms, for free. **What V2 adds is not
+capture — it is parsing plus routing:** one utterance → the correct table, with a correct
+timezone-aware datetime. Treating this as a microphone problem would rebuild something we have and
+skip the part that is actually hard.
+
+### 🔴 Blocking finding: two of the three nouns have no home in the schema
+
+Verified against migrations 1–33 at HEAD, not assumed:
+
+| Requested | Reality |
+|---|---|
+| **task** | `tasks` exists. `title`, `category` (NOT NULL, free text), `planned_date` (NOT NULL, `date`), `planned_start_at` (`timestamptz`, added in `…13_task_timeboxing`), `status`. A "reminder with a time" is exactly a task with `planned_start_at` set. |
+| **reminder** | **No table.** The only `reminder` string in the schema is `l0_reminder`, a `commitment_level` enum value for kill-habit escalation — unrelated. |
+| **lesson** | `semester_lessons` exists but is **append-only** (no update/delete RLS policy, by design — DATA_MODEL §5), scoped to a `term`, carries a `confidence` enum, and is written by `semesterRetrospective` promoting high-confidence insights. Its semantics are *"what CollegeOS concluded about you"*, not *"a note the user dictated"*. `createSemesterLesson` exists in `packages/api` but no UI writes it (see U8). |
+
+**This needs a Lead ruling before any build.** Three ways out, in order of preference:
+
+1. **Reminder ≡ task with `planned_start_at`.** No migration, no new concept, and it is already what
+   the timeboxing work (A2) established a planned time to mean. Recommended.
+2. **A user-authored lesson is a `semester_lessons` row with `source_report_id = null` and
+   `confidence = 'testing'`.** The columns permit it; the *provenance* differs from every existing
+   row. Cheap, but it quietly mixes "the system inferred this" with "the user asserted this" in a
+   table the summary pyramid reads. Wants a deliberate decision, not a default.
+3. **A new `reminders` table.** Migration 34, RLS, types regen, mirror. Only if reminders must be
+   genuinely distinct from tasks — and nothing in the brief says they must.
+
+Until that ruling lands, **the only fully-safe target is `tasks`** (plus `deliverables` when the
+utterance names a course that resolves, since `deliverables.course_id` is NOT NULL).
+
+### Capture options
+
+| | Approach | Works in Expo Go? | New dependency / secret | Notes |
+|---|---|---|---|---|
+| **A** | **Mobile: OS keyboard dictation** into a normal `TextInput` | Yes — nothing to install | None | Already the V1 ruling. Best accuracy available (Apple's on-device model), zero cost, zero latency. Not hands-free: tap field → tap mic. |
+| **B** | **Web: reuse `DictatedTextarea`** | n/a | None | Already built and tested. Point it at a single-line capture field. |
+| **C** | **Record with `expo-audio` → transcribe in an edge function** | Yes — `expo-audio ~1.1.1` is in SDK 54's bundled native modules, so Expo Go can record | **A new transcription vendor + secret** (Whisper/Deepgram), plus audio upload + storage | Buys nothing over A on iOS — same user gesture, worse accuracy, added latency, added cost, a second vendor to hold PII audio. Only justified if keyboard dictation is unavailable or we need identical behaviour across platforms. |
+| **D** | **iOS Shortcut → new edge function** | n/a — never opens the app | **A new per-user bearer credential** (none exists today) | The only option that delivers real *"Hey Siri"* hands-free capture. Genuinely additive rather than duplicative. Cost is auth: there is no per-user API token concept in this schema — only `cron_shared_secret` in Vault. Needs a token table + rotation + a `verify_jwt = false` function that authenticates the token itself (same shape as `whoop-webhook`'s HMAC gate). Treat the token as a **bearer credential**, i.e. F3's ruling: Vault, not plaintext. |
+
+### Parsing options
+
+| | Approach | Works with today's config? | Notes |
+|---|---|---|---|
+| **P1** | **Deterministic datetime parser** | **Yes** | Pure function, unit-testable, no key, no cost, no latency — and it is what Law 2 asks for ("deterministic code calculates; Claude only interprets"). ⚠️ **`packages/core` has zero runtime dependencies by design and is mirrored verbatim into `supabase/functions/_shared/core` for Deno** (guarded by `check:core-mirror`), so `chrono-node` *cannot* live there without breaking the mirror. Either hand-roll a dependency-free grammar in core, or put the library in `packages/api` (not mirrored). Handles "tomorrow at 6pm", "next Tuesday", "in two hours"; degrades on genuinely free-form phrasing. |
+| **P2** | **LLM structured extraction** | **No — `ANTHROPIC_API_KEY` is unset (L4)** | The whole LLM layer already exists and would fit: schema-validated typed JSON, `llm_usage_log`, per-user monthly budget ceiling, `anthropicProvider`, golden fixtures. Handles arbitrary phrasing *and* classifies item type in one call. But shipping this alone repeats **N5** exactly: a dependency that buys a flow which dead-ends until a key exists. Also per-utterance cost and ~1s latency on the hottest path in the product. |
+| **P3** | **P1 as the real path, P2 as an enhancement when a key exists** | **Yes** | Mirrors `nightly-analysis` precisely: `const provider = apiKey ? createAnthropicProvider(apiKey) : null`, deterministic branch is not a lesser branch. Contrast `syllabus-extract`, which honestly 503s because no deterministic alternative exists — here one does, so refusing would be wrong. |
+
+### Constraints any build must respect
+
+- **Write through `createTask` / `createDeliverable` in `packages/api`.** Not a bespoke insert. That
+  is what makes a voice-created row indistinguishable from a typed one, and it inherits RLS
+  (`tasks_all_own`: `auth.uid() = user_id`) rather than re-deriving it.
+- **Never let a `service_role` key near this path.** An edge function for D runs as the user or not
+  at all; the token identifies *which* user, it does not bypass RLS.
+- **Timezone.** "tomorrow at 6pm" is a *local* statement. Resolve via `profiles.timezone` (NOT NULL)
+  and `localTimeToInstant(date, hour, minute, tz)` / `localDateFromInstant`, both already in
+  `packages/core`. **Never derive the day boundary from UTC** — that was B4, a 🔴🔴🔴 bug across the
+  whole domain layer, and this feature is precisely where it would recur.
+- **Confirm before persist.** Law 3 requires explicit confirmation for *extracted* academic
+  deadlines. A dictated sentence is user-authored, so this is not strictly the same case — but an
+  LLM or heuristic parse is still an interpretation, and a wrong silent write is worse than a
+  one-tap confirm. Show an editable preview (title / type / date / time) and write on confirm,
+  reusing `syllabus-confirm`'s `confirmed | edited | rejected` vocabulary. **`category` is NOT NULL
+  on `tasks`** and no utterance will supply it — the preview must default it visibly, not invent it
+  silently.
+- **Do not half-build it** (V1's closing rule): a mic that silently mis-times an item is worse than
+  typing, because the user stops checking.
+
+### Recommendation
+
+**Phase 1 — A + B + P1, tasks only.** Reuse the dictation both platforms already have, add one
+capture field, parse deterministically, show a confirm preview, write via `createTask`. No new
+runtime dependency, no new secret, no vendor, and it works on today's configuration. Ship the
+`deliverables` route only when a named course resolves.
+
+**Phase 2 — P3**, the day `ANTHROPIC_API_KEY` lands (L4). Same seam as `nightly-analysis`; the
+deterministic parser stays the floor, so the feature never regresses to unavailable.
+
+**Phase 3 — D**, if hands-free is the actual goal. It is the only option that delivers it, and it
+should be judged on that alone rather than bundled with Phase 1.
+
+**Not recommended: C.** On iOS it spends a vendor, a secret, and audio-PII handling to do worse than
+the dictation key already in the keyboard.
+
+### Rough effort — estimates, not measurements
+
+| Item | Estimate |
+|---|---|
+| Phase 1 (capture field both platforms, deterministic parser + tests, confirm preview, `createTask` wiring) | **2–3 days**, of which the parser and its unit tests are over half |
+| The reminder/lesson schema ruling above | **~0 days** if reminders collapse into tasks; **+1 day** for a `reminders` migration + RLS + types + mirror |
+| Phase 2 (LLM branch behind the key, prompt + golden fixtures + budget wiring) | **1–2 days** |
+| Phase 3 (Shortcut + per-user token table + Vault storage + rotation + `verify_jwt = false` function + setup docs) | **2–4 days** — the token lifecycle is the bulk, not the endpoint |
+
+---
+
 ## 🟢 B7 — Web session drops in the automation harness (**not a product defect on current evidence**)
 
 **Status: recurring, reproduced only incidentally, mechanism unknown, now instrumented.** Filed
