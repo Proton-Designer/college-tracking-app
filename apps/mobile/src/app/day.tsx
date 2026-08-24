@@ -166,7 +166,32 @@ export default function DayScreen() {
               )}
             </Panel>
 
+            <Panel>
+              <Text style={textStyle("label", color.inkMuted)}>Efficiency</Text>
+              {state!.efficiency.ratio == null ? (
+                <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+                  Not measurable yet.
+                </Text>
+              ) : (
+                <>
+                  <Text style={[textStyle("displayM", color.ink), styles.spacedTop]}>
+                    {Math.round(state!.efficiency.ratio * 100)}%
+                  </Text>
+                  <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+                    {state!.efficiency.workedMinutes}m worked of {state!.efficiency.awakeMinutes}m awake
+                    {state!.efficiency.settled ? "" : " · so far today"}
+                  </Text>
+                </>
+              )}
+            </Panel>
+
             <Button onPress={() => router.push("/hour")}>Start an Hour</Button>
+            <Button variant="secondary" onPress={() => router.push("/wall")}>
+              The Wall
+            </Button>
+            <Button variant="secondary" onPress={() => router.push("/nightplan")}>
+              Night Plan
+            </Button>
           </>
         )}
       </ScrollView>

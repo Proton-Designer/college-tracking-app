@@ -201,7 +201,12 @@ export async function listCompletedHoursInRange(
     const endedAt = new Date(
       new Date(row.actual_start).getTime() + (row.actual_duration_min ?? 0) * 60_000,
     ).toISOString();
-    hours.push({ localDate: row.local_date, hourIndex: row.hour_index, endedAt });
+    hours.push({
+      localDate: row.local_date,
+      hourIndex: row.hour_index,
+      endedAt,
+      minutes: row.actual_duration_min ?? 0,
+    });
   }
   return dataOk(hours);
 }
@@ -315,4 +320,55 @@ export async function listDayFactsInRange(
       baselineHours: row.baseline_hours,
     })),
   );
+}
+
+export interface WallTile {
+  id: number;
+  localDate: LocalDate;
+  hourIndex: number;
+  deliverable: string | null;
+  category: string | null;
+  interruptions: number;
+  minutes: number;
+}
+
+/**
+ * The Wall -- every completed Hour as a tile, newest first.
+ *
+ * Completed only. The Wall is the product's proof surface and the blueprint is explicit
+ * that it must only ever grow and never read as debt, so an abandoned Hour does not appear
+ * on it. That is not hiding a failure: the abandoned row still exists, still carries its
+ * real elapsed time, and still feeds the calibration engine. It simply is not proof of a
+ * finished Hour, which is the one thing this surface claims.
+ */
+export async function listWall(
+  client: TypedSupabaseClient,
+  userId: string,
+  limit = 200,
+): Promise<DataResult<WallTile[]>> {
+  const { data, error } = await client
+    .from('task_sessions')
+    .select('id, local_date, hour_index, deliverable, category, interruptions, actual_duration_min')
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+    .not('hour_index', 'is', null)
+    .order('local_date', { ascending: false })
+    .order('hour_index', { ascending: false })
+    .limit(limit);
+  if (error) return dataErr(mapDataError(error));
+
+  const tiles: WallTile[] = [];
+  for (const row of data ?? []) {
+    if (row.local_date == null || row.hour_index == null) continue;
+    tiles.push({
+      id: row.id,
+      localDate: row.local_date,
+      hourIndex: row.hour_index,
+      deliverable: row.deliverable,
+      category: row.category,
+      interruptions: row.interruptions,
+      minutes: row.actual_duration_min ?? 0,
+    });
+  }
+  return dataOk(tiles);
 }

@@ -8,7 +8,13 @@ import {
   startDay,
   type DayRow,
 } from "@collegeos/api";
-import { computeDeltaSeconds, countCompletedHours, isDayWon } from "@collegeos/core";
+import {
+  computeDeltaSeconds,
+  computeEfficiency,
+  countCompletedHours,
+  isDayWon,
+  type EfficiencyResult,
+} from "@collegeos/core";
 import { getMobileSupabaseClient } from "./supabase/client";
 
 export interface DayState {
@@ -24,6 +30,8 @@ export interface DayState {
    * UI from `day.wake_at`; it is not this.
    */
   deltaSeconds: number | null;
+  /** Completed Hour time / time awake. `settled` is false until sleep intent closes it. */
+  efficiency: EfficiencyResult;
 }
 
 /** Mirrors the `days.baseline_hours` column default, for days with no row yet. */
@@ -58,6 +66,12 @@ export async function loadDay(
       baselineHours,
       dayWon: isDayWon(completedHours, baselineHours),
       deltaSeconds: computeDeltaSeconds(dayResult.data?.wake_at ?? null, hoursResult.data),
+      efficiency: computeEfficiency(
+        dayResult.data?.wake_at ?? null,
+        dayResult.data?.sleep_intent_at ?? null,
+        hoursResult.data,
+        new Date(),
+      ),
     },
   };
 }

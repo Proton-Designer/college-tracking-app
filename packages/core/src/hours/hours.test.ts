@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { computeBounceBack } from '../bounceback/bounceBack';
 import {
   computeDeltaSeconds,
+  computeEfficiency,
   countCompletedHours,
   isDayWon,
   toDayOutcomes,
@@ -9,10 +10,11 @@ import {
   type DayFacts,
 } from './hours';
 
-const hour = (localDate: string, hourIndex: number, endedAt: string): CompletedHour => ({
+const hour = (localDate: string, hourIndex: number, endedAt: string, minutes = 60): CompletedHour => ({
   localDate,
   hourIndex,
   endedAt,
+  minutes,
 });
 
 describe('countCompletedHours', () => {
@@ -150,5 +152,45 @@ describe('toDayOutcomes', () => {
     const bounce = computeBounceBack(out);
     expect(bounce.closedEpisodeCount).toBe(0);
     expect(bounce.ongoingLapseDays).toBeGreaterThan(0);
+  });
+});
+
+describe('computeEfficiency', () => {
+  const wake = '2026-08-24T12:00:00Z';
+  const now = new Date('2026-08-24T20:00:00Z'); // 8h awake so far
+
+  it('divides completed Hour time by time awake, running against now while open', () => {
+    const result = computeEfficiency(wake, null, [hour('2026-08-24', 1, 'x'), hour('2026-08-24', 2, 'x')], now);
+    expect(result.workedMinutes).toBe(120);
+    expect(result.awakeMinutes).toBe(480);
+    expect(result.ratio).toBeCloseTo(0.25);
+    expect(result.settled).toBe(false);
+  });
+
+  it('closes the number against sleep intent, ignoring now, once the day is closed', () => {
+    const sleep = '2026-08-24T18:00:00Z'; // 6h awake
+    const result = computeEfficiency(wake, sleep, [hour('2026-08-24', 1, 'x')], now);
+    expect(result.awakeMinutes).toBe(360);
+    expect(result.ratio).toBeCloseTo(60 / 360);
+    expect(result.settled).toBe(true);
+  });
+
+  it('is null, never 0, when the day was never started', () => {
+    const result = computeEfficiency(null, null, [hour('2026-08-24', 1, 'x')], now);
+    expect(result.ratio).toBeNull();
+    expect(result.awakeMinutes).toBeNull();
+    // Worked minutes are still real and still reported.
+    expect(result.workedMinutes).toBe(60);
+  });
+
+  it('reports 0 honestly on a started day with no completed Hours', () => {
+    const result = computeEfficiency(wake, null, [], now);
+    expect(result.workedMinutes).toBe(0);
+    expect(result.ratio).toBe(0);
+  });
+
+  it('is null rather than a confident lie when the awake span is non-positive', () => {
+    const result = computeEfficiency(wake, '2026-08-24T11:00:00Z', [hour('2026-08-24', 1, 'x')], now);
+    expect(result.ratio).toBeNull();
   });
 });

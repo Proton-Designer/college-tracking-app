@@ -13,6 +13,8 @@ export interface CompletedHour {
   hourIndex: number;
   /** ISO instant the Hour finished. */
   endedAt: string;
+  /** Real elapsed minutes, server-computed at end time. */
+  minutes: number;
 }
 
 /** A day's stored facts, as the Work Engine needs them. Mirrors the `days` table. */
@@ -96,4 +98,56 @@ export function toDayOutcomes(days: DayFacts[], hours: CompletedHour[]): DayOutc
       outcome: isDayWon(completed, day.baselineHours) ? 'success' : 'failure',
     };
   });
+}
+
+/**
+ * Efficiency: completed Hour time / time awake.
+ *
+ * The blueprint says "allowed time / time awake", which was genuinely ambiguous, so the
+ * definition here is a recorded ruling (2026-08-24) rather than an inference: the
+ * numerator is time inside completed Hours, and the denominator runs from the Start Day
+ * tap to `sleep_intent_at` -- or to now while the day is still open.
+ *
+ * `settled` is the part that matters for how this gets displayed. A ratio computed
+ * against `now` falls continuously all day simply because the denominator grows, so
+ * showing a live figure as though it were the day's result would read as steady decline
+ * no matter how well the day went. The flag lets the UI say "so far" until the Night
+ * Plan closes the day and the number stops moving.
+ *
+ * Null, never 0, when there is no wake time: an unstarted day has no denominator, and
+ * 0% efficiency is a claim about a day we know nothing about.
+ */
+export interface EfficiencyResult {
+  /** Worked minutes / awake minutes. Null when the day has no wake time. */
+  ratio: number | null;
+  workedMinutes: number;
+  awakeMinutes: number | null;
+  /** True once sleep intent has closed the day, i.e. the number is final. */
+  settled: boolean;
+}
+
+export function computeEfficiency(
+  wakeAt: string | null,
+  sleepIntentAt: string | null,
+  hoursForDay: CompletedHour[],
+  now: Date,
+): EfficiencyResult {
+  const workedMinutes = hoursForDay.reduce((sum, h) => sum + Math.max(0, h.minutes), 0);
+  const settled = sleepIntentAt !== null;
+
+  if (wakeAt === null) return { ratio: null, workedMinutes, awakeMinutes: null, settled };
+
+  const wakeMs = Date.parse(wakeAt);
+  if (Number.isNaN(wakeMs)) return { ratio: null, workedMinutes, awakeMinutes: null, settled };
+
+  const endMs = sleepIntentAt !== null ? Date.parse(sleepIntentAt) : now.getTime();
+  if (Number.isNaN(endMs)) return { ratio: null, workedMinutes, awakeMinutes: null, settled };
+
+  const awakeMinutes = Math.round((endMs - wakeMs) / 60000);
+  // A non-positive span means the day is malformed (sleep intent before wake, or a clock
+  // that moved). The DB check constraint rejects that ordering, but a client computing
+  // against `now` can still see it, and dividing by it would produce a confident lie.
+  if (awakeMinutes <= 0) return { ratio: null, workedMinutes, awakeMinutes: null, settled };
+
+  return { ratio: workedMinutes / awakeMinutes, workedMinutes, awakeMinutes, settled };
 }

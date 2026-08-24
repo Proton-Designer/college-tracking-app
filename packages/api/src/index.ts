@@ -111,7 +111,8 @@ export {
   listCompletedHoursInRange,
   listDayFactsInRange,
 } from "./day/hours";
-export type { StartHourInput, DistractionRow, DistractionCause, DayRow } from "./day/hours";
+export { listWall } from "./day/hours";
+export type { StartHourInput, DistractionRow, DistractionCause, DayRow, WallTile } from "./day/hours";
 export { saveNightPlan, NIGHT_PLAN_DEFAULT_CATEGORY } from "./day/nightPlan";
 export type { NightPlanItem, SaveNightPlanResult } from "./day/nightPlan";
 export { computeHabitBounceBack } from "./day/killLoopBounceBack";
