@@ -1,7 +1,8 @@
 import { color, space } from "@collegeos/design/native";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { DecisionJournal } from "../../components/insights/DecisionJournal";
 import { ActiveExperiments } from "../../components/insights/ActiveExperiments";
+import { useRouter } from "expo-router";
 import { BounceBackSection } from "../../components/insights/BounceBackSection";
 import { CalibrationTable } from "../../components/insights/CalibrationTable";
 import { FrictionDistributionSection } from "../../components/insights/FrictionDistributionSection";
@@ -21,6 +22,7 @@ export default function InsightsScreen() {
       <Aurora band={null} />
       <TabScreenScrollView transparent>
       <Text style={textStyle("displayM", color.ink)}>Insights</Text>
+      <WeekLink />
 
       {result.status === "loading" ? (
         <View style={{ gap: space[4] }}>
@@ -115,3 +117,14 @@ const styles = StyleSheet.create({
     paddingTop: space[5],
   },
 });
+
+/** Entry to the Sunday Review (/week) -- a link, not a section: the review is its own
+ *  surface and duplicating its numbers here would be a second copy to drift. */
+function WeekLink() {
+  const router = useRouter();
+  return (
+    <Pressable onPress={() => router.push("/week")} accessibilityRole="link" hitSlop={6}>
+      <Text style={textStyle("bodyS", color.accent)}>This week in review →</Text>
+    </Pressable>
+  );
+}

@@ -111,7 +111,8 @@ export {
   listCompletedHoursInRange,
   listDayFactsInRange,
 } from "./day/hours";
-export { listWall } from "./day/hours";
+export { listWall, loadWeekReviewData } from "./day/hours";
+export type { WeekReviewData } from "./day/hours";
 export type { StartHourInput, DistractionRow, DistractionCause, DayRow, WallTile } from "./day/hours";
 export { getRoutineItems, setRoutineItem } from "./data/routines";
 export type { RoutineRow, RoutineType, RoutineItemState } from "./data/routines";

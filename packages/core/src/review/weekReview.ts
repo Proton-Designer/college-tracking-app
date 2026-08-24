@@ -1,0 +1,121 @@
+import type { LocalDate } from '../types';
+import { computeEfficiency, type CompletedHour } from '../hours/hours';
+
+/**
+ * The Sunday Review's numbers -- BLUEPRINT Part III "Weekly". Pure assembly over data the
+ * week already produced; nothing here is stored, so the review can never disagree with
+ * the records it summarises.
+ */
+
+export interface WeekHourRow {
+  localDate: LocalDate;
+  minutes: number;
+  /** null = the Hour was logged without a category; grouped under 'Uncategorized'. */
+  category: string | null;
+}
+
+export interface WeekDayFacts {
+  localDate: LocalDate;
+  wakeAt: string | null;
+  sleepIntentAt: string | null;
+  baselineHours: number;
+}
+
+export interface CategoryTotal {
+  category: string;
+  minutes: number;
+  share: number;
+}
+
+export interface CauseCount {
+  cause: string;
+  count: number;
+  share: number;
+}
+
+export interface DayEfficiency {
+  localDate: LocalDate;
+  /**
+   * Null for any day that was never closed. A past day with a wake time but no sleep
+   * intent has an unknowable denominator -- computing it "against now" would report a
+   * Tuesday that ended days ago as near-zero efficiency, which is arithmetic wearing the
+   * costume of a fact. Only settled days get a number.
+   */
+  ratio: number | null;
+}
+
+export interface WeekReview {
+  totalHours: number;
+  totalMinutes: number;
+  hoursByCategory: CategoryTotal[];
+  /** Descending by count -- the Pareto order. */
+  distractionPareto: CauseCount[];
+  totalDistractions: number;
+  efficiencyByDay: DayEfficiency[];
+}
+
+export const UNCATEGORIZED = 'Uncategorized';
+
+export function computeWeekReview(
+  hourRows: WeekHourRow[],
+  causes: string[],
+  dayFacts: WeekDayFacts[],
+): WeekReview {
+  const totalMinutes = hourRows.reduce((sum, r) => sum + Math.max(0, r.minutes), 0);
+
+  const byCategory = new Map<string, number>();
+  for (const row of hourRows) {
+    const key = row.category != null && row.category.trim() !== '' ? row.category : UNCATEGORIZED;
+    byCategory.set(key, (byCategory.get(key) ?? 0) + Math.max(0, row.minutes));
+  }
+  const hoursByCategory = [...byCategory.entries()]
+    .map(([category, minutes]) => ({
+      category,
+      minutes,
+      share: totalMinutes > 0 ? minutes / totalMinutes : 0,
+    }))
+    .sort((a, b) => b.minutes - a.minutes);
+
+  const byCause = new Map<string, number>();
+  for (const cause of causes) byCause.set(cause, (byCause.get(cause) ?? 0) + 1);
+  const totalDistractions = causes.length;
+  const distractionPareto = [...byCause.entries()]
+    .map(([cause, count]) => ({
+      cause,
+      count,
+      share: totalDistractions > 0 ? count / totalDistractions : 0,
+    }))
+    .sort((a, b) => b.count - a.count);
+
+  const hoursByDate = new Map<LocalDate, CompletedHour[]>();
+  for (const row of hourRows) {
+    const list = hoursByDate.get(row.localDate) ?? [];
+    // computeEfficiency only reads `minutes`; the other CompletedHour fields are
+    // irrelevant to the ratio and filled with inert values rather than invented ones.
+    list.push({ localDate: row.localDate, hourIndex: 0, endedAt: '', minutes: row.minutes });
+    hoursByDate.set(row.localDate, list);
+  }
+  const efficiencyByDay = dayFacts.map((day) => {
+    if (day.wakeAt == null || day.sleepIntentAt == null) {
+      return { localDate: day.localDate, ratio: null };
+    }
+    const result = computeEfficiency(
+      day.wakeAt,
+      day.sleepIntentAt,
+      hoursByDate.get(day.localDate) ?? [],
+      // Settled days ignore `now` entirely; passing the epoch makes any accidental
+      // dependence on the clock loudly wrong instead of quietly plausible.
+      new Date(0),
+    );
+    return { localDate: day.localDate, ratio: result.ratio };
+  });
+
+  return {
+    totalHours: hourRows.length,
+    totalMinutes,
+    hoursByCategory,
+    distractionPareto,
+    totalDistractions,
+    efficiencyByDay,
+  };
+}

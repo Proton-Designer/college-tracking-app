@@ -391,3 +391,66 @@ export async function listWall(
   }
   return dataOk(tiles);
 }
+
+export interface WeekReviewData {
+  hourRows: import('@collegeos/core').WeekHourRow[];
+  causes: string[];
+  dayFacts: import('@collegeos/core').WeekDayFacts[];
+}
+
+/**
+ * Everything computeWeekReview needs for a date range, in three queries. The distraction
+ * causes come through an inner join on task_sessions.local_date rather than a timestamptz
+ * window on occurred_at -- the session's local day is already the one true day boundary,
+ * and re-deriving it from the tap's timestamp would be a second, disagreeing definition.
+ */
+export async function loadWeekReviewData(
+  client: TypedSupabaseClient,
+  userId: string,
+  fromDate: LocalDate,
+  toDate: LocalDate,
+): Promise<DataResult<WeekReviewData>> {
+  const { data: hourData, error: hourError } = await client
+    .from('task_sessions')
+    .select('local_date, actual_duration_min, category')
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+    .not('hour_index', 'is', null)
+    .gte('local_date', fromDate)
+    .lte('local_date', toDate);
+  if (hourError) return dataErr(mapDataError(hourError));
+
+  const { data: causeData, error: causeError } = await client
+    .from('distractions')
+    .select('cause, task_sessions!inner(local_date)')
+    .eq('user_id', userId)
+    .gte('task_sessions.local_date', fromDate)
+    .lte('task_sessions.local_date', toDate);
+  if (causeError) return dataErr(mapDataError(causeError));
+
+  const { data: dayData, error: dayError } = await client
+    .from('days')
+    .select('local_date, wake_at, sleep_intent_at, baseline_hours')
+    .eq('user_id', userId)
+    .gte('local_date', fromDate)
+    .lte('local_date', toDate)
+    .order('local_date', { ascending: true });
+  if (dayError) return dataErr(mapDataError(dayError));
+
+  return dataOk({
+    hourRows: (hourData ?? [])
+      .filter((r) => r.local_date != null)
+      .map((r) => ({
+        localDate: r.local_date as string,
+        minutes: r.actual_duration_min ?? 0,
+        category: r.category,
+      })),
+    causes: (causeData ?? []).map((r) => r.cause as string),
+    dayFacts: (dayData ?? []).map((r) => ({
+      localDate: r.local_date,
+      wakeAt: r.wake_at,
+      sleepIntentAt: r.sleep_intent_at,
+      baselineHours: r.baseline_hours,
+    })),
+  });
+}
