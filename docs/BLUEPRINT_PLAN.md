@@ -52,6 +52,12 @@ phase is mostly *extending* a proven table and building UI, not designing persis
 - `delta.ts` — wake → first completed Hour, in seconds. `null` when no Hour is complete, never `0`
   (the A2 null-vs-zero rule).
 - `dayWon.ts` — `hours_completed >= baseline_hours` for that weekday.
+- `efficiency.ts` — **held until the Night Plan chunk exists** (ruling 2026-08-24), then
+  defined as **completed Hour time / time awake**, where wake is the Start Day tap, the
+  denominator runs against `now()` while the day is live, and `sleep_intent_at` closes the
+  day's final number. Recorded here because the denominator was genuinely ambiguous in the
+  blueprint ("allowed time / time awake") and guessing it would have baked a wrong metric
+  into the day surface.
 - **No `chain.ts`** (D23). Recovery reuses the existing `packages/core/src/bounceback/` engine:
   time from a missed baseline back to a Day Won. Any new date math stays pure `LocalDate` string
   work via `addDays`/`compareLocalDate` — no `Date` arithmetic.

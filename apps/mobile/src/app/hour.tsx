@@ -14,6 +14,11 @@ import {
   startHourAction,
   type TodayHoursState,
 } from "../lib/hourActions";
+import {
+  cancelHourEndAlert,
+  ensureNotificationPermission,
+  scheduleHourEndAlert,
+} from "../lib/hourNotifications";
 import { useAuthSession } from "../lib/useAuthSession";
 
 const HOUR_SECONDS = 60 * 60;
@@ -65,8 +70,21 @@ export default function HourScreen() {
     if (userId == null) return;
     const [activeResult, todayResult] = await Promise.all([loadActiveHour(userId), loadTodayHours(userId)]);
     if (activeResult.ok) {
-      setActive(activeResult.data.session);
+      const session = activeResult.data.session;
+      setActive(session);
       setDistractions(activeResult.data.distractions);
+      // Re-assert the 60:00 alert every time we learn there is a live Hour. Scheduling is
+      // idempotent because the identifier is derived from the session id, and an already
+      // -elapsed end time is a no-op -- so this repairs an alert lost to an app kill
+      // without ever double-firing one.
+      if (session != null && session.actual_start != null) {
+        void scheduleHourEndAlert(
+          session.id,
+          session.hour_index,
+          session.deliverable,
+          new Date(Date.parse(session.actual_start) + HOUR_SECONDS * 1000),
+        );
+      }
     } else {
       setError(activeResult.error);
     }
@@ -109,6 +127,19 @@ export default function HourScreen() {
       return;
     }
     setDeliverable("");
+    // Asked here, with the Hour visibly starting, rather than at app launch: a permission
+    // prompt with no context attached is the one most likely to be denied. A denial does
+    // not stop the Hour -- it only means no alert at 60:00.
+    await ensureNotificationPermission();
+    const started = result.session;
+    if (started?.actual_start != null) {
+      await scheduleHourEndAlert(
+        started.id,
+        started.hour_index,
+        started.deliverable,
+        new Date(Date.parse(started.actual_start) + HOUR_SECONDS * 1000),
+      );
+    }
     await refresh();
   }, [userId, deliverable, refresh]);
 
@@ -130,8 +161,13 @@ export default function HourScreen() {
     if (userId == null || active == null) return;
     setBusy(true);
     setError(null);
-    const result = await endHourAction(userId, active.id, {});
+    const endedSessionId = active.id;
+    const result = await endHourAction(userId, endedSessionId, {});
     setBusy(false);
+    // Cancel regardless of outcome: if the end failed, refresh() will re-assert the alert
+    // from the still-active session, so the worst case is a redundant cancel rather than
+    // an orphaned alert firing for an Hour that already finished.
+    await cancelHourEndAlert(endedSessionId);
     if (!result.ok) {
       setError(result.error ?? "Could not end the Hour.");
       return;
