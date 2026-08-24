@@ -113,6 +113,21 @@ export {
 } from "./day/hours";
 export { listWall } from "./day/hours";
 export type { StartHourInput, DistractionRow, DistractionCause, DayRow, WallTile } from "./day/hours";
+export { listCards, createCard, updateCard, listRotationCards } from "./data/cards";
+export type { CardRow, CardType, CreateCardInput, UpdateCardInput } from "./data/cards";
+export { listWorries, createWorry, setWorryStatus } from "./data/worries";
+export type { WorryRow, WorryStatus } from "./data/worries";
+export {
+  listHabits,
+  createHabit,
+  updateHabit,
+  setHabitVote,
+  listHabitLogsInRange,
+  countHabitVotes,
+  listVotesForDate,
+  MAX_ACTIVE_HABITS,
+} from "./data/habits";
+export type { HabitRow, HabitLogRow, CreateHabitInput, UpdateHabitInput } from "./data/habits";
 export { saveNightPlan, NIGHT_PLAN_DEFAULT_CATEGORY } from "./day/nightPlan";
 export type { NightPlanItem, SaveNightPlanResult } from "./day/nightPlan";
 export { computeHabitBounceBack } from "./day/killLoopBounceBack";
