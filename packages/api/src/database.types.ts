@@ -7,6 +7,11 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.15"
+  }
   graphql_public: {
     Tables: {
       [_ in never]: never
@@ -663,6 +668,47 @@ export type Database = {
           },
         ]
       }
+      days: {
+        Row: {
+          baseline_hours: number
+          created_at: string
+          id: number
+          local_date: string
+          sleep_intent_at: string | null
+          updated_at: string
+          user_id: string
+          wake_at: string | null
+        }
+        Insert: {
+          baseline_hours?: number
+          created_at?: string
+          id?: never
+          local_date: string
+          sleep_intent_at?: string | null
+          updated_at?: string
+          user_id: string
+          wake_at?: string | null
+        }
+        Update: {
+          baseline_hours?: number
+          created_at?: string
+          id?: never
+          local_date?: string
+          sleep_intent_at?: string | null
+          updated_at?: string
+          user_id?: string
+          wake_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "days_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       decision_journal: {
         Row: {
           actual_outcome: string | null
@@ -824,6 +870,48 @@ export type Database = {
           },
           {
             foreignKeyName: "deliverables_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      distractions: {
+        Row: {
+          cause: Database["public"]["Enums"]["distraction_cause"]
+          created_at: string
+          id: number
+          occurred_at: string
+          session_id: number
+          user_id: string
+        }
+        Insert: {
+          cause: Database["public"]["Enums"]["distraction_cause"]
+          created_at?: string
+          id?: never
+          occurred_at?: string
+          session_id: number
+          user_id: string
+        }
+        Update: {
+          cause?: Database["public"]["Enums"]["distraction_cause"]
+          created_at?: string
+          id?: never
+          occurred_at?: string
+          session_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "distractions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "task_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "distractions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -2029,9 +2117,13 @@ export type Database = {
         Row: {
           actual_duration_min: number | null
           actual_start: string | null
+          category: string | null
           created_at: string
+          deliverable: string | null
+          hour_index: number | null
           id: number
           interruptions: number
+          local_date: string | null
           location: string | null
           objective_output: string | null
           phone_usage_min: number | null
@@ -2040,15 +2132,19 @@ export type Database = {
           status: string
           subjective_focus: number | null
           target_achieved: string | null
-          task_id: number
+          task_id: number | null
           user_id: string
         }
         Insert: {
           actual_duration_min?: number | null
           actual_start?: string | null
+          category?: string | null
           created_at?: string
+          deliverable?: string | null
+          hour_index?: number | null
           id?: never
           interruptions?: number
+          local_date?: string | null
           location?: string | null
           objective_output?: string | null
           phone_usage_min?: number | null
@@ -2057,15 +2153,19 @@ export type Database = {
           status?: string
           subjective_focus?: number | null
           target_achieved?: string | null
-          task_id: number
+          task_id?: number | null
           user_id: string
         }
         Update: {
           actual_duration_min?: number | null
           actual_start?: string | null
+          category?: string | null
           created_at?: string
+          deliverable?: string | null
+          hour_index?: number | null
           id?: never
           interruptions?: number
+          local_date?: string | null
           location?: string | null
           objective_output?: string | null
           phone_usage_min?: number | null
@@ -2074,7 +2174,7 @@ export type Database = {
           status?: string
           subjective_focus?: number | null
           target_achieved?: string | null
-          task_id?: number
+          task_id?: number | null
           user_id?: string
         }
         Relationships: [
@@ -2502,6 +2602,13 @@ export type Database = {
         | "exam"
         | "project"
         | "reading"
+      distraction_cause:
+        | "phone"
+        | "got_hard"
+        | "finished_early"
+        | "notification"
+        | "reflex"
+        | "bored"
       friction_cause:
         | "underestimated_duration"
         | "unclear_next_action"
@@ -2659,6 +2766,14 @@ export const Constants = {
         "project",
         "reading",
       ],
+      distraction_cause: [
+        "phone",
+        "got_hard",
+        "finished_early",
+        "notification",
+        "reflex",
+        "bored",
+      ],
       friction_cause: [
         "underestimated_duration",
         "unclear_next_action",
@@ -2674,4 +2789,3 @@ export const Constants = {
     },
   },
 } as const
-

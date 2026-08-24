@@ -171,7 +171,13 @@ export function DayTrace({
   });
 
   const lateStarts: LateStart[] = taskSessions
-    .filter((s) => s.actual_start != null)
+    // task_id became nullable in migration 34 so an Hour can run without a task row.
+    // A session with no task is not a late-started *task* -- it has no planned task to be
+    // late for and nothing to name in the caption -- so it is excluded here rather than
+    // coerced into a fake id. Narrowed with a predicate so the map below stays honest.
+    .filter((s): s is typeof s & { actual_start: string; task_id: number } =>
+      s.actual_start != null && s.task_id != null,
+    )
     .map((s) => {
       const plannedStart = minutesInZone(new Date(s.planned_start), timezone);
       const actualStart = minutesInZone(new Date(s.actual_start as string), timezone);
@@ -204,7 +210,10 @@ export function DayTrace({
   const weekday = new Intl.DateTimeFormat("en-US", { weekday: "long", timeZone: "UTC" }).format(new Date(`${today}T00:00:00Z`));
 
   const captionLines = [
-    ...missedSessions.map((s) => `Didn't happen: ${tasksById.get(s.task_id)?.title ?? "a planned session"}`),
+    ...missedSessions.map(
+      (s) =>
+        `Didn't happen: ${(s.task_id == null ? undefined : tasksById.get(s.task_id)?.title) ?? "a planned session"}`,
+    ),
     ...lateStarts.map((l) => `Started ${l.deltaMin}m late: ${tasksById.get(l.taskId)?.title ?? "a planned session"}`),
   ];
 

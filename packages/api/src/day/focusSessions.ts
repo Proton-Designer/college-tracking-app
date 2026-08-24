@@ -207,6 +207,18 @@ export async function getFocusSessionContext(
   if (sessionError) return dataErr(mapDataError(sessionError));
   if (!session) return dataErr({ code: 'not_found', message: 'That focus session could not be found.' });
 
+  // task_id became nullable in migration 34 so a Deep Work Hour can be started from a
+  // one-line deliverable with no task row behind it. This context is the /focus/[sessionId]
+  // screen, whose entire shape (target task, its course) is built around a task -- so a
+  // task-less Hour is refused explicitly here rather than papered over with a placeholder
+  // task or a non-null assertion. The Hour's own surface is what should render it.
+  if (session.task_id == null) {
+    return dataErr({
+      code: 'not_found',
+      message: 'That session is a Deep Work Hour with no task attached, not a task focus session.',
+    });
+  }
+
   const { data: task, error: taskError } = await client
     .from('tasks')
     .select('*')
