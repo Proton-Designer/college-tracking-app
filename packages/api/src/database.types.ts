@@ -2045,6 +2045,44 @@ export type Database = {
           },
         ]
       }
+      routines: {
+        Row: {
+          created_at: string
+          id: number
+          items: Json
+          local_date: string
+          type: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          items?: Json
+          local_date: string
+          type: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          items?: Json
+          local_date?: string
+          type?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "routines_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       screen_daily: {
         Row: {
           created_at: string

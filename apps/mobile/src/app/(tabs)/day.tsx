@@ -1,10 +1,16 @@
 import { color, radius, space } from "@collegeos/design/native";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { AppState, StyleSheet, Text, View } from "react-native";
+import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import { Aurora, Button, Panel, TabScreenScrollView } from "../../components/ui";
 import { textStyle } from "../../design/typography";
 import { loadDay, startDayAction, type DayState } from "../../lib/dayActions";
+import {
+  loadMorningRoutine,
+  MORNING_ROUTINE_ITEMS,
+  toggleMorningItem,
+} from "../../lib/routineActions";
+import { isScheduledOn } from "@collegeos/core";
 import { useAuthSession } from "../../lib/useAuthSession";
 
 function formatClock(totalSeconds: number): string {
@@ -41,12 +47,14 @@ export default function DayScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [routine, setRoutine] = useState<Map<string, boolean>>(new Map());
 
   const refresh = useCallback(async () => {
     if (userId == null) return;
-    const result = await loadDay(userId);
+    const [result, routineResult] = await Promise.all([loadDay(userId), loadMorningRoutine(userId)]);
     if (result.ok) setState(result.data);
     else setError(result.error);
+    if (routineResult.ok) setRoutine(routineResult.data);
     setLoading(false);
   }, [userId]);
 
@@ -89,6 +97,25 @@ export default function DayScreen() {
     setNow(Date.now());
     await refresh();
   }, [userId, refresh]);
+
+  const onToggleRoutine = useCallback(
+    async (key: string) => {
+      if (userId == null) return;
+      const next = !(routine.get(key) ?? false);
+      // Optimistic: a checklist tick that round-trips before rendering feels broken.
+      setRoutine((prev) => new Map(prev).set(key, next));
+      const result = await toggleMorningItem(userId, key, next);
+      if (!result.ok) {
+        setRoutine((prev) => new Map(prev).set(key, !next));
+        setError(result.error ?? "Could not save that.");
+      }
+    },
+    [userId, routine],
+  );
+
+  // Monday = ISO weekday 1. The Anti-Worry Hour is Monday's Hour 1 (Part III), so the day
+  // surface points at the list exactly when the course says to clear it.
+  const isMonday = state != null && isScheduledOn({ weekdays: [1] }, state.localDate);
 
   const sinceWakeSeconds = wakeAtMs != null ? Math.floor((now - wakeAtMs) / 1000) : null;
 
@@ -160,6 +187,46 @@ export default function DayScreen() {
             </Panel>
 
             <Panel>
+              <Text style={textStyle("label", color.inkMuted)}>Morning routine</Text>
+              <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+                All optional. Only Start Day matters.
+              </Text>
+              <View style={styles.routineList}>
+                {MORNING_ROUTINE_ITEMS.map((item) => {
+                  const done = routine.get(item.key) ?? false;
+                  return (
+                    <Pressable
+                      key={item.key}
+                      onPress={() => void onToggleRoutine(item.key)}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: done }}
+                      style={styles.routineRow}
+                    >
+                      <Text style={textStyle("body", done ? color.inkMuted : color.ink)}>
+                        {done ? "✓ " : "○ "}
+                        {item.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </Panel>
+
+            {isMonday ? (
+              <Panel>
+                <Text style={textStyle("label", color.inkMuted)}>Anti-Worry Hour</Text>
+                <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+                  It&apos;s Monday. Hour 1 clears the Worry List.
+                </Text>
+                <View style={styles.spacedTop}>
+                  <Button variant="secondary" onPress={() => router.push("/worries")}>
+                    Open the Worry List
+                  </Button>
+                </View>
+              </Panel>
+            ) : null}
+
+            <Panel>
               <Text style={textStyle("label", color.inkMuted)}>Efficiency</Text>
               {state!.efficiency.ratio == null ? (
                 <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
@@ -191,6 +258,9 @@ export default function DayScreen() {
             <Button variant="secondary" onPress={() => router.push("/habits")}>
               Habits
             </Button>
+            <Button variant="secondary" onPress={() => router.push("/worries")}>
+              Worry List
+            </Button>
           </>
         )}
       </TabScreenScrollView>
@@ -203,6 +273,8 @@ const styles = StyleSheet.create({
   spacedTop: { marginTop: space[2] },
   clockBlock: { alignItems: "center", gap: space[2], paddingVertical: space[6] },
   clock: { fontVariant: ["tabular-nums"] },
+  routineList: { marginTop: space[3], gap: space[2] },
+  routineRow: { paddingVertical: space[1] },
   wonPill: {
     alignSelf: "flex-start",
     marginTop: space[3],

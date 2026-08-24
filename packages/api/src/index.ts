@@ -113,6 +113,8 @@ export {
 } from "./day/hours";
 export { listWall } from "./day/hours";
 export type { StartHourInput, DistractionRow, DistractionCause, DayRow, WallTile } from "./day/hours";
+export { getRoutineItems, setRoutineItem } from "./data/routines";
+export type { RoutineRow, RoutineType, RoutineItemState } from "./data/routines";
 export { listCards, createCard, updateCard, listRotationCards } from "./data/cards";
 export type { CardRow, CardType, CreateCardInput, UpdateCardInput } from "./data/cards";
 export { listWorries, createWorry, setWorryStatus } from "./data/worries";

@@ -15,6 +15,7 @@ import {
   NIGHT_PLAN_REMINDER_LABEL,
   type NightPlanReminderState,
 } from "../lib/nightPlanNotifications";
+import { loadHabits, voteAction, type HabitState } from "../lib/habitsActions";
 import { useAuthSession } from "../lib/useAuthSession";
 
 interface DumpItem {
@@ -51,6 +52,7 @@ export default function NightPlanScreen() {
   const [saved, setSaved] = useState(false);
   const [today, setToday] = useState<DayState | null>(null);
   const [reminder, setReminder] = useState<NightPlanReminderState | null>(null);
+  const [habitStates, setHabitStates] = useState<HabitState[]>([]);
 
   useEffect(() => {
     if (userId == null) return;
@@ -62,6 +64,26 @@ export default function NightPlanScreen() {
   useEffect(() => {
     void getNightPlanReminderState().then(setReminder);
   }, []);
+
+  const refreshHabits = useCallback(async () => {
+    if (userId == null) return;
+    const result = await loadHabits(userId);
+    if (result.ok) setHabitStates(result.data.habits.filter((h) => !h.habit.paused));
+  }, [userId]);
+
+  useEffect(() => {
+    void refreshHabits();
+  }, [refreshHabits]);
+
+  const onCloseoutVote = useCallback(
+    async (state: HabitState) => {
+      if (userId == null) return;
+      const next = state.todayVote === true ? false : true;
+      const result = await voteAction(userId, state.habit.id, next);
+      if (result.ok) await refreshHabits();
+    },
+    [userId, refreshHabits],
+  );
 
   // The one place that may prompt for notification permission, because this is the one
   // screen where the reason is visible. Part VII calls the nightly anchor the highest
@@ -268,6 +290,40 @@ export default function NightPlanScreen() {
                   {today.completedHours} of {today.baselineHours} Hours
                   {today.dayWon ? " · Day Won" : ""}
                 </Text>
+                {today.deltaSeconds != null ? (
+                  <Text style={textStyle("bodyS", color.inkMuted)}>
+                    Delta {Math.floor(today.deltaSeconds / 60)}m
+                  </Text>
+                ) : null}
+                {today.efficiency.ratio != null ? (
+                  <Text style={textStyle("bodyS", color.inkMuted)}>
+                    Efficiency {Math.round(today.efficiency.ratio * 100)}%
+                    {today.efficiency.settled ? "" : " so far"}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+
+            {habitStates.length > 0 ? (
+              <View style={styles.statsBlock}>
+                <Text style={textStyle("label", color.inkMuted)}>Votes</Text>
+                {habitStates.map((state) => {
+                  const voted = state.todayVote === true;
+                  return (
+                    <Pressable
+                      key={state.habit.id}
+                      onPress={() => void onCloseoutVote(state)}
+                      accessibilityRole="checkbox"
+                      accessibilityState={{ checked: voted }}
+                      style={styles.voteRow}
+                    >
+                      <Text style={textStyle("body", voted ? color.inkMuted : color.ink)}>
+                        {voted ? "✓ " : "○ "}
+                        {state.habit.name} — a vote for {state.habit.identity}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             ) : null}
 
@@ -301,5 +357,6 @@ const styles = StyleSheet.create({
   rowStarred: { borderColor: color.accent, backgroundColor: color.accentWash },
   marker: { fontSize: 18, color: color.ink, width: 22, textAlign: "center" },
   rowTitle: { flex: 1 },
-  statsBlock: { marginTop: space[5] },
+  statsBlock: { marginTop: space[5], gap: space[1] },
+  voteRow: { paddingVertical: space[2] },
 });
