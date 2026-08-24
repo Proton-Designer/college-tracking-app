@@ -95,6 +95,32 @@ Estimates throughout this document are estimates, not measurements.
 
 ---
 
+## Decision: /day and /today merge in Tier 2 (ruled 2026-08-24)
+
+Phase 1 left the app with **two answers to "what am I doing today"** — `/today`, the academic
+day (MITs, risk, calendar), and `/day`, the Work Engine (Hours, Delta, baseline, Day Won).
+That was acceptable while the Work Engine was being built; it is not a durable end state.
+
+**The ruling:** they merge in Tier 2, with the **Work Engine surface as the base**.
+Hours / Delta / baseline is the spine, and School Today plus the day's tasks feed *into* it
+rather than living beside it. This follows the blueprint directly — Part II makes the Deep
+Work Hour the spine of the app and Part V is explicit that the Academics module "stays
+exactly as designed" as a planning brain feeding the same touchpoints, never a second
+system. Part X's "no second daily ritual" says the same thing from the other side.
+
+**Until the merge:** `/today` remains the default surface the app opens to, and `/day` stays
+the second tab ("Hours"). **After the merge:** the merged surface becomes the default, and
+post-login routing moves off `/today` with it.
+
+**What this obliges Tier 2 to do.** School Today is not a new screen. It is a section of the
+merged surface and a feed into the Night Plan's dump, exactly as Part V describes. Anything
+built in Tier 2 that assumes a standalone academic Today is building toward a shape this
+decision has already rejected — so build the feed, not the screen.
+
+Recorded as **D24** in `.brain/memory/decisions.md`.
+
+---
+
 ## Phase 2 — the thin layer around the engine, plus S1 (school, no AI)
 
 **Expo Go:** ✅. **Credentials:** none — this is the point of S1.

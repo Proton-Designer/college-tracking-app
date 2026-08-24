@@ -318,3 +318,23 @@ adding a second, competing notion of consistency.
 
 This is a deliberate divergence from the blueprint, made by the repo owner on 2026-08-24, not an
 oversight. Do not reintroduce the Chain without superseding this entry.
+
+## D24 — /day and /today merge, Work Engine as the base (2026-08-24)
+Phase 1 shipped the Work Engine (`/day`: Hours, Delta, baseline, Day Won) alongside the existing
+academic `/today` (MITs, risk, calendar). Two surfaces now answer the same question — "what am I
+doing today" — which is a transitional state, not a design.
+
+**Ruled:** they merge in Tier 2, with the **Work Engine surface as the base**. Hours/Delta/baseline
+is the spine; School Today and the day's tasks feed into it. `/today` stays the default open until
+that merge, after which the merged surface becomes the default and post-login routing follows it.
+
+**Why this direction and not the reverse.** `docs/BLUEPRINT.md` Part II makes the Deep Work Hour the
+spine of the app and everything else a layer hanging off it. Part V states that the Academics module
+adds a planning brain feeding the existing touchpoints and explicitly "adds no fourth daily
+touchpoint". Part X bans a second daily ritual outright. Merging the academic day *into* the Work
+Engine satisfies all three; merging the Work Engine into the academic Today would invert the stated
+spine and leave Hours as a feature of a to-do screen.
+
+**Consequence for Tier 2:** School Today is a *section and a feed*, not a screen. Building a
+standalone academic Today surface in Tier 2 would be building toward a shape this entry has already
+rejected.
