@@ -58,11 +58,12 @@ export function Button({
   // not just a color dip, is what reads as a real control rather than flat/unstyled RN chrome.
   function handlePressIn() {
     // SharedValue.value assignment is Reanimated's intended API, not React state mutation.
-    // eslint-disable-next-line react-hooks/immutability
+    // No eslint-disable is needed on SDK 54 -- see the note in Toggle.tsx for why the
+    // directive would itself be an error here.
     scale.value = reducedMotion ? 1 : withSpring(0.96, spring.standard);
   }
   function handlePressOut() {
-    // eslint-disable-next-line react-hooks/immutability -- see handlePressIn above.
+    // See handlePressIn above.
     scale.value = reducedMotion ? 1 : withSpring(1, spring.standard);
   }
 

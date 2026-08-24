@@ -1,6 +1,10 @@
 import { BarChart3, BookOpen, ClipboardCheck, Home } from "lucide-react-native";
 import { BlurView } from "expo-blur";
-import type { BottomTabBarProps } from "expo-router/tabs";
+// SDK 54's expo-router (6.x) re-exports only the `Tabs` navigator from `expo-router/tabs`,
+// not the tab-bar prop types -- those live in @react-navigation/bottom-tabs, which expo-router
+// depends on and which is declared explicitly in this app's package.json so the import is not
+// relying on hoisting. `expo-router/tabs` re-exported this type from SDK 55 onward.
+import type { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Animated, { LinearTransition } from "react-native-reanimated";
 import { color, duration, island, radius, shadow, space, type as typeScale } from "@collegeos/design/native";

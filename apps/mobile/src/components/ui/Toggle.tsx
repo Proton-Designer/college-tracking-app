@@ -24,8 +24,10 @@ export function Toggle({ checked, onValueChange, label, disabled = false }: Togg
   useEffect(() => {
     const target = checked ? THUMB_ON : THUMB_OFF;
     // SharedValue.value assignment is Reanimated's intended API, not React state mutation;
-    // the compiler rule can't see that.
-    // eslint-disable-next-line react-hooks/immutability
+    // the compiler rule can't see that. No eslint-disable is needed on SDK 54:
+    // `react-hooks/immutability` ships with eslint-plugin-react-hooks v6, which
+    // eslint-config-expo@10 predates, and a disable directive naming an undefined rule is
+    // itself an error. Restore it if the SDK moves back to 55+.
     thumbX.value = reducedMotion ? target : withSpring(target, spring.standard);
   }, [checked, reducedMotion, thumbX]);
 

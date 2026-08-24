@@ -26,8 +26,8 @@ export function Checkbox({ checked, onValueChange, label, disabled = false, erro
   useEffect(() => {
     const target = checked ? 1 : 0;
     // SharedValue.value assignment is Reanimated's intended API, not React state mutation;
-    // the compiler rule can't see that.
-    // eslint-disable-next-line react-hooks/immutability
+    // the compiler rule can't see that. No eslint-disable is needed on SDK 54 -- see the
+    // note in Toggle.tsx for why the directive would itself be an error here.
     checkScale.value = reducedMotion ? target : withSpring(target, spring.standard);
   }, [checked, reducedMotion, checkScale]);
 
