@@ -7,7 +7,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Aurora, Button, Input, Panel } from "../components/ui";
 import { textStyle } from "../design/typography";
 import { loadDay, setSleepIntentAction, type DayState } from "../lib/dayActions";
-import { saveNightPlanAction, NIGHT_PLAN_CATEGORY_LABEL } from "../lib/nightPlanActions";
+import {
+  loadSchoolTodayForDump,
+  saveNightPlanAction,
+  NIGHT_PLAN_CATEGORY_LABEL,
+} from "../lib/nightPlanActions";
 import {
   cancelNightPlanReminder,
   ensureNightPlanReminder,
@@ -60,6 +64,24 @@ export default function NightPlanScreen() {
       if (r.ok) setToday(r.data);
     });
   }, [userId]);
+
+  // School Today -> the dump (5.5/D24). Seeded ONCE on open, as removable rows the user
+  // still stars and crowns -- a feed into the ritual, never a plan made on their behalf.
+  // The one-shot guard means deleting a seeded item stays deleted; re-seeding on every
+  // render would resurrect anything the user just decided tomorrow does not need.
+  const [seeded, setSeeded] = useState(false);
+  useEffect(() => {
+    if (userId == null || seeded) return;
+    void loadSchoolTodayForDump(userId).then((r) => {
+      setSeeded(true);
+      if (!r.ok || r.data.length === 0) return;
+      setItems((prev) => {
+        const startId = prev.length + 1;
+        return [...prev, ...r.data.map((it, i) => ({ id: startId + i, title: it.text, rank: null }))];
+      });
+      setNextId((n) => n + r.data.length);
+    });
+  }, [userId, seeded]);
 
   useEffect(() => {
     void getNightPlanReminderState().then(setReminder);
@@ -238,6 +260,14 @@ export default function NightPlanScreen() {
                         {item.rank === 1 ? "♛" : item.rank != null ? "★" : "○"}
                       </Text>
                       <Text style={[textStyle("body", color.ink), styles.rowTitle]}>{item.title}</Text>
+                      <Pressable
+                        onPress={() => setItems((prev) => prev.filter((i) => i.id !== item.id))}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Remove ${item.title}`}
+                        hitSlop={8}
+                      >
+                        <Text style={textStyle("bodyS", color.inkFaint)}>✕</Text>
+                      </Pressable>
                     </Pressable>
                   ))}
                 </View>

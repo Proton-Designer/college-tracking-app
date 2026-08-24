@@ -130,6 +130,8 @@ export {
   MAX_ACTIVE_HABITS,
 } from "./data/habits";
 export type { HabitRow, HabitLogRow, CreateHabitInput, UpdateHabitInput } from "./data/habits";
+export { listSchoolTodayItems } from "./day/schoolToday";
+export type { SchoolTodayItem } from "./day/schoolToday";
 export { saveNightPlan, NIGHT_PLAN_DEFAULT_CATEGORY } from "./day/nightPlan";
 export type { NightPlanItem, SaveNightPlanResult } from "./day/nightPlan";
 export { computeHabitBounceBack } from "./day/killLoopBounceBack";

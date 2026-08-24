@@ -1,5 +1,5 @@
 import type { LocalDate } from '../types';
-import { addDays, compareLocalDate } from '../util/date';
+import { addDays, compareLocalDate, isoWeekday } from '../util/date';
 
 /**
  * The decaying habit score -- BLUEPRINT 1B and IV-D.
@@ -62,22 +62,6 @@ export interface HabitScoreResult {
    * "too new to judge" rather than rendering a confident score from two days of data.
    */
   observedDays: number;
-}
-
-/** ISO weekday (1 = Monday) for a LocalDate, without going through UTC. */
-function isoWeekday(date: LocalDate): number {
-  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
-  // Zeller-style day-of-week on the proleptic Gregorian calendar. Done arithmetically
-  // rather than via Date so this never depends on the host timezone -- the same reason
-  // localToday.ts exists.
-  const shiftedMonth = m < 3 ? m + 12 : m;
-  const shiftedYear = m < 3 ? y - 1 : y;
-  const k = shiftedYear % 100;
-  const j = Math.floor(shiftedYear / 100);
-  const h =
-    (d + Math.floor((13 * (shiftedMonth + 1)) / 5) + k + Math.floor(k / 4) + Math.floor(j / 4) + 5 * j) % 7;
-  // h: 0 = Saturday, 1 = Sunday, 2 = Monday ... map to ISO 1 = Monday .. 7 = Sunday.
-  return ((h + 5) % 7) + 1;
 }
 
 export function isScheduledOn(schedule: HabitSchedule, date: LocalDate): boolean {

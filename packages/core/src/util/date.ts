@@ -65,3 +65,20 @@ export function isValidLocalDate(value: string): value is LocalDate {
     date.getUTCDate() === day
   );
 }
+
+/**
+ * ISO weekday (1 = Monday .. 7 = Sunday) for a LocalDate, computed arithmetically
+ * (Zeller) rather than via Date, so it can never depend on the host timezone -- the same
+ * reason localToday.ts exists. Anchored by tests against known dates including a leap day.
+ */
+export function isoWeekday(date: LocalDate): number {
+  const [y, m, d] = date.split('-').map(Number) as [number, number, number];
+  const shiftedMonth = m < 3 ? m + 12 : m;
+  const shiftedYear = m < 3 ? y - 1 : y;
+  const k = shiftedYear % 100;
+  const j = Math.floor(shiftedYear / 100);
+  const h =
+    (d + Math.floor((13 * (shiftedMonth + 1)) / 5) + k + Math.floor(k / 4) + Math.floor(j / 4) + 5 * j) % 7;
+  // h: 0 = Saturday, 1 = Sunday, 2 = Monday ... -> ISO 1 = Monday .. 7 = Sunday.
+  return ((h + 5) % 7) + 1;
+}
