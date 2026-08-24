@@ -13,6 +13,9 @@ const TYPE_OPTIONS: { value: DeliverableType; label: string }[] = [
   { value: "exam", label: "Exam" },
   { value: "project", label: "Project" },
   { value: "reading", label: "Reading" },
+  { value: "quiz", label: "Quiz" },
+  { value: "post", label: "Discussion post" },
+  { value: "admin", label: "Admin" },
 ];
 
 /** Mirrors apps/web/src/components/courses/AddAssignmentModal.tsx exactly, including

@@ -1,4 +1,13 @@
-export type DeliverableType = 'paper' | 'report' | 'problem_set' | 'exam' | 'project' | 'reading';
+export type DeliverableType =
+  | 'paper'
+  | 'report'
+  | 'problem_set'
+  | 'exam'
+  | 'project'
+  | 'reading'
+  | 'quiz'
+  | 'post'
+  | 'admin';
 
 export interface PhaseTemplateEntry {
   name: string;
@@ -52,4 +61,14 @@ export const PHASE_TEMPLATES: Record<DeliverableType, PhaseTemplateEntry[]> = {
     { name: 'read', fraction: 0.6 },
     { name: 'notes', fraction: 0.25 },
   ],
+  // BLUEPRINT 5.3 puts quiz in the exam row: same retrieval-first planning, smaller scale.
+  // The scale difference is carried by estimated_minutes, not by a different shape.
+  quiz: EXAM_PHASES,
+  post: [
+    { name: 'compose', fraction: 0.7 },
+    { name: 'revise and post', fraction: 0.3, required: true },
+  ],
+  // Admin work has no meaningful decomposition -- pretending it has phases would be
+  // template theater. One required phase: it is done or it is not.
+  admin: [{ name: 'complete', fraction: 1, required: true }],
 };

@@ -2806,6 +2806,9 @@ export type Database = {
         | "exam"
         | "project"
         | "reading"
+        | "quiz"
+        | "post"
+        | "admin"
       distraction_cause:
         | "phone"
         | "got_hard"
@@ -2970,6 +2973,9 @@ export const Constants = {
         "exam",
         "project",
         "reading",
+        "quiz",
+        "post",
+        "admin",
       ],
       distraction_cause: [
         "phone",
