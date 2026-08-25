@@ -154,6 +154,20 @@ export type {
   ParseAnnouncementOutcome,
   ConfirmAnnouncementApplied,
 } from "./data/announcements";
+export {
+  createQuestion,
+  retireQuestion,
+  listQuestionsForCourse,
+  recordAttempt,
+  loadQuestionBank,
+} from "./data/questionBank";
+export type {
+  QuestionRow,
+  AttemptRow,
+  CreateQuestionInput,
+  DueQueueEntry,
+  QuestionBankState,
+} from "./data/questionBank";
 export { getMorningBrief } from "./data/morningBrief";
 export type { MorningBrief } from "./data/morningBrief";
 export { listSchoolTodayItems } from "./day/schoolToday";
