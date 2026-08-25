@@ -27,6 +27,8 @@ export type DayRow = Database['public']['Tables']['days']['Row'];
 export interface StartHourInput {
   /** The one specific thing this Hour produces. Required -- see the guard below. */
   deliverable: string;
+  /** BLUEPRINT 5.3's execution template, when the session's type warrants one. */
+  mode?: 'retrieval' | 'interleave' | 'draft' | 'recite' | 'compose' | 'cards';
   /** School / MyHomeBase / Content / ... open-ended by design. */
   category?: string;
   /** Defaults to the blueprint's 60-minute Hour. */
@@ -101,6 +103,7 @@ export async function startHour(
       planned_duration_min: input.plannedDurationMin ?? DEFAULT_HOUR_MINUTES,
       status: 'active',
       ...(input.category != null ? { category: input.category } : {}),
+      ...(input.mode != null ? { mode: input.mode } : {}),
       ...(input.location != null ? { location: input.location } : {}),
     })
     .select('*')

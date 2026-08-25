@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Aurora, Panel } from "../components/ui";
 import { textStyle } from "../design/typography";
 import { loadWeekReview, type WeekReviewState } from "../lib/weekActions";
+import { loadBank } from "../lib/bankActions";
+import type { CourseCalibration } from "@collegeos/core";
 import { loadHabits, type HabitState } from "../lib/habitsActions";
 import { useAuthSession } from "../lib/useAuthSession";
 
@@ -32,12 +34,18 @@ export default function WeekScreen() {
 
   const [state, setState] = useState<WeekReviewState | null>(null);
   const [habits, setHabits] = useState<HabitState[]>([]);
+  const [calibration, setCalibration] = useState<CourseCalibration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (userId == null) return;
-    const [review, habitResult] = await Promise.all([loadWeekReview(userId), loadHabits(userId)]);
+    const [review, habitResult, bank] = await Promise.all([
+      loadWeekReview(userId),
+      loadHabits(userId),
+      loadBank(userId),
+    ]);
+    if (bank.ok) setCalibration(bank.data.calibration);
     if (review.ok) setState(review.data);
     else setError(review.error);
     if (habitResult.ok) setHabits(habitResult.data.habits);
@@ -156,6 +164,22 @@ export default function WeekScreen() {
                 ))
               )}
             </Panel>
+
+            {calibration.some((c) => c.flagged) ? (
+              <Panel>
+                <Text style={textStyle("label", color.inkMuted)}>Calibration</Text>
+                {calibration
+                  .filter((c) => c.flagged)
+                  .map((c) => (
+                    <Text key={c.courseId} style={[textStyle("bodyS", color.ink), styles.spacedTop]}>
+                      When you answer &quot;Sure&quot; in course #{c.courseId}, you&apos;re wrong{" "}
+                      {Math.round(c.sureWrongRate * 100)}% of the time ({c.sureWrongCount} of {c.sureCount}).
+                      That&apos;s an illusion-of-competence signal — those topics are weighted up in the
+                      queue.
+                    </Text>
+                  ))}
+              </Panel>
+            ) : null}
 
             {habits.length > 0 ? (
               <Panel>

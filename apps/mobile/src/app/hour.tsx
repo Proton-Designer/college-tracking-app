@@ -16,6 +16,7 @@ import {
   type TodayHoursState,
 } from "../lib/hourActions";
 import { drawRotation } from "../lib/cardsActions";
+import { MODES, type HourMode } from "../lib/modes";
 import {
   cancelHourEndAlert,
   ensureNotificationPermission,
@@ -70,6 +71,7 @@ export default function HourScreen() {
   // Non-null = the End-of-Hour flow is open. Holds the drawn rotation (possibly empty).
   const [ending, setEnding] = useState<RotationCard[] | null>(null);
   const [cardIndex, setCardIndex] = useState(0);
+  const [mode, setMode] = useState<HourMode | null>(null);
 
   const refresh = useCallback(async () => {
     if (userId == null) return;
@@ -125,7 +127,11 @@ export default function HourScreen() {
     if (userId == null) return;
     setBusy(true);
     setError(null);
-    const result = await startHourAction(userId, { deliverable, category: null });
+    const result = await startHourAction(userId, {
+      deliverable,
+      category: null,
+      ...(mode != null ? { mode } : {}),
+    });
     setBusy(false);
     if (!result.ok) {
       setError(result.error ?? "Could not start the Hour.");
@@ -146,7 +152,7 @@ export default function HourScreen() {
       );
     }
     await refresh();
-  }, [userId, deliverable, refresh]);
+  }, [userId, deliverable, mode, refresh]);
 
   const onLogCause = useCallback(
     async (cause: DistractionCause) => {
@@ -241,6 +247,23 @@ export default function HourScreen() {
                 editable={!busy}
               />
             </View>
+            <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+              How will this Hour run? (optional)
+            </Text>
+            <View style={styles.modeRow}>
+              {MODES.map((m) => (
+                <Pressable
+                  key={m.value}
+                  onPress={() => setMode(mode === m.value ? null : m.value)}
+                  accessibilityRole="button"
+                  style={[styles.modeChip, mode === m.value ? styles.modeChipActive : null]}
+                >
+                  <Text style={textStyle("bodyS", mode === m.value ? color.surface : color.ink)}>
+                    {m.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
             <Button onPress={onStart} disabled={busy || deliverable.trim().length === 0}>
               Start Hour
             </Button>
@@ -259,6 +282,24 @@ export default function HourScreen() {
               </Text>
               <Text style={[textStyle("bodyL", color.ink), styles.deliverable]}>{active.deliverable}</Text>
             </View>
+
+            {active.mode != null ? (
+              <Panel>
+                <Text style={textStyle("label", color.inkMuted)}>
+                  {MODES.find((m) => m.value === active.mode)?.label ?? active.mode}
+                </Text>
+                <Text style={[textStyle("body", color.ink), styles.spacedTop]}>
+                  {MODES.find((m) => m.value === active.mode)?.card ?? ""}
+                </Text>
+                {active.mode === "cards" ? (
+                  <View style={styles.spacedTop}>
+                    <Button variant="secondary" onPress={() => router.push("/drill")}>
+                      Open the due queue
+                    </Button>
+                  </View>
+                ) : null}
+              </Panel>
+            ) : null}
 
             {causePickerOpen ? (
               <Panel>
@@ -369,6 +410,15 @@ const styles = StyleSheet.create({
     gap: space[1],
   },
   causeGrid: { flexDirection: "row", flexWrap: "wrap", gap: space[2], marginTop: space[3] },
+  modeRow: { flexDirection: "row", flexWrap: "wrap", gap: space[2], marginTop: space[2], marginBottom: space[3] },
+  modeChip: {
+    borderWidth: 1,
+    borderColor: color.border,
+    borderRadius: radius.pill,
+    paddingVertical: space[2],
+    paddingHorizontal: space[3],
+  },
+  modeChipActive: { backgroundColor: color.accent, borderColor: color.accent },
   rotationCard: {
     marginTop: space[3],
     borderWidth: 1,

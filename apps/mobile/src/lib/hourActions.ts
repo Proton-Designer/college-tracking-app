@@ -31,7 +31,7 @@ export interface StartHourResult extends HourActionResult {
  */
 export async function startHourAction(
   userId: string,
-  input: { deliverable: string; category: string | null },
+  input: { deliverable: string; category: string | null; mode?: import("./modes").HourMode },
 ): Promise<StartHourResult> {
   const client = getMobileSupabaseClient();
   const profileResult = await getOwnProfile(client);
@@ -42,6 +42,7 @@ export async function startHourAction(
     deliverable: input.deliverable,
     localDate,
     ...(input.category != null ? { category: input.category } : {}),
+    ...(input.mode != null ? { mode: input.mode } : {}),
   });
   if (!result.ok) return { ok: false, error: result.error.message };
   return { ok: true, session: result.data };
