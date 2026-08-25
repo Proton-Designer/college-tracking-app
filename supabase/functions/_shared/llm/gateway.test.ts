@@ -153,3 +153,40 @@ Deno.test("callLlm: Sonnet cost reflects the post-Sep-1 rate once the date passe
   // 1000 input @ $3/M + 200 output @ $15/M = 0.003 + 0.003 = 0.006
   assertEquals(result.costUsd, 0.006);
 });
+
+Deno.test("callLlm: a logging failure on a SUCCESSFUL call fails closed -- no ok result on unlogged spend", async () => {
+  // The 2026-08-25 incident, pinned: llm_usage_log briefly had no INSERT policy, logUsage
+  // threw on the RLS denial, and the throw escaped callLlm as an opaque 500 after the
+  // provider had already been billed. The gateway must convert that into an honest
+  // fallback -- and must NOT return ok, because this log is the ledger the budget ceiling
+  // sums; success on unlogged spend would let the ceiling quietly stop enforcing.
+  const provider = createFixtureProvider([{ kind: "success", toolInput: { headline: "ok", confidence: 0.9 } }]);
+  const { deps } = makeDeps({
+    provider,
+    logUsage: () => Promise.reject(new Error("new row violates row-level security policy")),
+  });
+
+  const result = await callLlm(deps, baseRequest());
+  assertEquals(result.kind, "deterministicFallback");
+  if (result.kind === "deterministicFallback") {
+    assertEquals(result.reason.startsWith("usage_logging_failed:"), true);
+  }
+  // One provider call, not MAX_ATTEMPTS: a broken ledger stops the loop, it does not
+  // trigger paid retries off the books.
+  assertEquals(provider.callCount(), 1);
+});
+
+Deno.test("callLlm: a logging failure after a provider error stops retrying rather than spending off the books", async () => {
+  const provider = createFixtureProvider([
+    { kind: "error", message: "boom" },
+    { kind: "success", toolInput: { headline: "ok", confidence: 0.9 } },
+  ]);
+  const { deps } = makeDeps({
+    provider,
+    logUsage: () => Promise.reject(new Error("insert denied")),
+  });
+
+  const result = await callLlm(deps, baseRequest());
+  assertEquals(result.kind, "deterministicFallback");
+  assertEquals(provider.callCount(), 1);
+});

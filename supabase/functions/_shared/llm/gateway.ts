@@ -55,6 +55,26 @@ const MAX_ATTEMPTS = 2; // one real attempt + one retry, per the spec's failure 
  * -> deterministic fallback on second failure. Every outcome is logged (success or not),
  * and the log never contains the prompt or response body -- only a hash.
  */
+/**
+ * Logs one usage entry, converting a logging failure into a value instead of a throw.
+ *
+ * Added after the first real user-JWT gateway call (2026-08-25): llm_usage_log briefly
+ * had no INSERT policy, logUsage threw on the RLS denial, and the throw escaped callLlm
+ * as an opaque 500 -- AFTER the provider call had succeeded and been billed. The policy
+ * is fixed (migration 40), but the gateway must never again turn a logging failure into
+ * an unhandled crash. It also must not IGNORE one: this log is the budget ledger
+ * getMonthlySpendUsd sums, so silently continuing on log failure would mean unlogged
+ * spend and a ceiling that quietly stops enforcing. Fail closed, with a nameable reason.
+ */
+async function tryLog(deps: GatewayDeps, entry: Parameters<GatewayDeps["logUsage"]>[0]): Promise<string | null> {
+  try {
+    await deps.logUsage(entry);
+    return null;
+  } catch (err) {
+    return `usage_logging_failed: ${err instanceof Error ? err.message : String(err)}`;
+  }
+}
+
 export async function callLlm<T>(deps: GatewayDeps, request: CallLlmRequest<T>): Promise<GatewayResult<T>> {
   const now = deps.now();
 
@@ -74,14 +94,17 @@ export async function callLlm<T>(deps: GatewayDeps, request: CallLlmRequest<T>):
       providerResult = await deps.provider.call(request);
     } catch (err) {
       lastFailureReason = `provider_error: ${err instanceof Error ? err.message : String(err)}`;
-      await logFailure(deps, request, now, null);
+      const logError = await logFailure(deps, request, now, null);
+      // A ledger that can't record failures can't be trusted to record spend either --
+      // stop retrying rather than keep calling a paid API off the books.
+      if (logError != null) return { kind: "deterministicFallback", reason: logError };
       continue;
     }
 
     const parsed = request.schema.safeParse(providerResult.toolInput);
     if (parsed.success) {
       const costUsd = computeCostUsd(request.model, providerResult.usage, now);
-      await deps.logUsage({
+      const logError = await tryLog(deps, {
         userId: request.userId,
         callType: request.callType,
         model: request.model,
@@ -91,11 +114,15 @@ export async function callLlm<T>(deps: GatewayDeps, request: CallLlmRequest<T>):
         success: true,
         contentHash: await hashContent(JSON.stringify(providerResult.toolInput)),
       });
+      // Fail CLOSED on an unlogged success: returning ok here would hand out results
+      // whose cost the budget ledger never saw. The model's work is discarded -- the
+      // honest price of keeping the ceiling enforceable.
+      if (logError != null) return { kind: "deterministicFallback", reason: logError };
       return { kind: "ok", data: parsed.data, usage: providerResult.usage, costUsd };
     }
 
     lastFailureReason = `schema_validation_failed: ${parsed.error.issues.map((i) => i.path.join(".")).join(",")}`;
-    await deps.logUsage({
+    const schemaLogError = await tryLog(deps, {
       userId: request.userId,
       callType: request.callType,
       model: request.model,
@@ -105,6 +132,7 @@ export async function callLlm<T>(deps: GatewayDeps, request: CallLlmRequest<T>):
       success: false,
       contentHash: await hashContent(JSON.stringify(providerResult.toolInput)),
     });
+    if (schemaLogError != null) return { kind: "deterministicFallback", reason: schemaLogError };
   }
 
   return { kind: "deterministicFallback", reason: lastFailureReason };
@@ -115,8 +143,8 @@ async function logFailure<T>(
   request: CallLlmRequest<T>,
   now: Date,
   usage: LlmUsage | null,
-): Promise<void> {
-  await deps.logUsage({
+): Promise<string | null> {
+  return tryLog(deps, {
     userId: request.userId,
     callType: request.callType,
     model: request.model,
