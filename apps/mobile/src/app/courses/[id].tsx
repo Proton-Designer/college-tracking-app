@@ -81,6 +81,7 @@ function CourseDetailReady({
   data: CourseDetailData;
   onChanged: () => void;
 }) {
+  const router = useRouter();
   const { course, gradeResult, courseRisk, deliverableRisks, today, categories, gradeItems, gradeBoundaries, deliverables, backplanChains, officeHours } = data;
   const weightSumIssue = gradeResult?.issues.find((i) => i.kind === "weightSumWarning");
   const categoryNameById = new Map(categories.map((c) => [String(c.id), c.name]));
@@ -138,6 +139,12 @@ function CourseDetailReady({
           defaultTargetPct={course.target_grade_pct}
         />
       ) : null}
+
+      {/* 5.2: professor noise in, updated plan out. The paste flow stages a diff; only
+          announcement-confirm applies one. */}
+      <Button variant="secondary" onPress={() => router.push(`/announcement?courseId=${course.id}`)}>
+        Paste an announcement
+      </Button>
 
       <Section title="Why this score">
         <CourseRiskPanel deliverableRisks={deliverableRisks} today={today} />

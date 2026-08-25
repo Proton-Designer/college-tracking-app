@@ -141,6 +141,19 @@ export {
   MAX_ACTIVE_GOALS,
 } from "./data/goals";
 export type { GoalRow, MilestoneRow, GoalWithMilestone, CreateGoalInput } from "./data/goals";
+export {
+  parseAnnouncementText,
+  confirmAnnouncement,
+  getAnnouncement,
+  listAnnouncementsForCourse,
+} from "./data/announcements";
+export type {
+  AnnouncementRow,
+  AnnouncementChange,
+  AnnouncementDiff,
+  ParseAnnouncementOutcome,
+  ConfirmAnnouncementApplied,
+} from "./data/announcements";
 export { listSchoolTodayItems } from "./day/schoolToday";
 export type { SchoolTodayItem } from "./day/schoolToday";
 export { saveNightPlan, NIGHT_PLAN_DEFAULT_CATEGORY } from "./day/nightPlan";
