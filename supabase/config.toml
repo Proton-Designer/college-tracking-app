@@ -481,6 +481,12 @@ import_map = "./functions/deno.json"
 verify_jwt = true
 import_map = "./functions/deno.json"
 
+# Drafts questions from pasted notes; returns proposals, stores nothing -- every accepted
+# card goes through createQuestion after the user edits it (the Part X exception).
+[functions.question-draft]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

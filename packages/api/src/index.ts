@@ -168,6 +168,8 @@ export type {
   DueQueueEntry,
   QuestionBankState,
 } from "./data/questionBank";
+export { draftQuestionsFromNotes } from "./data/questionDraft";
+export type { DraftedQuestion, DraftOutcome } from "./data/questionDraft";
 export { getMorningBrief } from "./data/morningBrief";
 export type { MorningBrief } from "./data/morningBrief";
 export { listSchoolTodayItems } from "./day/schoolToday";

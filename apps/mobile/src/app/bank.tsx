@@ -1,4 +1,4 @@
-import type { QuestionRow } from "@collegeos/api";
+import type { DraftedQuestion, QuestionRow } from "@collegeos/api";
 import { color, radius, space } from "@collegeos/design/native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
@@ -6,7 +6,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Aurora, Button, Input, Panel, Textarea } from "../components/ui";
 import { textStyle } from "../design/typography";
-import { addQuestion, loadCourseQuestions, retireQuestionAction } from "../lib/bankActions";
+import { addQuestion, draftFromNotes, loadCourseQuestions, retireQuestionAction } from "../lib/bankActions";
 import { useAuthSession } from "../lib/useAuthSession";
 
 /**
@@ -32,6 +32,10 @@ export default function BankScreen() {
   const [anchor, setAnchor] = useState("");
   const [anchorSkipped, setAnchorSkipped] = useState(false);
   const [topic, setTopic] = useState("");
+  const [notes, setNotes] = useState("");
+  const [drafting, setDrafting] = useState(false);
+  const [drafts, setDrafts] = useState<(DraftedQuestion & { anchor: string; skipped: boolean })[]>([]);
+  const [draftNote, setDraftNote] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (userId == null || !Number.isFinite(courseId)) return;
@@ -68,6 +72,54 @@ export default function BankScreen() {
     // Topic is kept: writing a run of questions on one topic is the normal flow.
     await refresh();
   }, [userId, courseId, prompt, answer, anchor, anchorSkipped, topic, refresh]);
+
+  const onDraft = useCallback(async () => {
+    if (userId == null) return;
+    setDrafting(true);
+    setError(null);
+    setDraftNote(null);
+    const result = await draftFromNotes(userId, notes);
+    setDrafting(false);
+    if (!result.ok) {
+      setError(result.error ?? "Drafting failed.");
+      return;
+    }
+    if (result.data.kind === "tooThin") {
+      setDraftNote("Not enough substance to draft from — paste a fuller section of notes.");
+      return;
+    }
+    // Anchor prefilled from the model's sourceHint when the notes contained one; never
+    // invented. The accept path still enforces anchor-or-skip per card.
+    setDrafts(result.data.questions.map((q) => ({ ...q, anchor: q.sourceHint ?? "", skipped: false })));
+    setNotes("");
+  }, [userId, notes]);
+
+  const onAcceptDraft = useCallback(
+    async (draftIndex: number) => {
+      if (userId == null) return;
+      const d = drafts[draftIndex];
+      if (d == null) return;
+      const result = await addQuestion(userId, {
+        courseId,
+        prompt: d.prompt,
+        answer: d.answer,
+        topic: d.topic,
+        origin: "ai",
+        ...(d.skipped ? { sourceSkipped: true } : { sourceAnchor: d.anchor }),
+      });
+      if (!result.ok) {
+        setError(result.error ?? "Could not accept that card.");
+        return;
+      }
+      setDrafts((prev) => prev.filter((_, i) => i !== draftIndex));
+      await refresh();
+    },
+    [userId, drafts, courseId, refresh],
+  );
+
+  const patchDraft = useCallback((draftIndex: number, patch: Partial<DraftedQuestion & { anchor: string; skipped: boolean }>) => {
+    setDrafts((prev) => prev.map((d, i) => (i === draftIndex ? { ...d, ...patch } : d)));
+  }, []);
 
   const onRetire = useCallback(
     async (questionId: number) => {
@@ -150,6 +202,73 @@ export default function BankScreen() {
           </View>
         </Panel>
 
+        <Panel>
+          <Text style={textStyle("label", color.inkMuted)}>Draft from notes</Text>
+          <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+            Paste a section of notes; you edit every card before it enters the Bank.
+          </Text>
+          <View style={styles.spacedTop}>
+            <Textarea label="Notes" value={notes} onChangeText={setNotes} editable={!drafting} />
+          </View>
+          {draftNote != null ? (
+            <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>{draftNote}</Text>
+          ) : null}
+          <View style={styles.spacedTop}>
+            <Button variant="secondary" onPress={onDraft} disabled={drafting || notes.trim().length < 200} loading={drafting}>
+              {drafting ? "Drafting…" : "Draft questions"}
+            </Button>
+          </View>
+        </Panel>
+
+        {drafts.map((d, i) => (
+          <Panel key={`${d.prompt}-${i}`}>
+            <Text style={textStyle("label", color.inkMuted)}>Draft — edit, then accept</Text>
+            <View style={styles.spacedTop}>
+              <Textarea label="Prompt" value={d.prompt} onChangeText={(t) => patchDraft(i, { prompt: t })} />
+            </View>
+            <View style={styles.spacedTop}>
+              <Textarea label="Answer" value={d.answer} onChangeText={(t) => patchDraft(i, { answer: t })} />
+            </View>
+            <View style={styles.spacedTop}>
+              <Input label="Topic" value={d.topic} onChangeText={(t) => patchDraft(i, { topic: t })} />
+            </View>
+            <View style={styles.spacedTop}>
+              {d.skipped ? (
+                <Pressable onPress={() => patchDraft(i, { skipped: false })} accessibilityRole="button">
+                  <Text style={textStyle("bodyS", color.inkMuted)}>Source skipped. Tap to add one.</Text>
+                </Pressable>
+              ) : (
+                <>
+                  <Input
+                    label="Source anchor"
+                    value={d.anchor}
+                    onChangeText={(t) => patchDraft(i, { anchor: t })}
+                    placeholder="p. 142 / slide 18"
+                  />
+                  <Pressable onPress={() => patchDraft(i, { skipped: true })} accessibilityRole="button" style={styles.skipLink}>
+                    <Text style={textStyle("bodyS", color.inkFaint)}>No source for this one</Text>
+                  </Pressable>
+                </>
+              )}
+            </View>
+            <View style={[styles.spacedTop, styles.draftActions]}>
+              <View style={styles.draftAction}>
+                <Button
+                  onPress={() => void onAcceptDraft(i)}
+                  disabled={d.prompt.trim() === "" || d.answer.trim() === "" || (!d.skipped && d.anchor.trim() === "")}
+                >
+                  Accept
+                </Button>
+              </View>
+              <View style={styles.draftAction}>
+                <Button variant="secondary" onPress={() => setDrafts((prev) => prev.filter((_, j) => j !== i))}>
+                  Discard
+                </Button>
+              </View>
+            </View>
+          </Panel>
+        ))}
+
         {loading ? (
           <Text style={textStyle("bodyS", color.inkMuted)}>Loading…</Text>
         ) : (
@@ -195,4 +314,6 @@ const styles = StyleSheet.create({
     padding: space[3],
   },
   rowBody: { flex: 1, gap: space[1] },
+  draftActions: { flexDirection: "row", gap: space[3] },
+  draftAction: { flex: 1 },
 });

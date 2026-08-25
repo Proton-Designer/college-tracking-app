@@ -14,7 +14,10 @@ export type LlmCallType =
   | "coach_chat"
   | "morning_plan_rationale"
   | "friction_classify"
-  | "deadline_change_detection";
+  | "deadline_change_detection"
+  // Question drafting from pasted notes (BLUEPRINT 5.4's second source; the Part X
+  // exception -- AI drafts, the user edits every card before it enters the Bank).
+  | "question_drafting";
 
 export interface LlmUsage {
   inputTokens: number;

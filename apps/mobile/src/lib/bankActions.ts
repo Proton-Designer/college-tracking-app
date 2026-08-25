@@ -1,5 +1,7 @@
 import {
   createQuestion,
+  draftQuestionsFromNotes,
+  type DraftOutcome,
   getOwnProfile,
   getUserLocalToday,
   loadQuestionBank,
@@ -65,4 +67,13 @@ export async function answerQuestion(
   const result = await recordAttempt(client, userId, { questionId, localDate, confidence, correct });
   if (!result.ok) return { ok: false, error: result.error.message };
   return { ok: true };
+}
+
+export async function draftFromNotes(
+  _userId: string,
+  notesText: string,
+): Promise<{ ok: true; data: DraftOutcome } | { ok: false; error: string }> {
+  const result = await draftQuestionsFromNotes(getMobileSupabaseClient(), notesText);
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true, data: result.data };
 }
