@@ -1,6 +1,7 @@
 import type { TypedSupabaseClient } from '../client/types';
 import type { Database } from '../database.types';
 import { dataErr, dataOk, type DataResult } from './types';
+import { invokeEdgeFunction } from './invoke';
 import { mapDataError } from './errors';
 
 export type AnnouncementRow = Database['public']['Tables']['announcements']['Row'];
@@ -28,15 +29,6 @@ export interface AnnouncementDiff {
   changes: AnnouncementChange[];
 }
 
-/** Same envelope-unwrap as syllabusExtractions.ts -- functions.invoke's `data` is the
- *  whole {ok,...} envelope, not the payload. */
-function unwrapEnvelope<T>(body: unknown): { ok: true; data: T } | { ok: false; error: string } {
-  if (body != null && typeof body === 'object' && 'ok' in body) {
-    return body as { ok: true; data: T } | { ok: false; error: string };
-  }
-  return { ok: false, error: 'Malformed response from server.' };
-}
-
 export type ParseAnnouncementOutcome =
   | { kind: 'parsed'; announcementId: number; changeCount: number }
   | { kind: 'noSchedulableContent'; announcementId: number };
@@ -48,14 +40,7 @@ export async function parseAnnouncementText(
   courseId: number,
   rawText: string,
 ): Promise<DataResult<ParseAnnouncementOutcome>> {
-  const { data, error } = await client.functions.invoke('parse-announcement', {
-    method: 'POST',
-    body: { courseId, rawText },
-  });
-  if (error) return dataErr({ code: 'network_error', message: error.message ?? 'Parsing failed. Please try again.' });
-  const envelope = unwrapEnvelope<ParseAnnouncementOutcome>(data);
-  if (!envelope.ok) return dataErr({ code: 'unknown', message: envelope.error });
-  return dataOk(envelope.data);
+  return invokeEdgeFunction<ParseAnnouncementOutcome>(client, 'parse-announcement', { courseId, rawText });
 }
 
 export interface ConfirmAnnouncementApplied {
@@ -74,14 +59,7 @@ export async function confirmAnnouncement(
     editedDiff?: AnnouncementDiff;
   },
 ): Promise<DataResult<ConfirmAnnouncementApplied>> {
-  const { data, error } = await client.functions.invoke('announcement-confirm', {
-    method: 'POST',
-    body: input,
-  });
-  if (error) return dataErr({ code: 'network_error', message: error.message ?? 'Confirm failed. Please try again.' });
-  const envelope = unwrapEnvelope<ConfirmAnnouncementApplied>(data);
-  if (!envelope.ok) return dataErr({ code: 'unknown', message: envelope.error });
-  return dataOk(envelope.data);
+  return invokeEdgeFunction<ConfirmAnnouncementApplied>(client, 'announcement-confirm', { ...input });
 }
 
 /** The staged diff for one announcement, read back for the review screen. */

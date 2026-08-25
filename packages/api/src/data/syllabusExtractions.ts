@@ -2,6 +2,7 @@ import type { TypedSupabaseClient } from '../client/types';
 import type { Database } from '../database.types';
 import { dataErr, dataOk, type DataResult } from './types';
 import { mapDataError } from './errors';
+import { invokeEdgeFunction } from './invoke';
 
 export type SyllabusExtractionRow = Database['public']['Tables']['syllabus_extractions']['Row'];
 
@@ -49,14 +50,13 @@ export async function triggerSyllabusExtraction(
   client: TypedSupabaseClient,
   uploadId: number,
 ): Promise<DataResult<TriggerSyllabusExtractionResult>> {
-  const { data, error } = await client.functions.invoke('syllabus-extract', {
-    method: 'POST',
-    body: { uploadId },
-  });
-  if (error) return dataErr({ code: 'network_error', message: error.message ?? 'Extraction failed. Please try again.' });
-  const envelope = unwrapEnvelope<{ kind: 'staged'; uploadId: number; itemCount: number }>(data);
-  if (!envelope.ok) return dataErr({ code: 'unknown', message: envelope.error });
-  return dataOk({ uploadId: envelope.data.uploadId, itemCount: envelope.data.itemCount });
+  const result = await invokeEdgeFunction<{ kind: 'staged'; uploadId: number; itemCount: number }>(
+    client,
+    'syllabus-extract',
+    { uploadId },
+  );
+  if (!result.ok) return result;
+  return dataOk({ uploadId: result.data.uploadId, itemCount: result.data.itemCount });
 }
 
 export interface ConfirmSyllabusExtractionInput {
@@ -81,17 +81,5 @@ export async function confirmSyllabusExtraction(
   client: TypedSupabaseClient,
   input: ConfirmSyllabusExtractionInput,
 ): Promise<DataResult<ConfirmSyllabusExtractionResult>> {
-  const { data, error } = await client.functions.invoke('syllabus-confirm', {
-    method: 'POST',
-    body: {
-      extractionId: input.extractionId,
-      decision: input.decision,
-      ...(input.courseId != null ? { courseId: input.courseId } : {}),
-      ...(input.editedPayload != null ? { editedPayload: input.editedPayload } : {}),
-    },
-  });
-  if (error) return dataErr({ code: 'network_error', message: error.message ?? 'Could not confirm this item. Please try again.' });
-  const envelope = unwrapEnvelope<{ ok: true } & ConfirmSyllabusExtractionResult>(data);
-  if (!envelope.ok) return dataErr({ code: 'unknown', message: envelope.error });
-  return dataOk(envelope.data);
+  return invokeEdgeFunction<ConfirmSyllabusExtractionResult>(client, 'syllabus-confirm', { ...input });
 }
