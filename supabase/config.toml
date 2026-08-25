@@ -470,6 +470,12 @@ import_map = "./functions/deno.json"
 verify_jwt = true
 import_map = "./functions/deno.json"
 
+# The ONLY path from a staged announcement diff to a deliverables write -- same
+# server-side-gate reasoning as syllabus-confirm and brightspace-confirm.
+[functions.announcement-confirm]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
