@@ -280,13 +280,12 @@ budget numbers in production — this table is transcribed from the brief and da
    of its own npm cache, which fails for any package not also installed there even
    though `supabase/functions/deno.json` sets `"nodeModulesDir": "none"` -- confirmed
    live, the setting doesn't override cwd-based discovery for this Deno version (2.9.5).
-2. **Live smoke test** (`docs/LLM_LAYER_SPEC.md` §10) — one real call per model, run
-   manually, gated behind an env flag so it never runs in normal CI. Not written as of
-   L5; write it against `createAnthropicProvider` directly, and confirm the *real*
-   response shape matches what `anthropicProvider.test.ts`'s golden fixture assumed —
-   if Anthropic's actual response shape has drifted from the fixture, the fixture is
-   now wrong and must be updated from the real response, not patched to make the test
-   pass.
+2. **Live smoke test** (`docs/LLM_LAYER_SPEC.md` §10) — WRITTEN and RUN 2026-08-25:
+   `_shared/llm/liveSmoke.ts`, gated behind `LIVE_SMOKE=1`. All three models returned
+   OK — forced tool_choice yielded a tool_use block, the input validated against the
+   requested schema, and every usage field the golden fixture assumed was present. No
+   fixture drift; nothing updated. If a future run disagrees, the fixture is what must
+   change — update it from the real response, never patch the test to pass.
 3. Trigger a real `syllabus_extraction` call end-to-end with a real syllabus PDF and
    confirm: the staged `syllabus_extractions` rows have real `source_snippet` text
    (not empty), a plausible `extraction_confidence`, and **critically** that nothing

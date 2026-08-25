@@ -147,6 +147,11 @@ Docker 29.7.2                       (local mode only -- NOT needed for a cloud p
 Supabase CLI 2.98.2                 (2.115.0 works, but see the note below -- it breaks
                                      `functions deploy` unless config.toml names the import map)
 psql 17 at /opt/homebrew/opt/postgresql@17/bin/psql   (add to PATH)
+Deno 2.9.5                          (NOT in this list originally -- a fresh machine needs it
+                                     for `deno test` and the live smoke; brew install deno)
+NOTE: on a fresh machine psql was also absent; `brew install libpq` gives the client alone.
+The direct db.<ref>.supabase.co host does not resolve over IPv4 -- use the session pooler
+(aws-0-<region>.pooler.supabase.com, user postgres.<ref>).
 Playwright 1.62.1 via npx
 Xcode + iOS Simulator (iPhone 16 Pro). The iPhone 17 Pro record is CORRUPT — see N2.
 idb (fb-idb) for driving the simulator
