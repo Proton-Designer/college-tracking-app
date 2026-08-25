@@ -7,6 +7,7 @@ import { GradeBoundariesSection } from "@/components/courses/GradeBoundariesSect
 import { GradeCategoriesSection } from "@/components/courses/GradeCategoriesSection";
 import { ScenarioPlanner } from "@/components/courses/ScenarioPlanner";
 import { UploadSyllabusModal } from "@/components/courses/UploadSyllabusModal";
+import { AnnouncementPasteModal } from "@/components/courses/AnnouncementPasteModal";
 import { Aurora, Metric, PageHeader, Panel, RiskPill, WarningCard } from "@/components/ui";
 import { loadCourseDetail } from "./data";
 
@@ -123,6 +124,7 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Assignments &amp; exams</h2>
           <div className="flex items-center gap-3">
             <UploadSyllabusModal courseId={courseId} />
+            <AnnouncementPasteModal courseId={courseId} />
             <AddAssignmentModal courseId={courseId} />
           </div>
         </div>
