@@ -175,6 +175,51 @@ export type Database = {
           },
         ]
       }
+      attempts: {
+        Row: {
+          confidence: string
+          correct: boolean
+          created_at: string
+          id: number
+          local_date: string
+          question_id: number
+          user_id: string
+        }
+        Insert: {
+          confidence: string
+          correct: boolean
+          created_at?: string
+          id?: never
+          local_date: string
+          question_id: number
+          user_id: string
+        }
+        Update: {
+          confidence?: string
+          correct?: boolean
+          created_at?: string
+          id?: never
+          local_date?: string
+          question_id?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attempts_question_id_fkey"
+            columns: ["question_id"]
+            isOneToOne: false
+            referencedRelation: "questions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attempts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       backplan_milestones: {
         Row: {
           backplan_id: number
@@ -2145,6 +2190,66 @@ export type Database = {
         }
         Relationships: []
       }
+      questions: {
+        Row: {
+          active: boolean
+          answer: string
+          course_id: number
+          created_at: string
+          id: number
+          origin: string
+          prompt: string
+          source_anchor: string | null
+          source_skipped: boolean
+          topic: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          answer: string
+          course_id: number
+          created_at?: string
+          id?: never
+          origin?: string
+          prompt: string
+          source_anchor?: string | null
+          source_skipped?: boolean
+          topic?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          answer?: string
+          course_id?: number
+          created_at?: string
+          id?: never
+          origin?: string
+          prompt?: string
+          source_anchor?: string | null
+          source_skipped?: boolean
+          topic?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "questions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "questions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       risk_snapshots: {
         Row: {
           band: Database["public"]["Enums"]["risk_band"]
@@ -2457,6 +2562,7 @@ export type Database = {
           interruptions: number
           local_date: string | null
           location: string | null
+          mode: string | null
           objective_output: string | null
           phone_usage_min: number | null
           planned_duration_min: number
@@ -2478,6 +2584,7 @@ export type Database = {
           interruptions?: number
           local_date?: string | null
           location?: string | null
+          mode?: string | null
           objective_output?: string | null
           phone_usage_min?: number | null
           planned_duration_min: number
@@ -2499,6 +2606,7 @@ export type Database = {
           interruptions?: number
           local_date?: string | null
           location?: string | null
+          mode?: string | null
           objective_output?: string | null
           phone_usage_min?: number | null
           planned_duration_min?: number
