@@ -22,6 +22,21 @@ export interface ModalProps {
 export function Modal({ open, onClose, title, children, footer, dismissable = true, className }: ModalProps) {
   const dialogRef = useRef<HTMLDivElement>(null);
 
+  // Callers pass inline arrows as onClose, so its identity changes every parent render.
+  // The focus-trap effect below must depend only on `open`: with onClose in its deps, any
+  // keystroke inside the modal re-rendered the parent, re-ran the effect, and the
+  // cleanup/setup pair yanked focus out of whatever field the user was typing in
+  // (cleanup refocuses the trigger, setup refocuses the dialog) -- found live in the
+  // announcement paste flow, one focus loss per letter. Refs keep the latest values
+  // without making them dependencies; requiring useCallback of every caller would fix
+  // one call site and leave the trap armed for the next.
+  const onCloseRef = useRef(onClose);
+  const dismissableRef = useRef(dismissable);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+    dismissableRef.current = dismissable;
+  });
+
   useEffect(() => {
     if (!open) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
@@ -42,8 +57,8 @@ export function Modal({ open, onClose, title, children, footer, dismissable = tr
     }
 
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape" && dismissable) {
-        onClose();
+      if (e.key === "Escape" && dismissableRef.current) {
+        onCloseRef.current();
         return;
       }
       if (e.key !== "Tab") return;
@@ -75,7 +90,7 @@ export function Modal({ open, onClose, title, children, footer, dismissable = tr
       document.body.style.overflow = previousOverflow;
       previouslyFocused?.focus();
     };
-  }, [open, dismissable, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
