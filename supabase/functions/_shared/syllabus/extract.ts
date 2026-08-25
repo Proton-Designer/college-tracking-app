@@ -49,7 +49,7 @@ export async function extractSyllabus(
     systemPrompt: SYSTEM_PROMPT,
     userContent: input.extractedText,
     toolName: "emit_syllabus_extraction",
-    toolInputSchema: zodToJsonSchemaStub(),
+    toolInputSchema: SYLLABUS_TOOL_INPUT_SCHEMA,
     maxTokens: SYLLABUS_EXTRACTION_MAX_TOKENS,
     budgetCeilingUsd: input.budgetCeilingUsd,
     schema: SyllabusExtractionResultSchema,
@@ -92,11 +92,39 @@ export async function extractSyllabus(
   return { kind: "staged", uploadId: input.uploadId, itemCount: rows.length };
 }
 
-// Placeholder: a real implementation generates a JSON Schema from SyllabusExtractionResultSchema
-// (e.g. via zod-to-json-schema) for the Anthropic tool's input_schema. Deferred until a
-// real key exists to verify the generated schema against the live API's expectations.
-function zodToJsonSchemaStub(): Record<string, unknown> {
-  return { type: "object" };
-}
+/**
+ * The real tool input_schema, replacing the {type:"object"} stub that shipped while no
+ * key existed to verify a schema against (the live smoke has since proven forced
+ * tool_choice honors a strict schema). Hand-written to mirror exactly what the GATEWAY
+ * validates -- SyllabusExtractionResultSchema -- and no more: `payload` stays an open
+ * object here because the gateway's Zod accepts it as one, with the per-item-type shapes
+ * enforced at confirmation time (types.ts's PAYLOAD_SCHEMA_BY_ITEM_TYPE). A wire schema
+ * stricter than the gateway would reject responses the gateway was designed to accept;
+ * looser would readmit the junk the stub allowed. This is the matching point.
+ */
+const SYLLABUS_TOOL_INPUT_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    items: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          itemType: {
+            enum: ["course_info", "assignment", "exam", "grade_category", "policy", "office_hours"],
+          },
+          payload: { type: "object" },
+          confidence: { type: "number", minimum: 0, maximum: 1 },
+          sourceSnippet: { type: "string", minLength: 1 },
+        },
+        required: ["itemType", "payload", "confidence", "sourceSnippet"],
+        additionalProperties: false,
+      },
+    },
+    lowQualitySourceText: { type: "boolean" },
+  },
+  required: ["items", "lowQualitySourceText"],
+  additionalProperties: false,
+};
 
 export type { z };
