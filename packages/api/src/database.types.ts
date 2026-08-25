@@ -77,6 +77,63 @@ export type Database = {
           },
         ]
       }
+      announcements: {
+        Row: {
+          applied_at: string | null
+          course_id: number
+          created_at: string
+          failure_reason: string | null
+          id: number
+          parse_confidence: number | null
+          parsed_diff: Json | null
+          raw_text: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string | null
+          course_id: number
+          created_at?: string
+          failure_reason?: string | null
+          id?: never
+          parse_confidence?: number | null
+          parsed_diff?: Json | null
+          raw_text: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          applied_at?: string | null
+          course_id?: number
+          created_at?: string
+          failure_reason?: string | null
+          id?: never
+          parse_confidence?: number | null
+          parsed_diff?: Json | null
+          raw_text?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcements_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "announcements_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       app_usage: {
         Row: {
           app_name: string

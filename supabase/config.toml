@@ -464,6 +464,12 @@ import_map = "./functions/deno.json"
 verify_jwt = true
 import_map = "./functions/deno.json"
 
+# Stages a diff; announcement-confirm (Tier 4 chunk 2) is the only path that applies one.
+# Same trust model as syllabus-extract: a real logged-in caller acting on their own data.
+[functions.parse-announcement]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
