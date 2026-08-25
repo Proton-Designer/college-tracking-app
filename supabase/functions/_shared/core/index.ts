@@ -28,6 +28,9 @@ export * from './hours/hours.ts';
 export * from './habits/habitScore.ts';
 export * from './cards/rotation.ts';
 export * from './review/weekReview.ts';
+export * from './retrieval/scheduler.ts';
+export * from './retrieval/queue.ts';
+export * from './retrieval/confidence.ts';
 
 export * from './recovery/trigger.ts';
 export * from './recovery/mvd.ts';

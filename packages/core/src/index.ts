@@ -25,6 +25,9 @@ export * from './hours/hours';
 export * from './habits/habitScore';
 export * from './cards/rotation';
 export * from './review/weekReview';
+export * from './retrieval/scheduler';
+export * from './retrieval/queue';
+export * from './retrieval/confidence';
 
 export * from './recovery/trigger';
 export * from './recovery/mvd';
