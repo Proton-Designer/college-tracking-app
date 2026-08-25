@@ -93,14 +93,17 @@ export async function extractSyllabus(
 }
 
 /**
- * The real tool input_schema, replacing the {type:"object"} stub that shipped while no
- * key existed to verify a schema against (the live smoke has since proven forced
- * tool_choice honors a strict schema). Hand-written to mirror exactly what the GATEWAY
- * validates -- SyllabusExtractionResultSchema -- and no more: `payload` stays an open
- * object here because the gateway's Zod accepts it as one, with the per-item-type shapes
- * enforced at confirmation time (types.ts's PAYLOAD_SCHEMA_BY_ITEM_TYPE). A wire schema
- * stricter than the gateway would reject responses the gateway was designed to accept;
- * looser would readmit the junk the stub allowed. This is the matching point.
+ * The real tool input_schema. First live run (2026-08-25) proved the hard way that the
+ * payload key contract CANNOT be left open here: with `payload: {type:"object"}`, the
+ * model returned complete data under its own invented names (exam_name, category_name,
+ * weight_percent, due_date) -- rich extractions the display and confirm.ts's per-type
+ * Zod schemas could not read, staged at 0.99 confidence with every text field "missing".
+ * The key names live in types.ts's payload schemas, and NOTHING else communicates them
+ * to the model -- not the system prompt, not the gateway's pass-through Zod. So the wire
+ * schema is where the contract must be stated: each itemType is correlated with its
+ * exact payload shape, mirrored field-for-field from types.ts. If types.ts changes, this
+ * must change with it -- they are one contract written twice, and confirm.ts's
+ * re-validation is the guard that catches drift.
  */
 const SYLLABUS_TOOL_INPUT_SCHEMA: Record<string, unknown> = {
   type: "object",
@@ -108,17 +111,136 @@ const SYLLABUS_TOOL_INPUT_SCHEMA: Record<string, unknown> = {
     items: {
       type: "array",
       items: {
-        type: "object",
-        properties: {
-          itemType: {
-            enum: ["course_info", "assignment", "exam", "grade_category", "policy", "office_hours"],
+        oneOf: [
+          {
+            type: "object",
+            properties: {
+              itemType: { const: "course_info" },
+              payload: {
+                type: "object",
+                properties: {
+                  code: { type: "string", minLength: 1 },
+                  name: { type: "string", minLength: 1 },
+                  professorName: { type: "string" },
+                  professorContact: { type: "string" },
+                  term: { type: "string", minLength: 1 },
+                },
+                required: ["code", "name", "term"],
+                additionalProperties: false,
+              },
+              confidence: { type: "number", minimum: 0, maximum: 1 },
+              sourceSnippet: { type: "string", minLength: 1 },
+            },
+            required: ["itemType", "payload", "confidence", "sourceSnippet"],
+            additionalProperties: false,
           },
-          payload: { type: "object" },
-          confidence: { type: "number", minimum: 0, maximum: 1 },
-          sourceSnippet: { type: "string", minLength: 1 },
-        },
-        required: ["itemType", "payload", "confidence", "sourceSnippet"],
-        additionalProperties: false,
+          {
+            type: "object",
+            properties: {
+              itemType: { const: "assignment" },
+              payload: {
+                type: "object",
+                properties: {
+                  title: { type: "string", minLength: 1 },
+                  type: { enum: ["paper", "report", "problem_set", "exam", "project", "reading"] },
+                  dueDate: { type: "string", minLength: 1 },
+                  isDateApproximate: { type: "boolean" },
+                  estimatedMinutes: { type: "integer", minimum: 1 },
+                  gradeCategoryName: { type: "string" },
+                },
+                required: ["title", "type", "dueDate"],
+                additionalProperties: false,
+              },
+              confidence: { type: "number", minimum: 0, maximum: 1 },
+              sourceSnippet: { type: "string", minLength: 1 },
+            },
+            required: ["itemType", "payload", "confidence", "sourceSnippet"],
+            additionalProperties: false,
+          },
+          {
+            type: "object",
+            properties: {
+              itemType: { const: "exam" },
+              payload: {
+                type: "object",
+                properties: {
+                  title: { type: "string", minLength: 1 },
+                  date: { type: "string", minLength: 1 },
+                  isDateApproximate: { type: "boolean" },
+                  location: { type: "string" },
+                  gradeCategoryName: { type: "string" },
+                },
+                required: ["title", "date"],
+                additionalProperties: false,
+              },
+              confidence: { type: "number", minimum: 0, maximum: 1 },
+              sourceSnippet: { type: "string", minLength: 1 },
+            },
+            required: ["itemType", "payload", "confidence", "sourceSnippet"],
+            additionalProperties: false,
+          },
+          {
+            type: "object",
+            properties: {
+              itemType: { const: "grade_category" },
+              payload: {
+                type: "object",
+                properties: {
+                  name: { type: "string", minLength: 1 },
+                  weightPct: { type: "number", minimum: 0, maximum: 100 },
+                  dropLowestN: { type: "integer", minimum: 0 },
+                  expectedItemCount: { type: "integer", minimum: 0 },
+                },
+                required: ["name", "weightPct"],
+                additionalProperties: false,
+              },
+              confidence: { type: "number", minimum: 0, maximum: 1 },
+              sourceSnippet: { type: "string", minLength: 1 },
+            },
+            required: ["itemType", "payload", "confidence", "sourceSnippet"],
+            additionalProperties: false,
+          },
+          {
+            type: "object",
+            properties: {
+              itemType: { const: "policy" },
+              payload: {
+                type: "object",
+                properties: {
+                  kind: { enum: ["late", "attendance", "grading", "other"] },
+                  text: { type: "string", minLength: 1 },
+                },
+                required: ["kind", "text"],
+                additionalProperties: false,
+              },
+              confidence: { type: "number", minimum: 0, maximum: 1 },
+              sourceSnippet: { type: "string", minLength: 1 },
+            },
+            required: ["itemType", "payload", "confidence", "sourceSnippet"],
+            additionalProperties: false,
+          },
+          {
+            type: "object",
+            properties: {
+              itemType: { const: "office_hours" },
+              payload: {
+                type: "object",
+                properties: {
+                  dayOfWeek: { type: "integer", minimum: 0, maximum: 6 },
+                  startTime: { type: "string", pattern: "^\\d{2}:\\d{2}$" },
+                  endTime: { type: "string", pattern: "^\\d{2}:\\d{2}$" },
+                  location: { type: "string" },
+                },
+                required: ["dayOfWeek", "startTime", "endTime"],
+                additionalProperties: false,
+              },
+              confidence: { type: "number", minimum: 0, maximum: 1 },
+              sourceSnippet: { type: "string", minLength: 1 },
+            },
+            required: ["itemType", "payload", "confidence", "sourceSnippet"],
+            additionalProperties: false,
+          },
+        ],
       },
     },
     lowQualitySourceText: { type: "boolean" },
