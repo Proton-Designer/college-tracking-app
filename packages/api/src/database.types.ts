@@ -772,6 +772,9 @@ export type Database = {
           created_at: string
           id: number
           local_date: string
+          morning_brief: string | null
+          morning_brief_generated_at: string | null
+          morning_brief_source: string | null
           sleep_intent_at: string | null
           updated_at: string
           user_id: string
@@ -782,6 +785,9 @@ export type Database = {
           created_at?: string
           id?: never
           local_date: string
+          morning_brief?: string | null
+          morning_brief_generated_at?: string | null
+          morning_brief_source?: string | null
           sleep_intent_at?: string | null
           updated_at?: string
           user_id: string
@@ -792,6 +798,9 @@ export type Database = {
           created_at?: string
           id?: never
           local_date?: string
+          morning_brief?: string | null
+          morning_brief_generated_at?: string | null
+          morning_brief_source?: string | null
           sleep_intent_at?: string | null
           updated_at?: string
           user_id?: string

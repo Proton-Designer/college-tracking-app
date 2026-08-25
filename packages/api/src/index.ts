@@ -154,6 +154,8 @@ export type {
   ParseAnnouncementOutcome,
   ConfirmAnnouncementApplied,
 } from "./data/announcements";
+export { getMorningBrief } from "./data/morningBrief";
+export type { MorningBrief } from "./data/morningBrief";
 export { listSchoolTodayItems } from "./day/schoolToday";
 export type { SchoolTodayItem } from "./day/schoolToday";
 export { saveNightPlan, NIGHT_PLAN_DEFAULT_CATEGORY } from "./day/nightPlan";

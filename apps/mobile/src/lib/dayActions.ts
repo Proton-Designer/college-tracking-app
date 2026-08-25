@@ -1,5 +1,7 @@
 import {
   getDay,
+  getMorningBrief,
+  type MorningBrief,
   getOwnProfile,
   getUserLocalToday,
   listCompletedHoursInRange,
@@ -107,4 +109,17 @@ export async function setSleepIntentAction(userId: string): Promise<DayActionRes
   const result = await setSleepIntent(client, userId, localDate, new Date(), baselineForWeekday(weekdayMap, localDate));
   if (!result.ok) return { ok: false, error: result.error.message };
   return { ok: true };
+}
+
+/** The Start Day brief. Server-cached per local day; safe to call on every mount. */
+export async function loadMorningBrief(
+  _userId: string,
+): Promise<{ ok: true; data: MorningBrief } | { ok: false; error: string }> {
+  const client = getMobileSupabaseClient();
+  const profileResult = await getOwnProfile(client);
+  if (!profileResult.ok) return { ok: false, error: profileResult.error.message };
+  const localDate = getUserLocalToday(profileResult.data.timezone, new Date());
+  const result = await getMorningBrief(client, localDate);
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true, data: result.data };
 }

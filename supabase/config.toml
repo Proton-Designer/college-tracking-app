@@ -476,6 +476,11 @@ import_map = "./functions/deno.json"
 verify_jwt = true
 import_map = "./functions/deno.json"
 
+# Generates (once per local day, cached on the days row) the Start Day morning brief.
+[functions.morning-brief]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

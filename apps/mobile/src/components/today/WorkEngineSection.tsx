@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import { Button, Panel } from "../ui";
 import { textStyle } from "../../design/typography";
-import { loadDay, startDayAction, type DayState } from "../../lib/dayActions";
+import { loadDay, loadMorningBrief, startDayAction, type DayState } from "../../lib/dayActions";
 import {
   loadMorningRoutine,
   MORNING_ROUTINE_ITEMS,
@@ -52,6 +52,7 @@ export function WorkEngineSection({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+  const [brief, setBrief] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     const [result, routineResult] = await Promise.all([loadDay(userId), loadMorningRoutine(userId)]);
@@ -63,6 +64,15 @@ export function WorkEngineSection({ userId }: { userId: string }) {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Once per mount; the server caches per local day, so this is one cheap read after the
+  // first generation. Failure means no brief line -- the metrics row above it is the
+  // load-bearing content, and an error banner for a missing note would invert that.
+  useEffect(() => {
+    void loadMorningBrief(userId).then((r) => {
+      if (r.ok) setBrief(r.data.brief);
+    });
+  }, [userId]);
 
   useEffect(() => {
     const sub = AppState.addEventListener("change", (s) => {
@@ -192,6 +202,10 @@ export function WorkEngineSection({ userId }: { userId: string }) {
                 );
               })
             : null}
+
+          {brief != null ? (
+            <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>{brief}</Text>
+          ) : null}
 
           {isMonday ? (
             <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
