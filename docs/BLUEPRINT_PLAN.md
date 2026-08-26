@@ -1,31 +1,57 @@
-# ⚡ SESSION HANDOFF — 2026-08-26 (read this first)
+# ⚡ SESSION HANDOFF — 2026-08-26 evening (read this first)
 
-> Written at the previous session's context ceiling. The working tree is CLEAN at commit
-> `256df97`, 48 commits ahead of `origin/main` (NOTHING PUSHED — the only copy is this
-> laptop; the owner knows). `npm run verify` green: 454 vitest/jest + 110 deno. All 42
-> migrations applied to the cloud project, every new table RLS-verified live.
+> The 2026-08-26 continuous-run session EXECUTED the queue below — all five items, each
+> to its buildable edge. Working tree CLEAN at `91b5865`, 57 commits ahead of
+> `origin/main` (NOTHING PUSHED — the only copy is this laptop; the owner knows).
+> `npm run verify` exit 0: 439 core + 30 api + 2 mobile vitest/jest, deno `-A` 128.
+> Migrations 43–45 applied to the cloud project; new tables RLS-probed live (anon read
+> `200 []`, anon insert refused — psql role-simulation probes owed, no DB password this
+> session). `canvas-sync` deployed. **`docs/VALIDATION_PLAN.md` is the consolidated
+> test plan the working format promised — the single big validation pass runs from it.**
 
-## Where the build stands
+## What this session shipped (commit per chunk, full reasoning in each message)
 
-Tiers 0–4 and S3 are BUILT and committed. S3 (Question Bank) shipped in 5 chunks
-(`ff05f47`→`256df97`): schema (no scheduler state — derived, D-style decision in
-migration 42's header), SM-2-lite + interleaved queue + calibration in core,
-data layer, mobile UI (Bank/drill/Modes/calibration line), AI drafting
-(proposals-only). The S3 boundary test list was DELIVERED BUT NEVER USER-VALIDATED —
-validation now happens once, at the very end (see working format below).
+1. **S3 finished** (`3d5c2e4`): calibration + drill name courses by code; web Bank +
+   Drill built (the "consider" taken — the bank's own generation-effect argument).
+2. **Canvas conversion** (`7bd90ed` audit → `b02995d` build → `91b5865` grades):
+   `docs/CANVAS_AUDIT.md`; migrations 43+45; canvas-sync (connect/map/poll/cron +
+   grade decisions); announcements ride the existing parse→review→confirm pipeline;
+   grades are the FOURTH one-path-to-done staging table; mobile surfaces (Settings
+   Canvas card, /announcements worklist, course-detail grades panel). Built to the
+   exact edge of needing the token.
+3. **Tier 5 = S4, ruled as D25** (`49d3eed`, `dfda579`): exam retrieval curves
+   (derived, never stored), 3-week load forecast vs weekday baselines with pull-earlier
+   suggestions, practice_tests (migration 44) + the 5.6 practice-vs-real rule +
+   origin='missed' conversion. Surfaces: ExamPrepSection on exam/quiz detail, forecast
+   panel on /week.
+4. **SDK 57 assessment** (`8cfbef2`): `docs/SDK57_ASSESSMENT.md` + eas.json. NOT
+   migrated, NOT submitted. The deciding fact is owner-only (§1: which SDK the phone's
+   Expo Go runs today).
+5. **L1–L3 partial** (`b22b5b2`): `docs/universal-links/` (AASA + assetlinks templates,
+   three named blanks, deployment runbook). L2/L3 are owner dashboard/credential
+   actions; the runbook records why and when.
 
-Operational facts the fresh session needs:
-- DB access: `/opt/homebrew/opt/libpq/bin/psql "host=aws-0-us-east-1.pooler.supabase.com
-  port=5432 dbname=postgres user=postgres.jcikqbxwjmdduwprixpy sslmode=require"` with
-  PGPASSWORD from the owner's message history (direct db host does not resolve; HANDOFF
-  §3.2 notes). Deno 2.9.5 via brew. ANTHROPIC_API_KEY is SET in Supabase secrets — do
-  not re-set. CRON_SHARED_SECRET is set; its VALUE lived only in the old session's
-  scratchpad — regenerate-and-reset via `supabase secrets set` if a cron trigger is
-  needed again. Sonnet intro pricing steps up 2026-09-01; costs.ts already encodes it.
-- Metro/web dev servers were transient; restart as needed (`npx expo start -c` from
-  apps/mobile; deep-link QRs via `npx qrcode -o f.png "exp://<LAN-IP>:8081/--/<route>"`).
-- Edge deploys need config.toml's per-function import_map entries (CLI 2.115.0; HANDOFF
-  §3.2). Deno tests run from `supabase/functions/` cwd.
+## The standing asks (the owner interrupt points, consolidated)
+
+1. **Canvas token + base URL** — unblocks the live poll (VALIDATION_PLAN §3–4).
+2. **Expo Go SDK check on the iPhone** (~1 min) — decides SDK 57 timing.
+3. **L2** (dashboard, 30s, timed deliberately — breaks Expo Go auth returns in dev),
+   **L3** (SMTP provider), **L1 blanks** (domain, TEAMID, bundle id at first EAS build).
+4. **CRON_SHARED_SECRET regenerate** if the polls should run on cron rather than
+   Sync-now (`supabase secrets set CRON_SHARED_SECRET=...` + the Vault secret; the
+   canvas-sync-poll cron job registers itself once the Vault secret exists).
+5. **Push to origin** remains the owner's deliberate act (57 commits, single copy).
+
+## Operational facts (unchanged unless noted)
+
+- DB: pooler psql per HANDOFF §3.2; PGPASSWORD only in the owner's message history —
+  this session ran without it (types + probes via CLI/REST instead). The Management-API
+  route via the keychain CLI token was DECLINED by the runtime's safety layer — don't
+  plan around it.
+- ANTHROPIC_API_KEY set — do not re-set. Sonnet pricing steps up 2026-09-01 (costs.ts
+  encodes it). Edge deploys need config.toml import_map entries (CLI 2.115.0). Deno
+  tests: `deno test -A` from `supabase/functions/` (without `-A`, 4 pre-existing tests
+  fail on env/net permissions — that is the flag, not a regression).
 
 ## The working format (owner directive, 2026-08-26 — supersedes per-tier check-ins)
 
@@ -36,45 +62,20 @@ genuinely ambiguous — but make reasonable judgment calls and RECORD them inste
 stopping to ask. Interrupt the owner ONLY for: (1) truly irreversible decisions,
 (2) anything requiring his credentials or browser actions, (3) blockers with no
 route-around. At the very end: ONE consolidated test plan for everything built,
-organized by feature, for a single big validation pass.
+organized by feature, for a single big validation pass. **Done → `docs/VALIDATION_PLAN.md`.**
 
-## The queue, in order
-
-1. **Finish S3** — the build is complete; "finish" means the recorded rough edges:
-   calibration panel names courses by id not code; consider web parity for Bank/drill
-   (all Tier 1–3+S3 surfaces are mobile-only); any polish found in passing.
-2. **Canvas conversion** — build the integration up to the point of needing the token,
-   then ask (the owner: "token comes when you ask"). Do the AUDIT first and note
-   findings in docs rather than waiting: what exists (brightspace-sync/-confirm ICS
-   pipeline to clone, `oauth_connections.provider` CHECK needs `'canvas'`,
-   `calendar_events.source` allows only ics/google/manual — check), REST poll design
-   (announcements → parse_announcement pipeline, grades → Ledger), Vault storage per F3.
-   ⚠️ This session had NO Canvas audit doc — "audit findings noted in the docs" is the
-   owner asking the fresh session to produce one, not a reference to an existing file.
-3. **"Tier 5 scheduler intelligence"** — no Tier 5 was ever defined in this repo. Best
-   reading (record as an interpretation, D-number it): the plan's S4 block —
-   backward-planned exam retrieval curves, 3-week load forecasting, practice-test
-   benchmark rules (which also unlocks the reserved `origin='missed'` conversion), plus
-   feedback rules 5.6 where data exists. None of it is actually dev-build-gated except
-   sleep correlations (needs Whoop). If the owner meant something else, the consolidated
-   test plan will surface the mismatch cheaply.
-4. **SDK 57 migration assessment + EAS/TestFlight prep** — "per the Ayman greenlight":
-   that greenlight happened OUTSIDE this session; no document records it. Treat as: 
-   assess the 54→57 path (undo d43e836-era pins? The 54 downgrade commit `13b3c80`
-   documents exactly what moved), check whether kareem's iOS/Expo Go situation changed,
-   and prep EAS build + TestFlight configs WITHOUT submitting (submission = owner
-   credentials = interrupt point). ASSESSMENT deliverable, not a blind migration.
-5. **L1–L3 security fixes** — L1 Universal Links needs a real domain + AASA file +
-   Apple association (owner credentials/browser likely → partial build + interrupt);
-   L2 remove `exp://127.0.0.1:8081/**` from redirect allow-list (dashboard or
-   management API — try API with the stored CLI token); L3 custom SMTP needs
-   provider credentials (interrupt when reached).
-
-## Open questions already known
-- S7-era pgTAP for migrations 34–42 still owed (needs local Docker stack).
+## Open questions / next buildable work
+- pgTAP for migrations 34–45 owed (needs a Docker machine).
 - Wall pagination (`listWall` caps at 200, no pager); DayTrace ignores task-less Hours.
-- Web has no Tier 1–3/S3 surfaces; D24's merge was mobile-only.
-- FOLLOWUPS/SCREEN_SPEC/DATA_MODEL staleness flagged in REVIEW_2026-08-25 §6.
+- Web parity remains open for Tier 1–3 surfaces (Cards/Habits/Worries/Wall/week) and
+  the announcements worklist; S3's Bank/drill are now on web.
+- Weekly narrative surface (weekly-synthesis output has no prominent display) — small.
+- Morning brief on web; per-course announcement history UI (the /announcements
+  worklist shows pending only, not history).
+- "I knew it but blanked" post-mortem tag (D25 names it unbuilt); Google Calendar
+  (I1's other half — schema anticipates it, needs OAuth client).
+- FOLLOWUPS/SCREEN_SPEC/DATA_MODEL staleness flagged in REVIEW_2026-08-25 §6 —
+  still deliberately unedited (they are Ayman's).
 
 # Blueprint Implementation Plan
 
