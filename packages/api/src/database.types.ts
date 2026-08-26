@@ -10,7 +10,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.15"
+    PostgrestVersion: "14.17"
   }
   graphql_public: {
     Tables: {
@@ -82,11 +82,13 @@ export type Database = {
           applied_at: string | null
           course_id: number
           created_at: string
+          external_id: string | null
           failure_reason: string | null
           id: number
           parse_confidence: number | null
           parsed_diff: Json | null
           raw_text: string
+          source: string
           status: string
           updated_at: string
           user_id: string
@@ -95,11 +97,13 @@ export type Database = {
           applied_at?: string | null
           course_id: number
           created_at?: string
+          external_id?: string | null
           failure_reason?: string | null
           id?: never
           parse_confidence?: number | null
           parsed_diff?: Json | null
           raw_text: string
+          source?: string
           status?: string
           updated_at?: string
           user_id: string
@@ -108,11 +112,13 @@ export type Database = {
           applied_at?: string | null
           course_id?: number
           created_at?: string
+          external_id?: string | null
           failure_reason?: string | null
           id?: never
           parse_confidence?: number | null
           parsed_diff?: Json | null
           raw_text?: string
+          source?: string
           status?: string
           updated_at?: string
           user_id?: string
@@ -350,6 +356,83 @@ export type Database = {
           },
           {
             foreignKeyName: "calendar_events_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canvas_connections: {
+        Row: {
+          base_url: string
+          created_at: string
+          id: number
+          last_polled_at: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_url: string
+          created_at?: string
+          id?: never
+          last_polled_at?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_url?: string
+          created_at?: string
+          id?: never
+          last_polled_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_connections_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      canvas_course_links: {
+        Row: {
+          canvas_course_id: number
+          canvas_course_name: string
+          course_id: number
+          created_at: string
+          id: number
+          user_id: string
+        }
+        Insert: {
+          canvas_course_id: number
+          canvas_course_name: string
+          course_id: number
+          created_at?: string
+          id?: never
+          user_id: string
+        }
+        Update: {
+          canvas_course_id?: number
+          canvas_course_name?: string
+          course_id?: number
+          created_at?: string
+          id?: never
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_course_links_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_course_links_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "profiles"

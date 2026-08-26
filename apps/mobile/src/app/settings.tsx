@@ -2,6 +2,7 @@ import { color, space } from "@collegeos/design/native";
 import { Stack } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { CanvasSection } from "../components/settings/CanvasSection";
 import { DataExportDeletionSection } from "../components/settings/DataExportDeletionSection";
 import { IntegrationsSection } from "../components/settings/IntegrationsSection";
 import { KillHabitsSection } from "../components/settings/KillHabitsSection";
@@ -53,6 +54,7 @@ export default function SettingsScreen() {
           </Section>
 
           <Section title="Integrations">
+            <CanvasSection userId={result.data.userId} />
             <IntegrationsSection
               userId={result.data.userId}
               integrationStatuses={result.data.integrationStatuses}

@@ -143,10 +143,29 @@ export {
 export type { GoalRow, MilestoneRow, GoalWithMilestone, CreateGoalInput } from "./data/goals";
 export {
   parseAnnouncementText,
+  reparseAnnouncement,
   confirmAnnouncement,
   getAnnouncement,
   listAnnouncementsForCourse,
 } from "./data/announcements";
+export {
+  connectCanvas,
+  saveCanvasCourseLinks,
+  syncCanvasNow,
+  getCanvasStatus,
+  listReviewableAnnouncements,
+  disconnectCanvas,
+} from "./data/canvas";
+export type {
+  CanvasConnectionRow,
+  CanvasCourseLinkRow,
+  CanvasCourseOption,
+  CanvasCourseLinkInput,
+  CanvasStatus,
+  CanvasSyncOutcome,
+  ConnectCanvasResult,
+  ReviewableAnnouncement,
+} from "./data/canvas";
 export type {
   AnnouncementRow,
   AnnouncementChange,

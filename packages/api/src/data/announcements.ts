@@ -43,6 +43,16 @@ export async function parseAnnouncementText(
   return invokeEdgeFunction<ParseAnnouncementOutcome>(client, 'parse-announcement', { courseId, rawText });
 }
 
+/** Re-parses an existing pending/failed row (a polled announcement the key hadn't
+ *  parsed yet, or a parse that failed) -- the {announcementId} arm of parse-announcement,
+ *  which refuses already-applied rows server-side. */
+export async function reparseAnnouncement(
+  client: TypedSupabaseClient,
+  announcementId: number,
+): Promise<DataResult<ParseAnnouncementOutcome>> {
+  return invokeEdgeFunction<ParseAnnouncementOutcome>(client, 'parse-announcement', { announcementId });
+}
+
 export interface ConfirmAnnouncementApplied {
   applied?: { dateChanges: number; newItems: number; notes: number };
   rejected?: boolean;

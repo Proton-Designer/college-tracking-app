@@ -487,6 +487,13 @@ import_map = "./functions/deno.json"
 verify_jwt = true
 import_map = "./functions/deno.json"
 
+# Canvas connect + announcements poll (docs/CANVAS_AUDIT.md). verify_jwt OFF because the
+# cron pollAll path carries no user JWT -- user calls are verified in-function by
+# getVerifiedCaller, cron calls by x-cron-secret (nightly-analysis's exact shape).
+[functions.canvas-sync]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

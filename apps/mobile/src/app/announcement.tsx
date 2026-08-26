@@ -37,8 +37,14 @@ export default function AnnouncementScreen() {
   const router = useRouter();
   const { session: authSession } = useAuthSession();
   const userId = authSession?.user.id ?? null;
-  const { courseId: courseIdParam } = useLocalSearchParams<{ courseId: string }>();
+  const { courseId: courseIdParam, announcementId: announcementIdParam } = useLocalSearchParams<{
+    courseId: string;
+    announcementId?: string;
+  }>();
   const courseId = Number(courseIdParam);
+  // A staged announcement (polled from Canvas, or abandoned mid-review) opens straight
+  // in review -- same screen, same confirmation grammar, no paste step.
+  const stagedAnnouncementId = announcementIdParam != null ? Number(announcementIdParam) : null;
 
   const [phase, setPhase] = useState<Phase>({ step: "compose" });
   const [rawText, setRawText] = useState("");
@@ -51,6 +57,17 @@ export default function AnnouncementScreen() {
       if (r.ok) setTitles(r.data);
     });
   }, [userId, courseId]);
+
+  useEffect(() => {
+    if (userId == null || stagedAnnouncementId == null || !Number.isFinite(stagedAnnouncementId)) return;
+    void loadAnnouncementDiff(userId, stagedAnnouncementId).then((diff) => {
+      if (!diff.ok) {
+        setError(diff.error);
+        return;
+      }
+      setPhase({ step: "review", announcementId: stagedAnnouncementId, changes: diff.data, edited: false });
+    });
+  }, [userId, stagedAnnouncementId]);
 
   const onParse = useCallback(async () => {
     if (userId == null) return;
