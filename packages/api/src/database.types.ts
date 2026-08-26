@@ -2237,6 +2237,64 @@ export type Database = {
           },
         ]
       }
+      practice_tests: {
+        Row: {
+          conditions: string | null
+          course_id: number
+          created_at: string
+          deliverable_id: number | null
+          id: number
+          local_date: string
+          score_pct: number
+          timed: boolean
+          user_id: string
+        }
+        Insert: {
+          conditions?: string | null
+          course_id: number
+          created_at?: string
+          deliverable_id?: number | null
+          id?: never
+          local_date: string
+          score_pct: number
+          timed?: boolean
+          user_id: string
+        }
+        Update: {
+          conditions?: string | null
+          course_id?: number
+          created_at?: string
+          deliverable_id?: number | null
+          id?: never
+          local_date?: string
+          score_pct?: number
+          timed?: boolean
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "practice_tests_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practice_tests_deliverable_id_fkey"
+            columns: ["deliverable_id"]
+            isOneToOne: false
+            referencedRelation: "deliverables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "practice_tests_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string

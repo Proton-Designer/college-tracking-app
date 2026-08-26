@@ -31,6 +31,9 @@ export * from './review/weekReview.ts';
 export * from './retrieval/scheduler.ts';
 export * from './retrieval/queue.ts';
 export * from './retrieval/confidence.ts';
+export * from './retrieval/examCurve.ts';
+export * from './retrieval/practiceBenchmark.ts';
+export * from './planning/loadForecast.ts';
 
 export * from './recovery/trigger.ts';
 export * from './recovery/mvd.ts';

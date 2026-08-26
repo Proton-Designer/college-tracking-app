@@ -30,7 +30,8 @@ export interface CreateQuestionInput {
   sourceAnchor?: string;
   sourceSkipped?: boolean;
   topic?: string;
-  origin?: 'self' | 'ai';
+  /** 'missed' is the practice-test conversion (migration 42 reserved it; S4 uses it). */
+  origin?: 'self' | 'ai' | 'missed';
 }
 
 export async function createQuestion(

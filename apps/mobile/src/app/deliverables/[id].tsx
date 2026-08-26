@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { EditDeliverableModal } from "../../components/deliverables/EditDeliverableModal";
+import { ExamPrepSection } from "../../components/deliverables/ExamPrepSection";
 import { GenerateBackplanSection } from "../../components/deliverables/GenerateBackplanSection";
 import { DeliverableTasksSection } from "../../components/deliverables/DeliverableTasksSection";
 import { Aurora, Button, NavLink, PageHeader, Skeleton } from "../../components/ui";
@@ -85,6 +86,10 @@ function DeliverableDetailReady({
           actions={<EditDeliverableModal userId={userId} deliverable={deliverable} onSaved={onChanged} />}
         />
       </View>
+
+      {deliverable.type === "exam" || deliverable.type === "quiz" ? (
+        <ExamPrepSection userId={userId} deliverable={deliverable} today={today} />
+      ) : null}
 
       <View style={{ gap: space[3] }}>
         <Text style={textStyle("label", color.inkMuted)}>Backplan</Text>

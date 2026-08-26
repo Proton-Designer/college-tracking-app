@@ -187,6 +187,14 @@ export type {
   DueQueueEntry,
   QuestionBankState,
 } from "./data/questionBank";
+export {
+  logPracticeTest,
+  listPracticeTestsForDeliverable,
+  getDeliverableRealScorePct,
+} from "./data/practiceTests";
+export type { PracticeTestRow, LogPracticeTestInput } from "./data/practiceTests";
+export { loadThreeWeekForecast } from "./planning/threeWeekForecast";
+export type { ThreeWeekForecastResult } from "./planning/threeWeekForecast";
 export { draftQuestionsFromNotes } from "./data/questionDraft";
 export type { DraftedQuestion, DraftOutcome } from "./data/questionDraft";
 export { getMorningBrief } from "./data/morningBrief";

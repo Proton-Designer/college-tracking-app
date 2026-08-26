@@ -8,7 +8,9 @@ import { textStyle } from "../design/typography";
 import { loadWeekReview, type WeekReviewState } from "../lib/weekActions";
 import { loadBank } from "../lib/bankActions";
 import type { CourseCalibration } from "@collegeos/core";
+import { getOwnProfile, getUserLocalToday, loadThreeWeekForecast, type ThreeWeekForecastResult } from "@collegeos/api";
 import { loadHabits, type HabitState } from "../lib/habitsActions";
+import { getMobileSupabaseClient } from "../lib/supabase/client";
 import { useAuthSession } from "../lib/useAuthSession";
 
 /** Pretty labels for the cause enum -- same wording as the timer's chips. */
@@ -36,15 +38,18 @@ export default function WeekScreen() {
   const [habits, setHabits] = useState<HabitState[]>([]);
   const [calibration, setCalibration] = useState<CourseCalibration[]>([]);
   const [courseCodeById, setCourseCodeById] = useState<Record<number, string>>({});
+  const [forecast, setForecast] = useState<ThreeWeekForecastResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (userId == null) return;
-    const [review, habitResult, bank] = await Promise.all([
+    const client = getMobileSupabaseClient();
+    const [review, habitResult, bank, profileResult] = await Promise.all([
       loadWeekReview(userId),
       loadHabits(userId),
       loadBank(userId),
+      getOwnProfile(client),
     ]);
     if (bank.ok) {
       setCalibration(bank.data.calibration);
@@ -53,6 +58,11 @@ export default function WeekScreen() {
     if (review.ok) setState(review.data);
     else setError(review.error);
     if (habitResult.ok) setHabits(habitResult.data.habits);
+    if (profileResult.ok) {
+      const today = getUserLocalToday(profileResult.data.timezone, new Date());
+      const forecastResult = await loadThreeWeekForecast(client, userId, today);
+      if (forecastResult.ok) setForecast(forecastResult.data);
+    }
     setLoading(false);
   }, [userId]);
 
@@ -168,6 +178,34 @@ export default function WeekScreen() {
                 ))
               )}
             </Panel>
+
+            {forecast != null ? (
+              <Panel>
+                <Text style={textStyle("label", color.inkMuted)}>Next 3 weeks</Text>
+                {forecast.forecast.overloadedDays.length === 0 ? (
+                  <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+                    {forecast.sources.backplanned + forecast.sources.examCurves === 0
+                      ? "Nothing planned ahead — the forecast sees backplans and exam curves."
+                      : "The planned load fits your baselines. No collisions ahead."}
+                  </Text>
+                ) : (
+                  <>
+                    {forecast.forecast.overloadedDays.map((d) => (
+                      <Text key={d.date} style={[textStyle("bodyS", color.riskHigh), styles.spacedTop]}>
+                        {d.date}: {Math.round(d.plannedMinutes / 6) / 10}h planned against a{" "}
+                        {Math.round(d.baselineMinutes / 6) / 10}h baseline.
+                      </Text>
+                    ))}
+                    {forecast.forecast.suggestions.map((s) => (
+                      <Text key={`${s.fromDate}-${s.toDate}`} style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+                        Pull {Math.round(s.minutes / 6) / 10}h from {s.fromDate} to {s.toDate} — earlier beats
+                        later for spacing anyway.
+                      </Text>
+                    ))}
+                  </>
+                )}
+              </Panel>
+            ) : null}
 
             {calibration.some((c) => c.flagged) ? (
               <Panel>
