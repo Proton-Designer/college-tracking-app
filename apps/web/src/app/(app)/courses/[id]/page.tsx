@@ -9,6 +9,7 @@ import { ScenarioPlanner } from "@/components/courses/ScenarioPlanner";
 import { UploadSyllabusModal } from "@/components/courses/UploadSyllabusModal";
 import { AnnouncementPasteModal } from "@/components/courses/AnnouncementPasteModal";
 import { Aurora, Metric, PageHeader, Panel, RiskPill, WarningCard } from "@/components/ui";
+import { buttonClassName } from "@/components/ui/buttonStyles";
 import { loadCourseDetail } from "./data";
 
 function formatPct(pct: number | null): string {
@@ -69,6 +70,9 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
                   <span className="font-mono text-body-s tabular-nums text-ink-muted">{courseRisk.result.score}</span>
                 </div>
               ) : null}
+              <Link href={`/courses/${courseId}/bank`} className={buttonClassName("secondary")}>
+                Question Bank
+              </Link>
               <EditCourseModal course={course} />
             </>
           }

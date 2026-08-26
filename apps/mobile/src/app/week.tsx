@@ -35,6 +35,7 @@ export default function WeekScreen() {
   const [state, setState] = useState<WeekReviewState | null>(null);
   const [habits, setHabits] = useState<HabitState[]>([]);
   const [calibration, setCalibration] = useState<CourseCalibration[]>([]);
+  const [courseCodeById, setCourseCodeById] = useState<Record<number, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -45,7 +46,10 @@ export default function WeekScreen() {
       loadHabits(userId),
       loadBank(userId),
     ]);
-    if (bank.ok) setCalibration(bank.data.calibration);
+    if (bank.ok) {
+      setCalibration(bank.data.calibration);
+      setCourseCodeById(bank.data.courseCodeById);
+    }
     if (review.ok) setState(review.data);
     else setError(review.error);
     if (habitResult.ok) setHabits(habitResult.data.habits);
@@ -172,7 +176,7 @@ export default function WeekScreen() {
                   .filter((c) => c.flagged)
                   .map((c) => (
                     <Text key={c.courseId} style={[textStyle("bodyS", color.ink), styles.spacedTop]}>
-                      When you answer &quot;Sure&quot; in course #{c.courseId}, you&apos;re wrong{" "}
+                      When you answer &quot;Sure&quot; in {courseCodeById[c.courseId] ?? `course #${c.courseId}`}, you&apos;re wrong{" "}
                       {Math.round(c.sureWrongRate * 100)}% of the time ({c.sureWrongCount} of {c.sureCount}).
                       That&apos;s an illusion-of-competence signal — those topics are weighted up in the
                       queue.

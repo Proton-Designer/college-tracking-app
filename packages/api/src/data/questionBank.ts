@@ -132,6 +132,8 @@ export interface QuestionBankState {
   queue: DueQueueEntry[];
   calibration: CourseCalibration[];
   totalActiveQuestions: number;
+  /** Course code (e.g. "CS 2110") keyed by id, for labelling calibration and queue rows. */
+  courseCodeById: Record<number, string>;
 }
 
 /**
@@ -152,7 +154,7 @@ export async function loadQuestionBank(
     .eq('active', true);
   if (qError) return dataErr(mapDataError(qError));
   if (questions == null || questions.length === 0) {
-    return dataOk({ queue: [], calibration: [], totalActiveQuestions: 0 });
+    return dataOk({ queue: [], calibration: [], totalActiveQuestions: 0, courseCodeById: {} });
   }
 
   const { data: attempts, error: aError } = await client
@@ -197,9 +199,19 @@ export async function loadQuestionBank(
     question: questionById.get(item.questionId)!,
   }));
 
+  // Codes, not ids, on every surface that names a course. Narrow read; RLS scopes it.
+  const courseIds = [...new Set(questions.map((q) => q.course_id))];
+  const { data: courses, error: cError } = await client
+    .from('courses')
+    .select('id, code')
+    .in('id', courseIds);
+  if (cError) return dataErr(mapDataError(cError));
+  const courseCodeById = Object.fromEntries((courses ?? []).map((c) => [c.id, c.code]));
+
   return dataOk({
     queue,
     calibration: computeCourseCalibration(courseAttempts),
     totalActiveQuestions: questions.length,
+    courseCodeById,
   });
 }

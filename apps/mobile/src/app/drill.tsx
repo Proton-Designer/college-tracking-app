@@ -26,6 +26,7 @@ export default function DrillScreen() {
   const userId = authSession?.user.id ?? null;
 
   const [queue, setQueue] = useState<DueQueueEntry[]>([]);
+  const [courseCodeById, setCourseCodeById] = useState<Record<number, string>>({});
   const [index, setIndex] = useState(0);
   const [confidence, setConfidence] = useState<RetrievalConfidence | null>(null);
   const [revealed, setRevealed] = useState(false);
@@ -36,8 +37,10 @@ export default function DrillScreen() {
   useEffect(() => {
     if (userId == null) return;
     void loadBank(userId).then((r) => {
-      if (r.ok) setQueue(r.data.queue);
-      else setError(r.error);
+      if (r.ok) {
+        setQueue(r.data.queue);
+        setCourseCodeById(r.data.courseCodeById);
+      } else setError(r.error);
       setLoading(false);
     });
   }, [userId]);
@@ -113,7 +116,11 @@ export default function DrillScreen() {
         ) : (
           <>
             <Panel>
-              <Text style={textStyle("bodyL", color.ink)}>{current.question.prompt}</Text>
+              <Text style={textStyle("label", color.inkMuted)}>
+                {courseCodeById[current.question.course_id] ?? `Course #${current.question.course_id}`}
+                {current.question.topic != null ? ` · ${current.question.topic}` : ""}
+              </Text>
+              <Text style={[textStyle("bodyL", color.ink), styles.spacedTop]}>{current.question.prompt}</Text>
               {!revealed ? (
                 <>
                   <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
