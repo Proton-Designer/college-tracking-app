@@ -1,4 +1,4 @@
-import type { Course, DayView } from "@collegeos/api";
+import { getMorningBrief, type Course, type DayView } from "@collegeos/api";
 import { deriveDayBand } from "@collegeos/core";
 import type { ReactNode } from "react";
 import type { FocusBlock } from "@/components/today/FocusLauncher";
@@ -19,6 +19,7 @@ import { RecoveryBanner } from "@/components/today/RecoveryBanner";
 import { UnplannedGate } from "@/components/today/UnplannedGate";
 import { WorkloadBand } from "@/components/today/WorkloadBand";
 import { loadTodayData } from "./data";
+import { getServerSupabaseClient } from "@/lib/supabase/server";
 
 /** Panel earned by a rule, not a hunch: Top 3 and Deadline radar are lists of rows, the same
  *  shape as InterventionsSection and KillListSection, which already sit in real Panels a few
@@ -140,6 +141,13 @@ export default async function TodayPage({
   }
 
   const { dayView, courses, mode, killHabits, activeFocusSession, interventions, now } = result.data;
+
+  // The morning brief, web parity with WorkEngineSection: the edge function caches
+  // once per local day, so this is a read after the day's first render. Failure means
+  // no brief line -- the readouts below are the day; the brief is commentary on it.
+  const briefClient = await getServerSupabaseClient();
+  const briefResult = await getMorningBrief(briefClient, dayView.today);
+  const morningBrief = briefResult.ok ? briefResult.data.brief : null;
   const hasAnyData =
     dayView.todayTasks.length > 0 || dayView.todayCalendarEvents.length > 0 || dayView.upcomingDeliverables.length > 0;
   const mitItems = buildMitItems(dayView, courses);
@@ -225,6 +233,8 @@ export default async function TodayPage({
       ) : null}
 
       <TodayHeader today={dayView.today} health={dayView.todayHealth} sleepBaselineHours={dayView.profile.sleep_baseline_hours} />
+
+      {morningBrief != null ? <p className="max-w-report text-body-s text-ink-muted">{morningBrief}</p> : null}
 
       {/* A full max-w-app ribbon for a genuinely empty day (nothing scheduled at all) is a very
           wide box with two empty lanes -- doesn't earn that much of the fold. Constrains to the

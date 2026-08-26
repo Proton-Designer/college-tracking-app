@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Aurora, Panel } from "../components/ui";
+import { WeeklyNarrativePanel } from "../components/week/WeeklyNarrativePanel";
 import { textStyle } from "../design/typography";
 import { loadWeekReview, type WeekReviewState } from "../lib/weekActions";
 import { loadBank } from "../lib/bankActions";
@@ -238,6 +239,8 @@ export default function WeekScreen() {
                 ))}
               </Panel>
             ) : null}
+
+            {userId != null ? <WeeklyNarrativePanel userId={userId} /> : null}
           </>
         )}
       </ScrollView>
