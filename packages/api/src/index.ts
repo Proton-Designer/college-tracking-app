@@ -154,6 +154,8 @@ export {
   syncCanvasNow,
   getCanvasStatus,
   listReviewableAnnouncements,
+  listPendingGradeExtractionsForCourse,
+  decideCanvasGrade,
   disconnectCanvas,
 } from "./data/canvas";
 export type {
@@ -161,6 +163,8 @@ export type {
   CanvasCourseLinkRow,
   CanvasCourseOption,
   CanvasCourseLinkInput,
+  CanvasGradeExtractionRow,
+  CanvasGradeDecisionResult,
   CanvasStatus,
   CanvasSyncOutcome,
   ConnectCanvasResult,

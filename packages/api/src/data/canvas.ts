@@ -122,6 +122,38 @@ export async function listReviewableAnnouncements(
   );
 }
 
+export type CanvasGradeExtractionRow = Database['public']['Tables']['canvas_grade_extractions']['Row'];
+
+/** Staged Canvas grades still awaiting the user's decision, for one course's panel. */
+export async function listPendingGradeExtractionsForCourse(
+  client: TypedSupabaseClient,
+  userId: string,
+  courseId: number,
+): Promise<DataResult<CanvasGradeExtractionRow[]>> {
+  const { data, error } = await client
+    .from('canvas_grade_extractions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('course_id', courseId)
+    .eq('status', 'pending')
+    .order('graded_at', { ascending: false });
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(data ?? []);
+}
+
+export type CanvasGradeDecisionResult =
+  | { kind: 'applied'; gradeItemId: number; scorePct: number | null }
+  | { kind: 'rejected' };
+
+/** The one path from a staged Canvas grade to the Ledger -- server-side, refusals
+ *  precise and re-editable (a 422 names exactly what to fix). */
+export async function decideCanvasGrade(
+  client: TypedSupabaseClient,
+  input: { extractionId: number; decision: 'applied' | 'rejected'; gradeItemId?: number },
+): Promise<DataResult<CanvasGradeDecisionResult>> {
+  return invokeEdgeFunction<CanvasGradeDecisionResult>(client, 'canvas-sync', { gradeDecision: input });
+}
+
 /** Full teardown: the Vault token (via the shared disconnect RPC) plus the connection
  *  row and course links. Staged/applied announcements stay -- they are the user's data,
  *  produced with their consent, same as calendar_events surviving a Brightspace

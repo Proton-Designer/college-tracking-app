@@ -23,6 +23,7 @@ import { assertSafeFeedUrl } from "../_shared/brightspace/urlSafety.ts";
 import { CanvasApiError, listActiveCourses, verifyCanvasToken } from "../_shared/canvas/api.ts";
 import { storeCanvasToken } from "../_shared/canvas/keyStore.ts";
 import { pollAnnouncementsForUser, type PollResult } from "../_shared/canvas/sync.ts";
+import { decideGradeExtraction, pollGradesForUser } from "../_shared/canvas/grades.ts";
 import { createAnthropicProvider } from "../_shared/llm/anthropicProvider.ts";
 import { getMonthlySpendUsd, logUsage } from "../_shared/llm/budget.ts";
 import type { GatewayDeps } from "../_shared/llm/gateway.ts";
@@ -45,6 +46,13 @@ const RequestSchema = z.union([
       .max(50),
   }),
   z.object({ pollAll: z.literal(true) }),
+  z.object({
+    gradeDecision: z.object({
+      extractionId: z.number().int().positive(),
+      decision: z.enum(["applied", "rejected"]),
+      gradeItemId: z.number().int().positive().optional(),
+    }),
+  }),
   z.object({}).strict(),
 ]);
 
@@ -150,7 +158,9 @@ Deno.serve(async (req: Request) => {
         const poll = await pollAnnouncementsForUser(service, row.user_id, () => new Date());
         if (poll.kind === "polled") {
           const parseOutcome = await parseInserted(service, row.user_id, poll);
-          perUser.push({ userId: row.user_id, result: `staged ${poll.inserted.length}, parsed ${parseOutcome.parsed}` });
+          const grades = await pollGradesForUser(service, row.user_id);
+          const gradesNote = grades.kind === "polled" ? `, grades staged ${grades.staged}` : "";
+          perUser.push({ userId: row.user_id, result: `staged ${poll.inserted.length}, parsed ${parseOutcome.parsed}${gradesNote}` });
         } else {
           perUser.push({ userId: row.user_id, result: poll.kind });
         }
@@ -211,11 +221,30 @@ Deno.serve(async (req: Request) => {
     return apiOk({ saved: parsed.data.links.length });
   }
 
+  if ("gradeDecision" in parsed.data) {
+    try {
+      const result = await decideGradeExtraction(client, {
+        userId,
+        extractionId: parsed.data.gradeDecision.extractionId,
+        decision: parsed.data.gradeDecision.decision,
+        ...(parsed.data.gradeDecision.gradeItemId != null ? { gradeItemId: parsed.data.gradeDecision.gradeItemId } : {}),
+      });
+      // Refusals are precise and re-editable -- a 422 whose body names what to fix,
+      // the same grammar (and the same invokeEdgeFunction recovery path) as
+      // announcement-confirm's.
+      if (result.kind === "refused") return apiErr(result.reason, 422);
+      return apiOk(result);
+    } catch (err) {
+      return apiErr(`Grade decision failed: ${err instanceof Error ? err.message : String(err)}`, 500);
+    }
+  }
+
   // {} -- poll now, as the caller.
   try {
     const poll = await pollAnnouncementsForUser(client, userId, () => new Date());
     if (poll.kind !== "polled") return apiOk({ kind: poll.kind });
     const parseOutcome = await parseInserted(client, userId, poll);
+    const grades = await pollGradesForUser(client, userId);
     return apiOk({
       kind: "polled",
       fetched: poll.fetched,
@@ -224,6 +253,8 @@ Deno.serve(async (req: Request) => {
       skippedUnmapped: poll.skippedUnmapped,
       parsed: parseOutcome.parsed,
       unparsed: parseOutcome.unparsed,
+      gradesStaged: grades.kind === "polled" ? grades.staged : 0,
+      gradesUpdated: grades.kind === "polled" ? grades.updated : 0,
     });
   } catch (err) {
     if (err instanceof CanvasApiError && err.status === 401) {

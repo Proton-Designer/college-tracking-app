@@ -4,6 +4,7 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { AddAssignmentModal } from "../../components/courses/AddAssignmentModal";
 import { AssignmentsTable } from "../../components/courses/AssignmentsTable";
+import { CanvasGradesSection } from "../../components/courses/CanvasGradesSection";
 import { CourseRiskPanel } from "../../components/courses/CourseRiskPanel";
 import { EditCourseModal } from "../../components/courses/EditCourseModal";
 import { GradeBoundariesSection } from "../../components/courses/GradeBoundariesSection";
@@ -160,6 +161,8 @@ function CourseDetailReady({
         </View>
         <AssignmentsTable deliverables={deliverables} gradeItems={gradeItems} categories={categories} backplanChains={backplanChains} today={today} />
       </View>
+
+      <CanvasGradesSection userId={userId} courseId={courseId} gradeItems={gradeItems} onChanged={onChanged} />
 
       <GradeCategoriesSection userId={userId} courseId={courseId} categories={categories} onChanged={onChanged} />
 

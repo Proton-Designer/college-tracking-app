@@ -440,6 +440,83 @@ export type Database = {
           },
         ]
       }
+      canvas_grade_extractions: {
+        Row: {
+          applied_at: string | null
+          applied_grade_item_id: number | null
+          canvas_assignment_id: number
+          canvas_assignment_name: string
+          course_id: number
+          graded_at: string | null
+          id: number
+          points_possible: number | null
+          score: number
+          status: string
+          suggested_grade_item_id: number | null
+          synced_at: string
+          user_id: string
+        }
+        Insert: {
+          applied_at?: string | null
+          applied_grade_item_id?: number | null
+          canvas_assignment_id: number
+          canvas_assignment_name: string
+          course_id: number
+          graded_at?: string | null
+          id?: never
+          points_possible?: number | null
+          score: number
+          status?: string
+          suggested_grade_item_id?: number | null
+          synced_at?: string
+          user_id: string
+        }
+        Update: {
+          applied_at?: string | null
+          applied_grade_item_id?: number | null
+          canvas_assignment_id?: number
+          canvas_assignment_name?: string
+          course_id?: number
+          graded_at?: string | null
+          id?: never
+          points_possible?: number | null
+          score?: number
+          status?: string
+          suggested_grade_item_id?: number | null
+          synced_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "canvas_grade_extractions_applied_grade_item_id_fkey"
+            columns: ["applied_grade_item_id"]
+            isOneToOne: false
+            referencedRelation: "grade_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_grade_extractions_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_grade_extractions_suggested_grade_item_id_fkey"
+            columns: ["suggested_grade_item_id"]
+            isOneToOne: false
+            referencedRelation: "grade_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "canvas_grade_extractions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cards: {
         Row: {
           active: boolean

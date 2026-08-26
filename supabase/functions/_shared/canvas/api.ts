@@ -47,6 +47,15 @@ export function stripCanvasHtml(html: string): string {
     .trim();
 }
 
+export interface CanvasSubmission {
+  assignmentId: number;
+  assignmentName: string;
+  /** The graded score, present by construction (ungraded submissions are filtered out). */
+  score: number;
+  pointsPossible: number | null;
+  gradedAt: string | null;
+}
+
 /** Bounds a poll: 10 pages × 50 per_page = 500 items, far beyond any real window. */
 const MAX_PAGES = 10;
 
@@ -129,6 +138,40 @@ export async function listActiveCourses(baseUrl: string, token: string): Promise
  * Canvas's announcements endpoint is GET /api/v1/announcements with repeated
  * context_codes[] params; active_only skips scheduled-but-unposted ones.
  */
+/**
+ * The caller's own graded submissions for one Canvas course, assignment context
+ * included. Only rows Canvas itself calls graded, with a posted (visible) score --
+ * a muted/pending grade must not be staged as if it were real.
+ */
+export async function listGradedSubmissions(
+  baseUrl: string,
+  token: string,
+  canvasCourseId: number,
+): Promise<CanvasSubmission[]> {
+  const raw = await canvasGetAll(
+    baseUrl,
+    token,
+    `/api/v1/courses/${canvasCourseId}/students/submissions?student_ids[]=self&include[]=assignment&per_page=50`,
+  );
+  const out: CanvasSubmission[] = [];
+  for (const value of raw) {
+    if (typeof value !== "object" || value == null) continue;
+    const v = value as Record<string, unknown>;
+    if (v.workflow_state !== "graded" || typeof v.score !== "number") continue;
+    if (v.posted_at == null) continue; // grade exists but is hidden from the student
+    const assignment = v.assignment as Record<string, unknown> | undefined;
+    if (assignment == null || typeof assignment.id !== "number") continue;
+    out.push({
+      assignmentId: assignment.id,
+      assignmentName: typeof assignment.name === "string" ? assignment.name : "(unnamed assignment)",
+      score: v.score,
+      pointsPossible: typeof assignment.points_possible === "number" ? assignment.points_possible : null,
+      gradedAt: typeof v.graded_at === "string" ? v.graded_at : null,
+    });
+  }
+  return out;
+}
+
 export async function listAnnouncements(
   baseUrl: string,
   token: string,
