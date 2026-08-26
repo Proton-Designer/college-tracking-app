@@ -338,3 +338,27 @@ spine and leave Hours as a feature of a to-do screen.
 **Consequence for Tier 2:** School Today is a *section and a feed*, not a screen. Building a
 standalone academic Today surface in Tier 2 would be building toward a shape this entry has already
 rejected.
+
+## D25 — "Tier 5 scheduler intelligence" means the S4 block (2026-08-26)
+No Tier 5 was ever defined in this repo. The owner's continuous-run queue names "Tier 5
+scheduler intelligence"; ruled (as an interpretation, flagged for the consolidated
+validation pass) to mean the blueprint's S4 block minus what other gates hold:
+
+- **Backward-planned exam retrieval curves** (BLUEPRINT 5.3's exam row): retrieval at
+  D-21/-14/-7/-3, timed practice tests at D-7 and D-2 (a practice test IS retrieval, so
+  it replaces the colliding D-7 session), light review D-1. Derived on read in core —
+  no scheduler state to drift, same argument as migration 42's header.
+- **3-week load forecasting** (5.5): planned minutes per day against the per-weekday
+  baselines (migration 38's map via baselineForWeekday), overflow named now rather than
+  discovered on Sunday night.
+- **Practice-test benchmark rules** (5.6 rule 1): a practice_tests table, the
+  practice-high-real-lower gap rule, and the reserved questions.origin='missed'
+  conversion (migration 42 reserved it for exactly this).
+- **Feedback rules 5.6 where data exists**: the >15% calibration gap already ships (S3);
+  the queue-shrink rule is inherent in SM-2's intervals; practice-vs-real lands here.
+  "I knew it but blanked" needs an exam post-mortem surface (not built — no tag exists);
+  afternoon-focus/sleep rules need Whoop (I2 — excluded, the one S4 item that is
+  genuinely credential-gated).
+
+If the owner meant something else by Tier 5, the consolidated test plan surfaces the
+mismatch cheaply — the plan doc's own reasoning, adopted.
