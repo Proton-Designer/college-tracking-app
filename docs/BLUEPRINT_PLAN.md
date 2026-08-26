@@ -1,4 +1,17 @@
-# ⚡ SESSION HANDOFF — 2026-08-26 evening (read this first)
+# ⚡ FINAL STATE — 2026-08-26 night: handed over
+
+> The final build-out ran after the queue below completed: lecture capture, voice
+> capture Phase 1 (D26), Wall paging, weekly narrative, morning brief on web,
+> announcement history, the cloud cron layer activated (it had NEVER been live),
+> Deepgram + cron secrets set, RLS role-simulation probes executed, Canvas token
+> verified live. **`docs/HANDOVER.md` is now the single current source** — read it
+> first; this file's history below explains how the build got here.
+>
+> Still unpushed (no GitHub auth on this machine — HANDOVER §7.1). Canvas in-app
+> connect + the consolidated validation pass (`docs/VALIDATION_PLAN.md`) are the next
+> human steps.
+
+# ⚡ SESSION HANDOFF — 2026-08-26 evening (superseded by the block above)
 
 > The 2026-08-26 continuous-run session EXECUTED the queue below — all five items, each
 > to its buildable edge. Working tree CLEAN at `91b5865`, 57 commits ahead of

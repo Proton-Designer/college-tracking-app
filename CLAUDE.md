@@ -27,7 +27,8 @@ what remains before production.
 
 | You need | Read |
 |---|---|
-| **Full handoff — start here** | **`HANDOFF.md`** |
+| **Handover package (2026-08-26) — start here** | **`docs/HANDOVER.md`** |
+| **Full deep handoff** | **`HANDOFF.md`** |
 | **Setting this up on a new machine** | **`HANDOFF.md` §3** |
 | Supabase schema, migrations, cloud move | `HANDOFF.md` §4 → `docs/SUPABASE_SETUP.md` |
 | Everything that remains | `HANDOFF.md` §8 |

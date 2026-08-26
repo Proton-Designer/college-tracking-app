@@ -371,7 +371,14 @@ other pretends the capability doesn't exist, is worse than text-only.
 
 ## 🟡 V2 — Voice *capture* for tasks: "remind me to submit my econ homework tomorrow at 6pm"
 
-Requested 2026-08-24. **Spec only — nothing built.** Scope: speak one sentence, get the right row
+Requested 2026-08-24. **Phase 1 BUILT 2026-08-26** exactly per the recommendation below
+(A + B + P1, tasks only): `packages/core/src/capture/parseUtterance.ts` (deterministic,
+dependency-free, 9 tests), mobile `/capture`, web Capture modal on /today, confirm
+preview, write via `createTask`. The schema question below is ruled — **D26: reminder ≡
+task with `planned_start_at`.** Phases 2 (LLM branch) and 3 (Siri Shortcut + per-user
+bearer token) remain open with the estimates below. Original entry follows.
+
+Scope: speak one sentence, get the right row
 with the right local time, indistinguishable from one typed by hand.
 
 ### What already exists, and what this request actually adds
