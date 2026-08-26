@@ -1,0 +1,22 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["<TEAMID>.<BUNDLE_ID>"],
+        "components": [
+          {
+            "/": "/auth/callback",
+            "comment": "Supabase auth returns: confirmation, magic link, password recovery, email change"
+          },
+          {
+            "/": "/auth/confirm",
+            "comment": "Web confirm route, opened in-app when the app is installed"
+          }
+        ]
+      }
+    ]
+  },
+  "webcredentials": {
+    "apps": ["<TEAMID>.<BUNDLE_ID>"]
+  }
+}
