@@ -494,6 +494,17 @@ import_map = "./functions/deno.json"
 verify_jwt = false
 import_map = "./functions/deno.json"
 
+# Submits imported lecture audio to Deepgram (LECTURE_CAPTURE_SPEC).
+[functions.lecture-transcribe]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
+# Deepgram's callback receiver -- external caller, no JWT possible; the per-row
+# webhook_token in the URL is the auth (whoop-webhook's shape, secret-in-URL variant).
+[functions.lecture-transcript-webhook]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Aurora, Button, Input, Panel, Textarea } from "../components/ui";
 import { textStyle } from "../design/typography";
 import { addQuestion, draftFromNotes, loadCourseQuestions, retireQuestionAction } from "../lib/bankActions";
+import { loadLectureTranscript } from "../lib/lectureActions";
 import { useAuthSession } from "../lib/useAuthSession";
 
 /**
@@ -20,8 +21,12 @@ export default function BankScreen() {
   const router = useRouter();
   const { session: authSession } = useAuthSession();
   const userId = authSession?.user.id ?? null;
-  const { courseId: courseIdParam } = useLocalSearchParams<{ courseId: string }>();
+  const { courseId: courseIdParam, lectureId: lectureIdParam } = useLocalSearchParams<{
+    courseId: string;
+    lectureId?: string;
+  }>();
   const courseId = Number(courseIdParam);
+  const lectureId = lectureIdParam != null ? Number(lectureIdParam) : null;
 
   const [questions, setQuestions] = useState<QuestionRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -48,6 +53,20 @@ export default function BankScreen() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  // Arriving from a lecture: prefill the drafting notes with the transcript (capped at
+  // question-draft's own 60k input limit -- the cap is stated, never silent).
+  useEffect(() => {
+    if (userId == null || lectureId == null || !Number.isFinite(lectureId)) return;
+    void loadLectureTranscript(userId, lectureId).then((r) => {
+      if (!r.ok || r.data?.transcript == null) return;
+      const full = r.data.transcript;
+      setNotes(full.slice(0, 60_000));
+      if (full.length > 60_000) {
+        setDraftNote(`Transcript is ${Math.round(full.length / 1000)}k characters; drafting reads the first 60k. Trim the notes to a section for targeted cards.`);
+      }
+    });
+  }, [userId, lectureId]);
 
   const onAdd = useCallback(async () => {
     if (userId == null) return;

@@ -2128,6 +2128,72 @@ export type Database = {
           },
         ]
       }
+      lecture_transcripts: {
+        Row: {
+          audio_deleted: boolean
+          course_id: number
+          created_at: string
+          deepgram_request_id: string | null
+          failure_reason: string | null
+          id: number
+          lecture_date: string
+          segments: Json | null
+          status: string
+          storage_path: string
+          transcript: string | null
+          updated_at: string
+          user_id: string
+          webhook_token: string
+        }
+        Insert: {
+          audio_deleted?: boolean
+          course_id: number
+          created_at?: string
+          deepgram_request_id?: string | null
+          failure_reason?: string | null
+          id?: never
+          lecture_date: string
+          segments?: Json | null
+          status?: string
+          storage_path: string
+          transcript?: string | null
+          updated_at?: string
+          user_id: string
+          webhook_token: string
+        }
+        Update: {
+          audio_deleted?: boolean
+          course_id?: number
+          created_at?: string
+          deepgram_request_id?: string | null
+          failure_reason?: string | null
+          id?: never
+          lecture_date?: string
+          segments?: Json | null
+          status?: string
+          storage_path?: string
+          transcript?: string | null
+          updated_at?: string
+          user_id?: string
+          webhook_token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lecture_transcripts_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "lecture_transcripts_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       llm_usage_log: {
         Row: {
           cache_read_tokens: number

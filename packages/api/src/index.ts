@@ -199,6 +199,14 @@ export {
 export type { PracticeTestRow, LogPracticeTestInput } from "./data/practiceTests";
 export { loadThreeWeekForecast } from "./planning/threeWeekForecast";
 export type { ThreeWeekForecastResult } from "./planning/threeWeekForecast";
+export {
+  buildLectureStoragePath,
+  requestLectureTranscription,
+  listLectureTranscripts,
+  getLectureTranscript,
+  deleteLectureAudio,
+} from "./data/lectures";
+export type { LectureTranscriptRow } from "./data/lectures";
 export { draftQuestionsFromNotes } from "./data/questionDraft";
 export type { DraftedQuestion, DraftOutcome } from "./data/questionDraft";
 export { getMorningBrief } from "./data/morningBrief";

@@ -149,6 +149,9 @@ function CourseDetailReady({
       <Button variant="secondary" onPress={() => router.push(`/bank?courseId=${course.id}`)}>
         Question Bank
       </Button>
+      <Button variant="secondary" onPress={() => router.push(`/lectures?courseId=${course.id}`)}>
+        Lectures
+      </Button>
 
       <Section title="Why this score">
         <CourseRiskPanel deliverableRisks={deliverableRisks} today={today} />
