@@ -363,24 +363,50 @@ export interface WallTile {
  * real elapsed time, and still feeds the calibration engine. It simply is not proof of a
  * finished Hour, which is the one thing this surface claims.
  */
+export interface WallCursor {
+  localDate: LocalDate;
+  hourIndex: number;
+}
+
+export interface WallPage {
+  tiles: WallTile[];
+  /** Pass back as `before` for the next page; null when the Wall is fully loaded. */
+  nextCursor: WallCursor | null;
+  /** True all-time completed-Hour count (head count query, first page only; null on
+   *  later pages). The header's "all time" claim must never be a page length. */
+  totalCount: number | null;
+}
+
 export async function listWall(
   client: TypedSupabaseClient,
   userId: string,
-  limit = 200,
-): Promise<DataResult<WallTile[]>> {
-  const { data, error } = await client
+  options: { limit?: number; before?: WallCursor } = {},
+): Promise<DataResult<WallPage>> {
+  const limit = options.limit ?? 200;
+  let query = client
     .from('task_sessions')
     .select('id, local_date, hour_index, deliverable, category, interruptions, actual_duration_min')
     .eq('user_id', userId)
     .eq('status', 'completed')
-    .not('hour_index', 'is', null)
+    .not('hour_index', 'is', null);
+  // Keyset on the display order (local_date desc, hour_index desc) -- an offset pager
+  // would shift under the reader every time a new Hour completes; a cursor cannot.
+  if (options.before != null) {
+    query = query.or(
+      `local_date.lt.${options.before.localDate},and(local_date.eq.${options.before.localDate},hour_index.lt.${options.before.hourIndex})`,
+    );
+  }
+  const { data, error } = await query
     .order('local_date', { ascending: false })
     .order('hour_index', { ascending: false })
-    .limit(limit);
+    .limit(limit + 1); // one extra row answers "is there more" without a count query
   if (error) return dataErr(mapDataError(error));
 
+  const rows = (data ?? []).slice(0, limit);
+  const hasMore = (data ?? []).length > limit;
+
   const tiles: WallTile[] = [];
-  for (const row of data ?? []) {
+  for (const row of rows) {
     if (row.local_date == null || row.hour_index == null) continue;
     tiles.push({
       id: row.id,
@@ -392,7 +418,24 @@ export async function listWall(
       minutes: row.actual_duration_min ?? 0,
     });
   }
-  return dataOk(tiles);
+  let totalCount: number | null = null;
+  if (options.before == null) {
+    const { count, error: countError } = await client
+      .from('task_sessions')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', userId)
+      .eq('status', 'completed')
+      .not('hour_index', 'is', null);
+    if (countError) return dataErr(mapDataError(countError));
+    totalCount = count ?? 0;
+  }
+
+  const last = tiles[tiles.length - 1];
+  return dataOk({
+    tiles,
+    nextCursor: hasMore && last != null ? { localDate: last.localDate, hourIndex: last.hourIndex } : null,
+    totalCount,
+  });
 }
 
 export interface WeekReviewData {

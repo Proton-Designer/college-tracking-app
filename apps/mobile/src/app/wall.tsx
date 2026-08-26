@@ -3,7 +3,8 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Aurora, EmptyState, Panel } from "../components/ui";
+import type { WallCursor } from "@collegeos/api";
+import { Aurora, Button, EmptyState, Panel } from "../components/ui";
 import { textStyle } from "../design/typography";
 import { loadWall, type WallDay } from "../lib/wallActions";
 import { useAuthSession } from "../lib/useAuthSession";
@@ -28,14 +29,20 @@ export default function WallScreen() {
   const userId = authSession?.user.id ?? null;
 
   const [days, setDays] = useState<WallDay[]>([]);
+  const [nextCursor, setNextCursor] = useState<WallCursor | null>(null);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (userId == null) return;
     const result = await loadWall(userId);
-    if (result.ok) setDays(result.data);
-    else setError(result.error);
+    if (result.ok) {
+      setDays(result.data.days);
+      setNextCursor(result.data.nextCursor);
+      setTotalCount(result.data.totalCount);
+    } else setError(result.error);
     setLoading(false);
   }, [userId]);
 
@@ -43,7 +50,30 @@ export default function WallScreen() {
     void refresh();
   }, [refresh]);
 
-  const totalHours = days.reduce((sum, d) => sum + d.tiles.length, 0);
+  const onLoadMore = useCallback(async () => {
+    if (userId == null || nextCursor == null) return;
+    setLoadingMore(true);
+    const result = await loadWall(userId, nextCursor);
+    setLoadingMore(false);
+    if (!result.ok) {
+      setError(result.error);
+      return;
+    }
+    // Merge: the new page's first day may continue the loaded list's last day.
+    setDays((prev) => {
+      const merged = [...prev];
+      for (const day of result.data.days) {
+        const last = merged[merged.length - 1];
+        if (last != null && last.localDate === day.localDate) {
+          merged[merged.length - 1] = { ...last, tiles: [...last.tiles, ...day.tiles] };
+        } else merged.push(day);
+      }
+      return merged;
+    });
+    setNextCursor(result.data.nextCursor);
+  }, [userId, nextCursor]);
+
+  const totalHours = totalCount ?? days.reduce((sum, d) => sum + d.tiles.length, 0);
 
   return (
     <View style={styles.screen}>
@@ -77,25 +107,32 @@ export default function WallScreen() {
             description="Every Hour you finish lands here and stays."
           />
         ) : (
-          days.map((day) => (
-            <View key={day.localDate} style={styles.dayBlock}>
-              <Text style={textStyle("label", color.inkMuted)}>{day.localDate}</Text>
-              <View style={styles.grid}>
-                {day.tiles.map((tile) => (
-                  <View key={tile.id} style={styles.tile}>
-                    <Text style={textStyle("label", color.inkMuted)}>Hour {tile.hourIndex}</Text>
-                    <Text style={[textStyle("body", color.ink), styles.tileTitle]} numberOfLines={3}>
-                      {tile.deliverable ?? "—"}
-                    </Text>
-                    <Text style={textStyle("bodyS", color.inkMuted)}>
-                      {tile.minutes}m · {tile.interruptions} distraction
-                      {tile.interruptions === 1 ? "" : "s"}
-                    </Text>
-                  </View>
-                ))}
+          <>
+            {days.map((day) => (
+              <View key={day.localDate} style={styles.dayBlock}>
+                <Text style={textStyle("label", color.inkMuted)}>{day.localDate}</Text>
+                <View style={styles.grid}>
+                  {day.tiles.map((tile) => (
+                    <View key={tile.id} style={styles.tile}>
+                      <Text style={textStyle("label", color.inkMuted)}>Hour {tile.hourIndex}</Text>
+                      <Text style={[textStyle("body", color.ink), styles.tileTitle]} numberOfLines={3}>
+                        {tile.deliverable ?? "—"}
+                      </Text>
+                      <Text style={textStyle("bodyS", color.inkMuted)}>
+                        {tile.minutes}m · {tile.interruptions} distraction
+                        {tile.interruptions === 1 ? "" : "s"}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
               </View>
-            </View>
-          ))
+            ))}
+            {nextCursor != null ? (
+              <Button variant="secondary" onPress={() => void onLoadMore()} loading={loadingMore} disabled={loadingMore}>
+                Show older Hours
+              </Button>
+            ) : null}
+          </>
         )}
       </ScrollView>
     </View>
