@@ -23,6 +23,7 @@ function formatClock(totalSeconds: number): string {
 }
 
 const QUICK_LINKS = [
+  ["Capture", "/capture"],
   ["Wall", "/wall"],
   ["Night Plan", "/nightplan"],
   ["Cards", "/cards"],

@@ -13,6 +13,7 @@ import { KillListSection } from "@/components/today/KillListSection";
 import { ConnectedMitList, MitFocusProvider, TodayFocusHeadline } from "@/components/today/MitFocus";
 import { OnboardingGate } from "@/components/today/OnboardingGate";
 import { QuickAddTaskModal } from "@/components/today/QuickAddTaskModal";
+import { VoiceCaptureModal } from "@/components/today/VoiceCaptureModal";
 import { InterventionsSection } from "@/components/today/InterventionsSection";
 import { RecoveryBanner } from "@/components/today/RecoveryBanner";
 import { UnplannedGate } from "@/components/today/UnplannedGate";
@@ -162,7 +163,15 @@ export default async function TodayPage({
           of stacking under a page that otherwise runs out of content halfway down. */}
       <div className="grid grid-cols-1 gap-8 xl:grid-cols-2">
         <div className="flex flex-col gap-8">
-          <Section title="Top 3" action={<QuickAddTaskModal today={dayView.today} courses={courses} />}>
+          <Section
+            title="Top 3"
+            action={
+              <div className="flex items-center gap-2">
+                <VoiceCaptureModal today={dayView.today} />
+                <QuickAddTaskModal today={dayView.today} courses={courses} />
+              </div>
+            }
+          >
             <ConnectedMitList taskSessions={dayView.todayTaskSessions} />
           </Section>
           <FocusLauncher block={focusBlock} activeSession={activeFocusSession} taskSessions={dayView.todayTaskSessions} />

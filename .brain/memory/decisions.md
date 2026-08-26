@@ -362,3 +362,11 @@ validation pass) to mean the blueprint's S4 block minus what other gates hold:
 
 If the owner meant something else by Tier 5, the consolidated test plan surfaces the
 mismatch cheaply — the plan doc's own reasoning, adopted.
+
+## D26 — Reminder ≡ task with planned_start_at (2026-08-26)
+FOLLOWUPS V2's schema question, ruled per its own recommendation (option 1): a captured
+"reminder" is an ordinary `tasks` row carrying `planned_date` + `planned_start_at` — no
+new table, no new concept, and exactly what the timeboxing work already made a planned
+time mean. Voice-captured tasks are indistinguishable from typed ones because both write
+through `createTask`. A user-authored lesson (option 2's question) remains UNRULED —
+capture writes tasks only.

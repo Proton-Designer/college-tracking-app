@@ -34,6 +34,7 @@ export * from './retrieval/confidence.ts';
 export * from './retrieval/examCurve.ts';
 export * from './retrieval/practiceBenchmark.ts';
 export * from './planning/loadForecast.ts';
+export * from './capture/parseUtterance.ts';
 
 export * from './recovery/trigger.ts';
 export * from './recovery/mvd.ts';

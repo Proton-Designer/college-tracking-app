@@ -31,6 +31,7 @@ export * from './retrieval/confidence';
 export * from './retrieval/examCurve';
 export * from './retrieval/practiceBenchmark';
 export * from './planning/loadForecast';
+export * from './capture/parseUtterance';
 
 export * from './recovery/trigger';
 export * from './recovery/mvd';

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import {
   createTask,
+  getOwnProfile,
   logKillEvent,
   startFocusSession,
   submitMorningCheckin,
@@ -11,7 +12,7 @@ import {
   type SubmitMorningCheckinInput,
   type TaskStatus,
 } from "@collegeos/api";
-import type { LocalDate } from "@collegeos/core";
+import { localTimeToInstant, type LocalDate } from "@collegeos/core";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
 export interface AddTaskResult {
@@ -25,6 +26,9 @@ export interface AddTaskInput {
   plannedDate: LocalDate;
   courseId?: number;
   estimatedMinutes?: number;
+  /** Local wall-clock "HH:MM" -- resolved against the profile timezone server-side
+   *  (never the server's own clock; B4's rule). Voice capture supplies this. */
+  startTime?: string;
 }
 
 /** E0/U6: Today's own quick-add -- the only entry point for a task that isn't scoped to
@@ -38,6 +42,14 @@ export async function addTaskAction(input: AddTaskInput): Promise<AddTaskResult>
   } = await client.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in." };
 
+  let plannedStartAt: string | null = null;
+  if (input.startTime != null && /^\d{2}:\d{2}$/.test(input.startTime)) {
+    const profileResult = await getOwnProfile(client);
+    if (!profileResult.ok) return { ok: false, error: profileResult.error.message };
+    const [h, m] = input.startTime.split(":").map(Number);
+    plannedStartAt = localTimeToInstant(input.plannedDate, h!, m!, profileResult.data.timezone);
+  }
+
   const result = await createTask(client, {
     user_id: user.id,
     title: input.title,
@@ -45,6 +57,7 @@ export async function addTaskAction(input: AddTaskInput): Promise<AddTaskResult>
     planned_date: input.plannedDate,
     ...(input.courseId != null ? { course_id: input.courseId } : {}),
     ...(input.estimatedMinutes != null ? { estimated_minutes: input.estimatedMinutes } : {}),
+    ...(plannedStartAt != null ? { planned_start_at: plannedStartAt } : {}),
   });
   if (!result.ok) return { ok: false, error: result.error.message };
   revalidatePath("/today");
