@@ -19,10 +19,27 @@ const OVERLAP_MS = 24 * 60 * 60 * 1000;
  *  without staging months of stale announcements for confirmation. */
 const FIRST_POLL_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
 
+/**
+ * P2-style prompt-bounding gap, closed: parse-announcement's manual-paste path
+ * (parse-announcement/index.ts) zod-caps pasted text at 20,000 chars before it ever
+ * reaches the parse prompt. This poll -- the "manual-paste killer" -- fed the SAME
+ * prompt from Canvas's title+message with no cap at all, and it runs unattended on a
+ * cron with zero user gesture: any course announcement (posted by a professor or
+ * anyone else with post access to a shared course) could be arbitrarily long and would
+ * be sent whole. The unattended path is the one that needed the bound more, not less.
+ *
+ * Truncate rather than reject: a cron path silently dropping a real announcement (the
+ * user never even sees it staged) is worse than staging a truncated one the user can
+ * still see, edit, or re-paste in full manually. `truncated` is recorded per item so
+ * the sync result can say so rather than silently narrowing what got parsed.
+ */
+const RAW_TEXT_MAX_CHARS = 20_000;
+
 export interface InsertedAnnouncement {
   announcementId: number;
   courseId: number;
   rawText: string;
+  truncated: boolean;
 }
 
 export type PollResult =
@@ -35,6 +52,7 @@ export type PollResult =
       inserted: InsertedAnnouncement[];
       skippedExisting: number;
       skippedUnmapped: number;
+      truncated: number;
     };
 
 export async function pollAnnouncementsForUser(
@@ -96,6 +114,7 @@ export async function pollAnnouncementsForUser(
   const inserted: InsertedAnnouncement[] = [];
   let skippedExisting = 0;
   let skippedUnmapped = 0;
+  let truncatedCount = 0;
 
   for (const announcement of announcements) {
     const externalId = String(announcement.id);
@@ -110,7 +129,10 @@ export async function pollAnnouncementsForUser(
       skippedUnmapped++;
       continue;
     }
-    const rawText = announcement.message.length > 0 ? `${announcement.title}\n\n${announcement.message}` : announcement.title;
+    const combined = announcement.message.length > 0 ? `${announcement.title}\n\n${announcement.message}` : announcement.title;
+    const truncated = combined.length > RAW_TEXT_MAX_CHARS;
+    const rawText = truncated ? combined.slice(0, RAW_TEXT_MAX_CHARS) : combined;
+    if (truncated) truncatedCount++;
     const { data: created, error: insertError } = await client
       .from("announcements")
       .insert({
@@ -130,7 +152,7 @@ export async function pollAnnouncementsForUser(
       }
       throw new Error(`Failed to stage announcement ${externalId}: ${insertError.message}`);
     }
-    inserted.push({ announcementId: created.id, courseId, rawText });
+    inserted.push({ announcementId: created.id, courseId, rawText, truncated });
   }
 
   const { error: watermarkError } = await client
@@ -140,5 +162,5 @@ export async function pollAnnouncementsForUser(
     .eq("user_id", userId);
   if (watermarkError) throw new Error(`Failed to advance poll watermark: ${watermarkError.message}`);
 
-  return { kind: "polled", fetched: announcements.length, inserted, skippedExisting, skippedUnmapped };
+  return { kind: "polled", fetched: announcements.length, inserted, skippedExisting, skippedUnmapped, truncated: truncatedCount };
 }

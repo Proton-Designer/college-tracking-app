@@ -23,11 +23,13 @@ function createFakeClient(seed: Record<string, any[]>) {
             return {
               eq(col2: string, val2: unknown) {
                 return {
-                  maybeSingle: () =>
-                    Promise.resolve({
-                      data: state[table]!.find((r) => r[col] === val && r[col2] === val2) ?? null,
-                      error: null,
-                    }),
+                  // Cloned, not the live row: a real SELECT returns a snapshot at query
+                  // time -- concurrency tests rely on this to model two requests that both
+                  // read 'pending' before either one writes.
+                  maybeSingle: () => {
+                    const found = state[table]!.find((r) => r[col] === val && r[col2] === val2) ?? null;
+                    return Promise.resolve({ data: found ? { ...found } : null, error: null });
+                  },
                 };
               },
             };
@@ -46,6 +48,13 @@ function createFakeClient(seed: Record<string, any[]>) {
             const prevPredicate = predicate;
             predicate = (r) => prevPredicate(r) && r[col] === val;
             return builder;
+          },
+          // Mirrors real supabase-js: `.select()` after an update returns the rows that
+          // matched the filters (post-mutation), so a CAS guard can check affected count.
+          select(_cols: string) {
+            const row = state[table]!.find(predicate);
+            if (row) Object.assign(row, patch);
+            return Promise.resolve({ data: row ? [{ id: row.id }] : [], error: null });
           },
           then(resolve: (v: unknown) => void) {
             resolve(apply(predicate));
@@ -255,4 +264,21 @@ Deno.test("promoteExtraction: a second confirm attempt on the same (now-confirme
 
   assertEquals(second.ok, false);
   assertEquals(state.deliverables!.length, 1, "the second attempt must not create a duplicate row");
+});
+
+Deno.test("promoteExtraction: two concurrent confirms on the same extraction never double-promote (CAS guard)", async () => {
+  const { client, state } = createFakeClient({ syllabus_extractions: [pendingExtraction()] });
+
+  // Fired together so both calls pass the pending-status read before either has claimed
+  // the row -- the exact race window the CAS guard closes.
+  const [first, second] = await Promise.all([
+    promoteExtraction(client, { extractionId: 1, userId: "user-1", courseId: 42, decision: "confirmed" }),
+    promoteExtraction(client, { extractionId: 1, userId: "user-1", courseId: 42, decision: "confirmed" }),
+  ]);
+
+  const outcomes = [first, second];
+  assertEquals(outcomes.filter((r) => r.ok && r.action === "promoted").length, 1, "exactly one call wins the claim and promotes");
+  assertEquals(outcomes.filter((r) => r.ok && r.action === "alreadySettled").length, 1, "the other finds it already settled, not an error");
+  assertEquals(state.deliverables!.length, 1, "the deliverable is created exactly once, never twice");
+  assertEquals(state.syllabus_extractions![0].status, "confirmed");
 });

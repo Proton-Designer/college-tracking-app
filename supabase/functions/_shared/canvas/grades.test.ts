@@ -81,8 +81,12 @@ function createFakeClient(state: GradeFakeState): any {
             in(col: string, vals: unknown[]) {
               return Promise.resolve({ data: rows.filter((r) => preds.every(([c, v]) => r[c] === v) && vals.includes(r[col])), error: null });
             },
+            // Cloned, not the live row: a real SELECT returns a snapshot at query time --
+            // concurrency tests rely on this to model two requests that both read
+            // 'pending' before either one writes.
             maybeSingle() {
-              return Promise.resolve({ data: matchAll(rows, preds)[0] ?? null, error: null });
+              const found = matchAll(rows, preds)[0] ?? null;
+              return Promise.resolve({ data: found ? { ...found } : null, error: null });
             },
             then(resolve: (v: unknown) => void) {
               resolve({ data: matchAll(rows, preds), error: null });
@@ -101,6 +105,14 @@ function createFakeClient(state: GradeFakeState): any {
             eq(col: string, val: unknown) {
               preds.push([col, val]);
               return builder;
+            },
+            // Mirrors real supabase-js: `.select()` after an update returns the rows
+            // that matched the filters (post-mutation), so a CAS guard can check
+            // affected count.
+            select(_cols: string) {
+              const matched = matchAll(rows, preds);
+              for (const row of matched) Object.assign(row, patch);
+              return Promise.resolve({ data: matched.map((r) => ({ id: r.id })), error: null });
             },
             then(resolve: (v: unknown) => void) {
               for (const row of matchAll(rows, preds)) Object.assign(row, patch);
@@ -219,6 +231,33 @@ Deno.test("decideGrade: refusals -- missing target, cross-course target, points-
   // Every refusal left the world untouched.
   assertEquals(state.extractions[0]!.status, "pending");
   assertEquals(state.gradeItems[1]!.points_earned, undefined);
+});
+
+Deno.test("decideGrade: two concurrent applies on the same staged grade never double-write the Ledger (CAS guard)", async () => {
+  const state: GradeFakeState = {
+    ...structuredClone(CONNECTED),
+    extractions: [{ id: 9, user_id: "u1", course_id: 10, canvas_assignment_id: 900, score: 42, points_possible: 50, status: "pending" }],
+    gradeItems: [{ id: 55, user_id: "u1", course_id: 10, name: "Quiz 2", points_possible: 50, points_earned: null }],
+    token: "tok",
+  };
+  const client = createFakeClient(state);
+
+  // Fired together so both calls pass the pending-status read before either has claimed
+  // the row -- the exact race window the CAS guard closes.
+  const [first, second] = await Promise.all([
+    decideGradeExtraction(client, { userId: "u1", extractionId: 9, decision: "applied", gradeItemId: 55 }),
+    decideGradeExtraction(client, { userId: "u1", extractionId: 9, decision: "applied", gradeItemId: 55 }),
+  ]);
+
+  const outcomes = [first, second];
+  assertEquals(outcomes.filter((r) => r.kind === "applied").length, 1, "exactly one call wins the claim and applies");
+  assertEquals(outcomes.filter((r) => r.kind === "alreadySettled").length, 1, "the other finds it already settled, not a refusal");
+
+  // The defect this guards against: without the guard, both calls would write
+  // points_earned -- harmless here since both write the same value, but the general
+  // shape (two concurrent settles both mutating the Ledger) is what the guard forbids.
+  assertEquals(state.gradeItems[0]!.points_earned, 42);
+  assertEquals(state.extractions[0]!.status, "applied");
 });
 
 Deno.test("decideGrade: reject settles without touching the Ledger", async () => {

@@ -165,6 +165,36 @@ Deno.test("poll: stages new announcements, dedupes staged ones, skips unmapped c
   }
 });
 
+Deno.test("poll: an announcement longer than the cap is staged truncated, not dropped, and counted", async () => {
+  const state: FakeState = {
+    connections: [{ id: 1, user_id: "u1", base_url: "https://x.instructure.com", last_polled_at: null }],
+    links: [{ user_id: "u1", course_id: 10, canvas_course_id: 123 }],
+    announcements: [],
+    token: "tok",
+  };
+  const client = createFakeClient(state);
+  const hugeMessage = "x".repeat(25_000);
+  const restore = canvasResponds([
+    { id: 55, title: "Long one", message: hugeMessage, posted_at: null, context_code: "course_123" },
+  ]);
+  try {
+    const result = await pollAnnouncementsForUser(client, "u1", () => NOW);
+    assertEquals(result.kind, "polled");
+    if (result.kind !== "polled") return;
+    // Not dropped: an unattended cron path silently skipping a real announcement is
+    // worse than staging a truncated one the user can still see and act on.
+    assertEquals(result.inserted.length, 1);
+    assertEquals(result.truncated, 1);
+    assertEquals(result.inserted[0]!.truncated, true);
+    assertEquals(result.inserted[0]!.rawText.length, 20_000);
+    // Same 20,000-char bound as parse-announcement's manual-paste path -- the
+    // asymmetry this closes.
+    assertEquals(state.announcements[0]!.raw_text, result.inserted[0]!.rawText);
+  } finally {
+    restore();
+  }
+});
+
 Deno.test("poll window: first poll looks back 14 days; later polls overlap the watermark by 24h", async () => {
   const captured: string[] = [];
   const restore = stubFetch((input) => {

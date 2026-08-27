@@ -34,6 +34,9 @@ export interface ConfirmExtractionInput {
 export type ConfirmExtractionResult =
   | { ok: true; action: "rejected" }
   | { ok: true; action: "promoted"; courseId?: number; deliverableId?: number; gradeCategoryId?: number }
+  /** Another confirm call for this SAME extraction won the CAS race below -- settled,
+   *  just not by this call. Not an error. */
+  | { ok: true; action: "alreadySettled" }
   | { ok: false; error: string };
 
 interface StagedExtractionRow {
@@ -65,11 +68,16 @@ export async function promoteExtraction(
   }
 
   if (input.decision === "rejected") {
-    const { error } = await client
+    // CAS: only a row still 'pending' can be rejected -- see the confirmed/edited claim
+    // below for the full reasoning (same guard, same reason).
+    const { data: claimed, error } = await client
       .from("syllabus_extractions")
       .update({ status: "rejected", confirmed_at: new Date().toISOString() })
-      .eq("id", row.id);
+      .eq("id", row.id)
+      .eq("status", "pending")
+      .select("id");
     if (error) return { ok: false, error: error.message };
+    if (!claimed || claimed.length === 0) return { ok: true, action: "alreadySettled" };
     return { ok: true, action: "rejected" };
   }
 
@@ -80,14 +88,29 @@ export async function promoteExtraction(
     return { ok: false, error: `Payload failed validation: ${formatZodError(parsed.error)}` };
   }
 
-  const writeResult = await writeConfirmedItem(client, row.item_type, parsed.data, input);
-  if (!writeResult.ok) return writeResult;
-
-  const { error: statusError } = await client
+  // Claim, THEN write the real row. This is the CAS guard: the status transition runs
+  // BEFORE writeConfirmedItem, not after, because that is what makes writeConfirmedItem
+  // safe to run at all. Two concurrent confirms can both pass the pending-status read
+  // above; without an atomic claim here, both would proceed to insert the SAME course/
+  // deliverable/grade_category row. Postgres serializes the two UPDATEs on this row: the
+  // loser's WHERE (status='pending') no longer matches once the winner commits, so it
+  // affects 0 rows and returns alreadySettled having written nothing to a real table.
+  const { data: claimed, error: claimError } = await client
     .from("syllabus_extractions")
     .update({ status: input.decision, confirmed_at: new Date().toISOString() })
-    .eq("id", row.id);
-  if (statusError) return { ok: false, error: statusError.message };
+    .eq("id", row.id)
+    .eq("status", "pending")
+    .select("id");
+  if (claimError) return { ok: false, error: claimError.message };
+  if (!claimed || claimed.length === 0) return { ok: true, action: "alreadySettled" };
+
+  const writeResult = await writeConfirmedItem(client, row.item_type, parsed.data, input);
+  if (!writeResult.ok) {
+    // The write failed after the claim -- revert to 'pending' so this stays retryable
+    // instead of permanently reporting a promotion that never actually landed.
+    await client.from("syllabus_extractions").update({ status: "pending", confirmed_at: null }).eq("id", row.id);
+    return writeResult;
+  }
 
   return { ok: true, action: "promoted", ...writeResult.ids };
 }

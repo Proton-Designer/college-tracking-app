@@ -16,6 +16,30 @@ type AnySupabaseClient = any;
 const SYLLABUS_EXTRACTION_MODEL = "claude-haiku-4-5" as const;
 const SYLLABUS_EXTRACTION_MAX_TOKENS = 4096;
 
+/**
+ * Prompt-bounding gap, closed: this file sent `extractedText` into the prompt verbatim,
+ * with no cap of its own -- the only real ceiling was the 10MB file-size limit on the
+ * `syllabi` storage bucket (migration 00000000000011), which is bytes-of-PDF, not
+ * tokens-of-extracted-text. A text-dense 10MB PDF (not a typical 2-3 page syllabus, but
+ * not impossible -- a whole course reader uploaded by mistake, say) could extract to
+ * hundreds of thousands of characters and be sent whole.
+ *
+ * 100,000 chars (~25k tokens by this file's own `Math.ceil(len/4)` estimate below) is
+ * the bound: a real syllabus, even an unusually long one (multi-section, appendices,
+ * a full late/attendance/grading policy block), runs a few thousand to perhaps 20-30
+ * thousand words -- comfortably under 100k characters. This is generous headroom for
+ * every legitimate syllabus, not a hair-trigger, while still bounding the pathological
+ * upload to a fixed, known worst-case cost instead of an unbounded one.
+ *
+ * Truncated, not rejected: `assessExtractedText`'s quality gate already exists to
+ * refuse text that's too sparse/garbled to extract from -- an overly LONG document is a
+ * different problem (too much, not too little), and a syllabus's dated items/policies
+ * are overwhelmingly front-loaded, so truncating from the end risks losing a tail
+ * appendix, not the syllabus's own schedule. `textTruncated` on the result says so
+ * rather than silently extracting from less text than the user uploaded.
+ */
+const EXTRACTED_TEXT_MAX_CHARS = 100_000;
+
 const SYSTEM_PROMPT = `You extract structured information from a college course syllabus.
 Extract every dated item (assignment, exam), every grading category and its weight,
 office hours, and late/attendance policies. For every item, include the verbatim
@@ -26,7 +50,7 @@ sparse or garbled to extract from reliably, set lowQualitySourceText to true and
 an empty items list rather than inventing content.`;
 
 export type ExtractSyllabusResult =
-  | { kind: "staged"; uploadId: number; itemCount: number }
+  | { kind: "staged"; uploadId: number; itemCount: number; textTruncated?: true }
   | { kind: "textTooLowQuality"; reason: string }
   | { kind: "budgetExceeded" }
   | { kind: "extractionFailed"; reason: string };
@@ -36,7 +60,10 @@ export async function extractSyllabus(
   gatewayDeps: GatewayDeps,
   input: { uploadId: number; userId: string; budgetCeilingUsd: number; extractedText: string },
 ): Promise<ExtractSyllabusResult> {
-  const quality = assessExtractedText(input.extractedText);
+  const textTruncated = input.extractedText.length > EXTRACTED_TEXT_MAX_CHARS;
+  const boundedText = textTruncated ? input.extractedText.slice(0, EXTRACTED_TEXT_MAX_CHARS) : input.extractedText;
+
+  const quality = assessExtractedText(boundedText);
   if (!quality.ok) {
     await client.from("syllabus_uploads").update({ extraction_status: "failed", failure_reason: quality.reason }).eq("id", input.uploadId);
     return { kind: "textTooLowQuality", reason: quality.reason! };
@@ -47,13 +74,13 @@ export async function extractSyllabus(
     callType: "syllabus_extraction",
     model: SYLLABUS_EXTRACTION_MODEL,
     systemPrompt: SYSTEM_PROMPT,
-    userContent: input.extractedText,
+    userContent: boundedText,
     toolName: "emit_syllabus_extraction",
     toolInputSchema: SYLLABUS_TOOL_INPUT_SCHEMA,
     maxTokens: SYLLABUS_EXTRACTION_MAX_TOKENS,
     budgetCeilingUsd: input.budgetCeilingUsd,
     schema: SyllabusExtractionResultSchema,
-    estimatedInputTokens: Math.ceil(input.extractedText.length / 4),
+    estimatedInputTokens: Math.ceil(boundedText.length / 4),
   });
 
   if (result.kind === "budgetExceeded") {
@@ -89,7 +116,7 @@ export async function extractSyllabus(
   }
 
   await client.from("syllabus_uploads").update({ extraction_status: "completed" }).eq("id", input.uploadId);
-  return { kind: "staged", uploadId: input.uploadId, itemCount: rows.length };
+  return { kind: "staged", uploadId: input.uploadId, itemCount: rows.length, ...(textTruncated ? { textTruncated: true as const } : {}) };
 }
 
 /**

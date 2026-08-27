@@ -122,6 +122,9 @@ export async function pollGradesForUser(client: AnySupabaseClient, userId: strin
 export type ApplyGradeResult =
   | { kind: "applied"; gradeItemId: number; scorePct: number | null }
   | { kind: "rejected" }
+  /** Another decideGradeExtraction call for this SAME extraction won the CAS race below
+   *  -- settled, just not by this call. Not a refusal. */
+  | { kind: "alreadySettled" }
   | { kind: "refused"; reason: string };
 
 /**
@@ -146,12 +149,17 @@ export async function decideGradeExtraction(
   }
 
   if (input.decision === "rejected") {
-    const { error } = await client
+    // CAS: only a row still 'pending' can be rejected -- see the applied-path claim below
+    // for the full reasoning (same guard, same reason).
+    const { data: claimed, error } = await client
       .from("canvas_grade_extractions")
       .update({ status: "rejected" })
       .eq("id", extraction.id)
-      .eq("user_id", input.userId);
+      .eq("user_id", input.userId)
+      .eq("status", "pending")
+      .select("id");
     if (error) throw new Error(`Failed to reject: ${error.message}`);
+    if (!claimed || claimed.length === 0) return { kind: "alreadySettled" };
     return { kind: "rejected" };
   }
 
@@ -182,19 +190,38 @@ export async function decideGradeExtraction(
     };
   }
 
+  // Claim, THEN write the Ledger. This is the CAS guard: the extraction's terminal status
+  // transition runs BEFORE the grade_items write, not after, because that is what makes
+  // the grade_items write safe to run at all. Two concurrent decisions on the same staged
+  // grade can both pass every refusal check above; without an atomic claim here, both
+  // would proceed to write points_earned. Postgres serializes the two UPDATEs on this
+  // row: the loser's WHERE (status='pending') no longer matches once the winner commits,
+  // so it affects 0 rows and this returns alreadySettled having never touched grade_items.
+  const { data: claimed, error: claimError } = await client
+    .from("canvas_grade_extractions")
+    .update({ status: "applied", applied_grade_item_id: gradeItem.id, applied_at: new Date().toISOString() })
+    .eq("id", extraction.id)
+    .eq("user_id", input.userId)
+    .eq("status", "pending")
+    .select("id");
+  if (claimError) throw new Error(`Failed to settle the staged grade: ${claimError.message}`);
+  if (!claimed || claimed.length === 0) return { kind: "alreadySettled" };
+
   const { error: applyError } = await client
     .from("grade_items")
     .update({ points_earned: Number(extraction.score) })
     .eq("id", gradeItem.id)
     .eq("user_id", input.userId);
-  if (applyError) throw new Error(`Failed to write the grade: ${applyError.message}`);
-
-  const { error: settleError } = await client
-    .from("canvas_grade_extractions")
-    .update({ status: "applied", applied_grade_item_id: gradeItem.id, applied_at: new Date().toISOString() })
-    .eq("id", extraction.id)
-    .eq("user_id", input.userId);
-  if (settleError) throw new Error(`Failed to settle the staged grade: ${settleError.message}`);
+  if (applyError) {
+    // The Ledger write failed after the claim -- revert to 'pending' so this stays
+    // retryable instead of permanently reporting a settle that never actually landed.
+    await client
+      .from("canvas_grade_extractions")
+      .update({ status: "pending", applied_grade_item_id: null, applied_at: null })
+      .eq("id", extraction.id)
+      .eq("user_id", input.userId);
+    throw new Error(`Failed to write the grade: ${applyError.message}`);
+  }
 
   const scorePct =
     gradeItem.points_possible != null && Number(gradeItem.points_possible) > 0

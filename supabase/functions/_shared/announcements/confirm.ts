@@ -26,6 +26,10 @@ export interface ConfirmAnnouncementInput {
 export type ConfirmAnnouncementResult =
   | { ok: true; applied: { dateChanges: number; newItems: number; notes: number } }
   | { ok: true; rejected: true }
+  /** Another confirm for this SAME announcement won the race between our initial read
+   *  and our own write -- see the CAS guard below. Not an error: the announcement is
+   *  settled, just not by this call. */
+  | { ok: true; alreadySettled: true }
   | { ok: false; error: string };
 
 /**
@@ -55,11 +59,17 @@ export async function applyAnnouncement(
   }
 
   if (input.decision === "rejected") {
-    const { error } = await client
+    // CAS: only a row still 'parsed' can be rejected. A concurrent confirm that already
+    // applied or rejected this same row wins the race silently -- 0 rows affected reports
+    // as settled, not as an error, matching the Deepgram webhook's replay idiom.
+    const { data: claimed, error } = await client
       .from("announcements")
       .update({ status: "rejected" })
-      .eq("id", announcement.id);
+      .eq("id", announcement.id)
+      .eq("status", "parsed")
+      .select("id");
     if (error) return { ok: false, error: error.message };
+    if (!claimed || claimed.length === 0) return { ok: true, alreadySettled: true };
     return { ok: true, rejected: true };
   }
 
@@ -135,15 +145,37 @@ export async function applyAnnouncement(
     }
   }
 
-  // ---- Apply.
+  // ---- Claim, THEN apply. This is the CAS guard: the terminal status transition runs
+  // FIRST, not last, because it is what makes the rest of this section safe to run at
+  // all. Two concurrent confirms for the same announcement can both pass the read-check
+  // above (nothing has raced yet at that point); without an atomic claim here, both would
+  // proceed to the insert below and both would create the SAME new_item deliverable --
+  // there is no unique constraint on deliverables(user_id, course_id, title) to catch it.
+  // Postgres serializes the two UPDATEs on this row: the loser's WHERE (status='parsed')
+  // no longer matches once the winner's write commits, so it affects 0 rows and this
+  // returns alreadySettled having written nothing -- never touching dateChanges/newItems.
+  const { data: claimed, error: claimError } = await client
+    .from("announcements")
+    .update({
+      status: "applied",
+      applied_at: new Date().toISOString(),
+      ...(input.decision === "edited" ? { parsed_diff: diff.data } : {}),
+    })
+    .eq("id", announcement.id)
+    .eq("status", "parsed")
+    .select("id");
+  if (claimError) return { ok: false, error: claimError.message };
+  if (!claimed || claimed.length === 0) return { ok: true, alreadySettled: true };
 
+  // From here on this call exclusively owns the announcement -- no concurrent confirm
+  // can have also won the claim above.
   for (const dc of dateChanges) {
     const { error } = await client
       .from("deliverables")
       .update({ due_at: dc.dueAt })
       .eq("id", dc.deliverableId)
       .eq("user_id", input.userId);
-    if (error) return { ok: false, error: error.message };
+    if (error) return revertClaim(client, announcement.id, error.message);
   }
 
   if (newItems.length > 0) {
@@ -159,18 +191,19 @@ export async function applyAnnouncement(
       local_due_date: "1970-01-01",
     }));
     const { error } = await client.from("deliverables").insert(rows);
-    if (error) return { ok: false, error: error.message };
+    if (error) return revertClaim(client, announcement.id, error.message);
   }
 
-  const { error: statusError } = await client
-    .from("announcements")
-    .update({
-      status: "applied",
-      applied_at: new Date().toISOString(),
-      ...(input.decision === "edited" ? { parsed_diff: diff.data } : {}),
-    })
-    .eq("id", announcement.id);
-  if (statusError) return { ok: false, error: statusError.message };
-
   return { ok: true, applied: { dateChanges: dateChanges.length, newItems: newItems.length, notes } };
+}
+
+/** A DB error after the claim above must not strand the row at 'applied' while some or
+ *  none of dateChanges/newItems actually landed -- that would report success for data
+ *  that never arrived AND permanently block a retry (the idempotency check refuses a
+ *  second confirm on a non-'parsed' row). Reverting to 'parsed' keeps this retryable,
+ *  the same posture the pre-claim code had for any failure. Best-effort: if the revert
+ *  itself fails, the original error still wins and is what the caller sees. */
+async function revertClaim(client: AnySupabaseClient, announcementId: number, originalError: string): Promise<ConfirmAnnouncementResult> {
+  await client.from("announcements").update({ status: "parsed", applied_at: null }).eq("id", announcementId);
+  return { ok: false, error: originalError };
 }

@@ -44,13 +44,16 @@ function createFakeClient(seed?: { announcements?: any[]; deliverables?: any[] }
             filters.push([col, val]);
             return chain;
           },
+          // Cloned, not the live row: a real SELECT returns a snapshot at query time, not a
+          // handle onto mutable server state -- concurrency tests rely on this to model two
+          // requests that both read 'parsed' before either one writes.
           maybeSingle() {
             const found = rows.find((r) => filters.every(([c, v]) => r[c] === v)) ?? null;
-            return Promise.resolve({ data: found, error: null });
+            return Promise.resolve({ data: found ? { ...found } : null, error: null });
           },
           single() {
             const found = rows.find((r) => filters.every(([c, v]) => r[c] === v)) ?? null;
-            return Promise.resolve({ data: found, error: found ? null : { message: "not found" } });
+            return Promise.resolve({ data: found ? { ...found } : null, error: found ? null : { message: "not found" } });
           },
           then(resolve: (v: { data: unknown[]; error: null }) => void) {
             resolve({ data: rows.filter((r) => filters.every(([c, v]) => r[c] === v)), error: null });
@@ -65,6 +68,13 @@ function createFakeClient(seed?: { announcements?: any[]; deliverables?: any[] }
           eq(col: string, val: unknown) {
             filters.push([col, val]);
             return chain;
+          },
+          // Mirrors real supabase-js: `.select()` after an update returns the rows that
+          // matched the filters (post-mutation), so a CAS guard can check affected count.
+          select(_cols: string) {
+            const matched = rows.filter((r) => filters.every(([c, v]) => r[c] === v));
+            for (const row of matched) Object.assign(row, patch);
+            return Promise.resolve({ data: matched.map((r) => ({ id: r.id })), error: null });
           },
           then(resolve: (v: { error: null }) => void) {
             for (const row of rows.filter((r) => filters.every(([c, v]) => r[c] === v))) Object.assign(row, patch);
@@ -212,6 +222,81 @@ Deno.test("applyAnnouncement: an already-applied announcement is refused (idempo
   const result = await applyAnnouncement(client, { announcementId: 7, userId: "user-1", decision: "confirmed" });
   assertEquals(result.ok, false);
   if (!result.ok) assertStringIncludes(result.error, "applied");
+});
+
+Deno.test("applyAnnouncement: two concurrent confirms on the same announcement never double-apply (CAS guard)", async () => {
+  const { client, state } = createFakeClient({
+    announcements: [
+      {
+        id: 7,
+        user_id: "user-1",
+        course_id: 3,
+        status: "parsed",
+        parsed_diff: {
+          changes: [
+            { kind: "new_item", title: "Pop Quiz 5", itemType: "quiz", dueDate: "2026-11-06", dueText: null, sourceSnippet: "s" },
+          ],
+        },
+      },
+    ],
+    deliverables: [],
+  });
+
+  // Fired together (not awaited in sequence) so both calls pass the initial read-check
+  // before either has written anything -- the exact race window the CAS guard closes.
+  const [first, second] = await Promise.all([
+    applyAnnouncement(client, { announcementId: 7, userId: "user-1", decision: "confirmed" }),
+    applyAnnouncement(client, { announcementId: 7, userId: "user-1", decision: "confirmed" }),
+  ]);
+
+  const outcomes = [first, second];
+  assertEquals(outcomes.filter((r) => r.ok && "applied" in r).length, 1, "exactly one call wins the claim and applies");
+  assertEquals(outcomes.filter((r) => r.ok && "alreadySettled" in r).length, 1, "the other finds it already settled, not an error");
+
+  // The defect this guards against: without it, both calls would insert the same
+  // new_item deliverable (no unique constraint on deliverables(user_id, course_id,
+  // title) exists to catch it at the DB level).
+  const created = state.deliverables!.filter((d) => d.title === "Pop Quiz 5");
+  assertEquals(created.length, 1, "the deliverable is created exactly once, never twice");
+  assertEquals(state.announcements![0]!.status, "applied");
+});
+
+Deno.test("applyAnnouncement: a concurrent confirm+reject race settles exactly one way", async () => {
+  const { client, state } = createFakeClient({
+    announcements: [
+      {
+        id: 7,
+        user_id: "user-1",
+        course_id: 3,
+        status: "parsed",
+        // A real, valid diff (DiffSchema requires changes.min(1)) so the confirm path
+        // actually reaches the claim instead of failing validation before the race.
+        parsed_diff: {
+          changes: [
+            { kind: "new_item", title: "Pop Quiz 6", itemType: "quiz", dueDate: "2026-11-06", dueText: null, sourceSnippet: "s" },
+          ],
+        },
+      },
+    ],
+    deliverables: [],
+  });
+
+  const [confirmResult, rejectResult] = await Promise.all([
+    applyAnnouncement(client, { announcementId: 7, userId: "user-1", decision: "confirmed" }),
+    applyAnnouncement(client, { announcementId: 7, userId: "user-1", decision: "rejected" }),
+  ]);
+
+  const outcomes = [confirmResult, rejectResult];
+  const settledCount = outcomes.filter((r) => r.ok && ("applied" in r || "rejected" in r)).length;
+  const alreadySettledCount = outcomes.filter((r) => r.ok && "alreadySettled" in r).length;
+  assertEquals(settledCount, 1, "exactly one decision actually lands");
+  assertEquals(alreadySettledCount, 1, "the loser reports alreadySettled, not an error");
+  const finalStatus = state.announcements![0]!.status;
+  assertEquals(["applied", "rejected"].includes(finalStatus), true);
+  // Whichever way it settled, the deliverable exists iff confirm won -- never a
+  // deliverable created by a call that reports it lost the race.
+  const created = state.deliverables!.filter((d) => d.title === "Pop Quiz 6");
+  assertEquals(created.length, finalStatus === "applied" ? 1 : 0);
 });
 
 Deno.test("applyAnnouncement: rejected marks the row and touches nothing else", async () => {

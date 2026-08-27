@@ -99,6 +99,44 @@ Deno.test("extractSyllabus: model-reported low-quality text marks the upload fai
   assertEquals(state.syllabus_extractions!.length, 0);
 });
 
+Deno.test("extractSyllabus: text past the character cap is truncated before the prompt, not sent whole", async () => {
+  const { client, state } = createFakeClient();
+  const provider = createFixtureProvider([{ kind: "success", toolInput: { items: [], lowQualitySourceText: false } }]);
+  const deps = makeGatewayDeps({ provider });
+
+  // A pathological upload (e.g. a whole course reader instead of a syllabus) --
+  // 150,000 chars of otherwise-valid text, well past the 100,000-char bound.
+  const hugeText = (GOOD_TEXT + " ").repeat(Math.ceil(150_000 / (GOOD_TEXT.length + 1)));
+  const result = await extractSyllabus(client, deps, {
+    uploadId: 1,
+    userId: "user-1",
+    budgetCeilingUsd: 5,
+    extractedText: hugeText,
+  });
+
+  assertEquals(result.kind, "staged");
+  if (result.kind === "staged") assertEquals(result.textTruncated, true);
+  assertEquals(provider.requests().length, 1);
+  assertEquals(provider.requests()[0]!.userContent.length, 100_000, "the prompt itself must be bounded, not just flagged after the fact");
+  assertEquals(state.syllabus_uploads![0].extraction_status, "completed");
+});
+
+Deno.test("extractSyllabus: text within the cap is never marked truncated", async () => {
+  const { client } = createFakeClient();
+  const provider = createFixtureProvider([{ kind: "success", toolInput: { items: [], lowQualitySourceText: false } }]);
+  const deps = makeGatewayDeps({ provider });
+
+  const result = await extractSyllabus(client, deps, {
+    uploadId: 1,
+    userId: "user-1",
+    budgetCeilingUsd: 5,
+    extractedText: GOOD_TEXT,
+  });
+
+  assertEquals(result, { kind: "staged", uploadId: 1, itemCount: 0 });
+  assertEquals(provider.requests()[0]!.userContent, GOOD_TEXT);
+});
+
 Deno.test("extractSyllabus: a budget-exceeded gateway result marks the upload failed with a clear reason", async () => {
   const { client, state } = createFakeClient();
   const deps = makeGatewayDeps({ getMonthlySpendUsd: () => Promise.resolve(9999) });

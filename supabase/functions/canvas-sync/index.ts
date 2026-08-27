@@ -160,7 +160,8 @@ Deno.serve(async (req: Request) => {
           const parseOutcome = await parseInserted(service, row.user_id, poll);
           const grades = await pollGradesForUser(service, row.user_id);
           const gradesNote = grades.kind === "polled" ? `, grades staged ${grades.staged}` : "";
-          perUser.push({ userId: row.user_id, result: `staged ${poll.inserted.length}, parsed ${parseOutcome.parsed}${gradesNote}` });
+          const truncatedNote = poll.truncated > 0 ? `, truncated ${poll.truncated}` : "";
+          perUser.push({ userId: row.user_id, result: `staged ${poll.inserted.length}, parsed ${parseOutcome.parsed}${truncatedNote}${gradesNote}` });
         } else {
           perUser.push({ userId: row.user_id, result: poll.kind });
         }
@@ -251,6 +252,7 @@ Deno.serve(async (req: Request) => {
       staged: poll.inserted.length,
       skippedExisting: poll.skippedExisting,
       skippedUnmapped: poll.skippedUnmapped,
+      truncated: poll.truncated,
       parsed: parseOutcome.parsed,
       unparsed: parseOutcome.unparsed,
       gradesStaged: grades.kind === "polled" ? grades.staged : 0,

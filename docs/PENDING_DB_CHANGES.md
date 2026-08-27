@@ -60,74 +60,74 @@ read §4 before forcing anything.
 
 ### 47 — Upper clamp on `profiles.llm_monthly_budget_usd`
 
-**Status:** PENDING — authored, handover block to be appended before this doc is final.
+**File:** `supabase/migrations/00000000000047_llm_budget_upper_clamp.sql`
+**Status:** written and reviewed here; **not applied to any database.**
 
 **What it changes**
-Replaces the existing `profiles_budget_positive` CHECK constraint with one carrying both a
-lower and an upper bound: `llm_monthly_budget_usd > 0 and llm_monthly_budget_usd <= 200`.
+Drops and recreates the `profiles_budget_positive` CHECK constraint on
+`public.profiles.llm_monthly_budget_usd`. Old: `> 0`. New: `> 0 and <= 200`. It also
+UPDATEs any existing row above 200 down to 200 **before** the constraint is added.
 
 **Why it exists**
-The pre-flight budget check in the edge-function LLM gateway is the *only* spend throttle
-in the system — there is no rate limit behind it. That makes this column the brake. Before
-this change the column was `numeric(8,2)` with only a `> 0` check, so it accepted values up
-to $999,999.99, and the server action that writes it performed no validation at all (a
-server action is directly callable, so the client-side check was never a control). The
-application-layer half of this fix is already committed in
-`apps/web/src/app/(app)/settings/actions.ts` as `MAX_LLM_MONTHLY_BUDGET_USD = 200`.
+The pre-flight budget check in `_shared/llm/gateway.ts` is the *only* spend throttle in
+the system — there is no rate limit behind it. That makes this column the actual brake on
+how much one account can authorise against the shared Anthropic key, and before this
+change it was `numeric(8,2)` with only a lower bound, so it accepted values up to
+$999,999.99. The server action that writes it also performed no validation at all; a
+server action is directly callable, so the client-side check was never a control.
 
-**Keep the two numbers in step.** If you change the constraint bound, change that constant
-in the same commit, or the app will accept a value the database rejects and surface it to
-the user as an opaque write failure.
+**Keep two numbers in step.** `MAX_LLM_MONTHLY_BUDGET_USD` in
+`apps/web/src/app/(app)/settings/actions.ts` is 200 and now rejects the same bound before
+this column is ever written. If you change one, change the other in the same commit — a
+constraint the app layer disagrees with becomes an opaque write failure on a value the UI
+already accepted.
 
-**What could make it fail to apply**
-Any existing `profiles` row with `llm_monthly_budget_usd > 200`. The migration is expected
-to clamp such rows defensively in the same transaction — confirm it does before running.
-The default is `5.00` and this is currently a single-user project, so in practice there
-should be nothing to clamp, but do not assume it.
+**Apply**
+```bash
+supabase db push        # or: supabase migration up
+```
+**No `npm run db:types:cloud` needed afterwards.** This changes a constraint only — no
+column added, removed or renamed — so the generated types are unaffected.
 
-**How to verify it applied**
+**Failure modes**
+The migration runs as a single transaction, so it is all-or-nothing. The existing-row
+UPDATE runs first, which means no row can violate the new bound by the time the constraint
+is added — that failure mode is designed out rather than merely unlikely. (This ordering
+is not optional: Postgres validates existing data when adding a CHECK, so a single row
+above 200 would fail the whole migration.)
 
+The one real failure case is `profiles_budget_positive` not existing under that exact name
+on the target project. It should — it was added in migration 3. If it has been renamed,
+`drop constraint` fails with "constraint does not exist" and the migration aborts cleanly
+with nothing half-applied.
+
+**Verify it applied**
 ```sql
--- Expect: one row, with the new two-sided expression in the definition.
+-- Expect the two-sided expression.
 select conname, pg_get_constraintdef(oid)
 from pg_constraint
-where conrelid = 'public.profiles'::regclass
-  and contype = 'c'
-  and conname like '%budget%';
+where conname = 'profiles_budget_positive';
+-- CHECK (((llm_monthly_budget_usd > (0)::numeric) AND (llm_monthly_budget_usd <= (200)::numeric)))
 
--- Expect: ERROR (new row violates check constraint). If this SUCCEEDS the clamp is not live.
-update public.profiles set llm_monthly_budget_usd = 50000;
+-- Expect 0.
+select count(*) from public.profiles where llm_monthly_budget_usd > 200;
 ```
 
-Roll the second one back — run it inside `begin; … rollback;` so a successful-by-mistake
-update does not persist.
+**Idempotent?** The clamp UPDATE is (re-clamping is a no-op). The constraint drop+add is
+not safely re-runnable as raw SQL outside Supabase's migration history — a second raw run
+fails at `drop constraint`, which is harmless but stops there. `supabase db push` will not
+re-apply an already-recorded migration.
 
-**Idempotent?** Re-running `supabase db push` is safe; it will not re-apply an applied
-migration. The migration body itself should not be executed twice by hand.
+### No migration 48
 
-### 48 — Partial unique index on `deliverables` *(may not exist)*
+A partial unique index on `deliverables(user_id, course_id, title)` was considered as a
+second line of defence against duplicate inserts and **deliberately rejected**. The
+duplicate-insert race is fully closed in application code by the claim-before-write CAS
+guard (see the confirm pipelines), and a hard uniqueness constraint would reject
+legitimate data: the same deliverable title recurring across terms, or after a course is
+re-added. A constraint that has to be worked around is worse than no constraint.
 
-**Status:** CONDITIONAL — only exists if the confirm-pipeline work concluded it was
-warranted. If there is no `00000000000048_*.sql` file, ignore this section entirely.
-
-**Context if it does exist:** the staging→confirm pipelines had a check-then-act race —
-read `status`, several awaited round trips, then a bare status update with no
-compare-and-swap. Two concurrent confirms could both pass the check and both insert. The
-primary fix is a compare-and-swap in application code (already done, no schema needed).
-A unique index on `deliverables(user_id, course_id, title)` was considered as a second
-line of defence.
-
-**If it exists, before applying it:** check for pre-existing duplicates, because the index
-creation will fail on them and the failure message will not tell you which rows.
-
-```sql
-select user_id, course_id, title, count(*)
-from public.deliverables
-group by 1, 2, 3
-having count(*) > 1;
-```
-
-Resolve any rows this returns *before* pushing.
+**47 is the only migration on this branch.**
 
 ---
 

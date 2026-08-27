@@ -1,7 +1,7 @@
 // A scriptable fake LlmProvider for offline, no-key, no-cost golden-fixture tests
 // (docs/LLM_LAYER_SPEC.md §10). Never makes a network call.
 
-import type { LlmProvider, LlmProviderResult, LlmUsage } from "../types.ts";
+import type { LlmProvider, LlmProviderResult, LlmToolCallRequest, LlmUsage } from "../types.ts";
 
 export type FixtureResponse =
   | { kind: "success"; toolInput: unknown; usage?: Partial<LlmUsage> }
@@ -10,15 +10,20 @@ export type FixtureResponse =
 const DEFAULT_USAGE: LlmUsage = { inputTokens: 1000, outputTokens: 200, cacheReadTokens: 0, cacheWriteTokens: 0 };
 
 /** Returns each configured response in order, one per `call()`; the last one repeats
- *  after the list is exhausted. Records every request it was called with. */
-export function createFixtureProvider(responses: FixtureResponse[]): LlmProvider & { callCount: () => number } {
+ *  after the list is exhausted. Records every request it was called with, so a test can
+ *  assert on what actually reached the prompt (e.g. that a caller-side truncation cap
+ *  was applied before the call, not just claimed in its return value). */
+export function createFixtureProvider(
+  responses: FixtureResponse[],
+): LlmProvider & { callCount: () => number; requests: () => LlmToolCallRequest[] } {
   let index = 0;
-  let calls = 0;
+  const requests: LlmToolCallRequest[] = [];
 
   return {
-    callCount: () => calls,
-    call(): Promise<LlmProviderResult> {
-      calls++;
+    callCount: () => requests.length,
+    requests: () => requests,
+    call(request: LlmToolCallRequest): Promise<LlmProviderResult> {
+      requests.push(request);
       const response = responses[Math.min(index, responses.length - 1)];
       index++;
       if (!response) {

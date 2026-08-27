@@ -3,6 +3,8 @@
 // globalThis, so every shape here is provable offline against documented Canvas
 // response fixtures (docs/CANVAS_AUDIT.md §4.2).
 
+import { fetchWithTimeout } from "./timeoutFetch.ts";
+
 export interface CanvasCourse {
   id: number;
   name: string;
@@ -76,7 +78,7 @@ export async function canvasGetAll(baseUrl: string, token: string, pathWithQuery
   let url: string | null = canvasApiUrl(baseUrl, pathWithQuery);
 
   for (let page = 0; page < MAX_PAGES && url != null; page++) {
-    const response = await fetch(url, {
+    const response = await fetchWithTimeout(url, {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
     });
     if (!response.ok) {
@@ -108,7 +110,7 @@ export async function verifyCanvasToken(
 ): Promise<{ ok: true; userName: string } | { ok: false; reason: string }> {
   let response: Response;
   try {
-    response = await fetch(canvasApiUrl(baseUrl, "/api/v1/users/self"), {
+    response = await fetchWithTimeout(canvasApiUrl(baseUrl, "/api/v1/users/self"), {
       headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
     });
   } catch (err) {
