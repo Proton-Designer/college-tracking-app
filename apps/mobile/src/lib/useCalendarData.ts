@@ -1,129 +1,48 @@
-import {
-  computeCapacityHorizon,
-  computeRiskAssessment,
-  getOwnProfile,
-  getUserLocalToday,
-  listCourses,
-  listDeliverables,
-  loadCourseGradeProjections,
-  type Course,
-  type Deliverable,
-  type DeliverableRisk,
-} from "@collegeos/api";
-import { addDays, type DayCapacity } from "@collegeos/core";
+import { loadCalendarHorizon, type CalendarHorizon } from "@collegeos/api";
 import { useCallback, useEffect, useState } from "react";
-import { loadBackplanChains, type BackplanChain } from "./loadBackplanChains";
 import { getMobileSupabaseClient } from "./supabase/client";
 import { useAuthSession } from "./useAuthSession";
 
-const CAPACITY_HORIZON_DAYS = 13;
-
-export interface CalendarObligation {
-  deliverable: Deliverable;
-  risk: DeliverableRisk | null;
-  backplan: BackplanChain | undefined;
-}
-
-export interface CalendarData {
-  today: string;
-  obligations: CalendarObligation[];
-  courses: Record<number, Course>;
-  capacity: DayCapacity[];
-}
+export type { CalendarObligation, BackplanChain } from "@collegeos/api";
+/** Kept as an alias so existing component imports of `CalendarData` still resolve. */
+export type CalendarData = CalendarHorizon;
 
 export type CalendarFetchState =
   | { status: "loading" }
   | { status: "error"; error: string }
   | { status: "ready"; data: CalendarData };
 
-/** Mirrors apps/web/src/app/(app)/calendar/data.ts's loadCalendarHorizon exactly. */
+/**
+ * The calendar horizon on mobile.
+ *
+ * This hook used to carry its own copy of the composition, and said so — its comment read
+ * "Mirrors apps/web/src/app/(app)/calendar/data.ts's loadCalendarHorizon exactly." Two
+ * hand-synchronised copies of the same query orchestration is the divergence D1 exists to
+ * prevent, and "exactly" is a claim that only stays true until one side is edited.
+ *
+ * The composition now lives once, in packages/api's calendarView. What remains here is
+ * genuinely mobile: the auth session, the React fetch lifecycle, and cancel-on-unmount.
+ */
 export function useCalendarData() {
   const { session, loading: authLoading } = useAuthSession();
-  const userId = session?.user.id;
+  const userId = session?.user.id ?? null;
   const [fetchState, setFetchState] = useState<CalendarFetchState>({ status: "loading" });
   const [reloadToken, setReloadToken] = useState(0);
-  const refetch = useCallback(() => setReloadToken((t) => t + 1), []);
+
+  const refetch = useCallback(() => setReloadToken((n) => n + 1), []);
 
   useEffect(() => {
-    if (authLoading || !userId) return;
+    if (authLoading || userId == null) return;
     let cancelled = false;
-    const client = getMobileSupabaseClient();
+    setFetchState({ status: "loading" });
 
-    getOwnProfile(client).then((profileResult) => {
+    void loadCalendarHorizon(getMobileSupabaseClient(), userId).then((result) => {
       if (cancelled) return;
-      if (!profileResult.ok) {
-        setFetchState({ status: "error", error: profileResult.error.message });
+      if (!result.ok) {
+        setFetchState({ status: "error", error: result.error.message });
         return;
       }
-      const profile = profileResult.data;
-      const today = getUserLocalToday(profile.timezone, new Date());
-
-      listCourses(client).then((coursesResult) => {
-        if (cancelled) return;
-        if (!coursesResult.ok) {
-          setFetchState({ status: "error", error: coursesResult.error.message });
-          return;
-        }
-        const courses = coursesResult.data;
-        const courseFacts = courses.map((c) => ({
-          id: c.id,
-          code: c.code,
-          name: c.name,
-          difficulty_rating: c.difficulty_rating,
-          confidence_rating: c.confidence_rating,
-          target_grade_pct: c.target_grade_pct,
-        }));
-
-        loadCourseGradeProjections(client, userId).then((gradeProjections) => {
-          if (cancelled) return;
-
-          Promise.all([
-            computeRiskAssessment(client, userId, today, courseFacts, gradeProjections, profile.sleep_baseline_hours, profile.timezone),
-            Promise.all(courses.map((c) => listDeliverables(client, c.id))),
-            computeCapacityHorizon(client, userId, today, addDays(today, CAPACITY_HORIZON_DAYS), profile.sleep_baseline_hours, profile.timezone),
-          ]).then(([risk, deliverablesByCourse, capacityResult]) => {
-            if (cancelled) return;
-
-            const badCourse = deliverablesByCourse.find((r) => !r.ok);
-            if (badCourse && !badCourse.ok) {
-              setFetchState({ status: "error", error: badCourse.error.message });
-              return;
-            }
-            if (!capacityResult.ok) {
-              setFetchState({ status: "error", error: capacityResult.error.message });
-              return;
-            }
-
-            const riskByDeliverableId = new Map(risk.deliverableRisks.map((dr) => [dr.deliverableId, dr]));
-            const allDeliverables = deliverablesByCourse.flatMap((r) => (r.ok ? r.data : []));
-            const openDeliverables = allDeliverables.filter((d) => d.status !== "completed");
-
-            loadBackplanChains(client, openDeliverables.map((d) => d.id)).then((backplanChains) => {
-              if (cancelled) return;
-
-              const obligations: CalendarObligation[] = openDeliverables
-                .map((d) => ({ deliverable: d, risk: riskByDeliverableId.get(d.id) ?? null, backplan: backplanChains.get(d.id) }))
-                .sort((a, b) =>
-                  a.deliverable.local_due_date < b.deliverable.local_due_date
-                    ? -1
-                    : a.deliverable.local_due_date > b.deliverable.local_due_date
-                      ? 1
-                      : 0,
-                );
-
-              setFetchState({
-                status: "ready",
-                data: {
-                  today,
-                  obligations,
-                  courses: Object.fromEntries(courses.map((c) => [c.id, c])),
-                  capacity: capacityResult.data,
-                },
-              });
-            });
-          });
-        });
-      });
+      setFetchState({ status: "ready", data: result.data });
     });
 
     return () => {
