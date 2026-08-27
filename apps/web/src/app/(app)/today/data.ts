@@ -1,12 +1,15 @@
 import "server-only";
 import {
   getActiveFocusSession,
+  getDay,
   getDayView,
+  listHoursForDate,
   listCourses,
   listKillHabits,
   listPendingInterventions,
   runInterventionSweep,
   type Course,
+  type DayRow,
   type DayView,
   type InterventionRow,
   type KillHabitRow,
@@ -28,6 +31,9 @@ export interface TodayData {
    *  "Resume focus" rather than trying to start a second one (the backend would reject
    *  it anyway; this just gives the UI a truthful state to render instead of an error). */
   activeFocusSession: TaskSessionRow | null;
+  /** Work Engine facts for the Today entry point. `day` is null before Start Day. */
+  day: DayRow | null;
+  hoursToday: number;
   /** U1 -- prompts awaiting a decision. Includes both `pending` and `delivered`: seeing one
    *  doesn't answer it, so a delivered prompt stays on screen until the user responds or
    *  dismisses it. */
@@ -92,6 +98,14 @@ export async function loadTodayData(options?: { asOf?: Date }): Promise<TodayLoa
     return { ok: false, error: activeFocusSessionResult.error.message };
   }
 
+  // Work Engine facts. Deliberately NOT fatal on failure: the Hour layer is additive to
+  // Today, and a Work Engine read that errors should cost the user that one panel, not the
+  // whole screen. `day` being null is a real state (before Start Day), not an error.
+  const [dayResult, hoursResult] = await Promise.all([
+    getDay(client, user.id, dayViewResult.data.today),
+    listHoursForDate(client, user.id, dayViewResult.data.today),
+  ]);
+
   // U1. Runs AFTER the reads above rather than alongside them, because the sweep writes
   // intervention rows and the list has to see what it just created. Every evaluator dedupes,
   // so re-running on each load produces nothing new.
@@ -111,6 +125,8 @@ export async function loadTodayData(options?: { asOf?: Date }): Promise<TodayLoa
       mode: decideMode(dayViewResult.data, coursesResult.data.length),
       killHabits: killHabitsResult.data,
       activeFocusSession: activeFocusSessionResult.data,
+      day: dayResult.ok ? dayResult.data : null,
+      hoursToday: hoursResult.ok ? hoursResult.data.length : 0,
       interventions: interventionsResult.ok ? interventionsResult.data : [],
       now,
     },

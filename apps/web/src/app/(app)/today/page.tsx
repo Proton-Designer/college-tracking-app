@@ -1,5 +1,5 @@
 import { getMorningBrief, type Course, type DayView } from "@collegeos/api";
-import { deriveDayBand } from "@collegeos/core";
+import { deriveDayBand, isDayWon } from "@collegeos/core";
 import type { ReactNode } from "react";
 import type { FocusBlock } from "@/components/today/FocusLauncher";
 import type { MitItem } from "@/components/today/MitList";
@@ -17,6 +17,7 @@ import { VoiceCaptureModal } from "@/components/today/VoiceCaptureModal";
 import { InterventionsSection } from "@/components/today/InterventionsSection";
 import { RecoveryBanner } from "@/components/today/RecoveryBanner";
 import { UnplannedGate } from "@/components/today/UnplannedGate";
+import { WorkEngineSection } from "@/components/today/WorkEngineSection";
 import { WorkloadBand } from "@/components/today/WorkloadBand";
 import { loadTodayData } from "./data";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
@@ -140,7 +141,10 @@ export default async function TodayPage({
     );
   }
 
-  const { dayView, courses, mode, killHabits, activeFocusSession, interventions, now } = result.data;
+  const { dayView, courses, mode, killHabits, activeFocusSession, interventions, now, day, hoursToday } = result.data;
+  // Only a session carrying an hour_index is an Hour; an ordinary focus session is not.
+  const activeHour = activeFocusSession != null && activeFocusSession.hour_index != null ? activeFocusSession : null;
+  const dayWon = day != null ? isDayWon(hoursToday, day.baseline_hours) : false;
 
   // The morning brief, web parity with WorkEngineSection: the edge function caches
   // once per local day, so this is a read after the day's first render. Failure means
@@ -183,6 +187,7 @@ export default async function TodayPage({
             <ConnectedMitList taskSessions={dayView.todayTaskSessions} />
           </Section>
           <FocusLauncher block={focusBlock} activeSession={activeFocusSession} taskSessions={dayView.todayTaskSessions} />
+          <WorkEngineSection day={day} activeHour={activeHour} hoursToday={hoursToday} dayWon={dayWon} />
         </div>
         <div className="flex flex-col gap-8">
           <Section title="Workload">
