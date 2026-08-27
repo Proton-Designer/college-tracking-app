@@ -2,6 +2,7 @@ import {
   addDays,
   buildBackplan,
   daysBetween,
+  localDateFromInstant,
   localTimeToInstant,
   type Backplan,
   type DayCapacity,
@@ -67,7 +68,10 @@ export async function computeCapacityHorizon(
 
   const busyMinutesByDate = new Map<LocalDate, number>();
   for (const event of events ?? []) {
-    const date = new Date(event.start_at).toISOString().slice(0, 10);
+    // B4: the query window above is correctly timezone-bounded, so bucketing the results
+    // by UTC date contradicts it -- a 7pm CDT event lands in tomorrow's busy-minutes
+    // bucket and the day it actually occupies looks free.
+    const date = localDateFromInstant(new Date(event.start_at), timezone);
     const minutes = Math.max(0, (new Date(event.end_at).getTime() - new Date(event.start_at).getTime()) / 60000);
     busyMinutesByDate.set(date, (busyMinutesByDate.get(date) ?? 0) + minutes);
   }

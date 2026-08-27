@@ -1,4 +1,4 @@
-import { addDays, computeBounceBack, type BounceBackResult, type DayOutcome, type LocalDate } from '@collegeos/core';
+import { addDays, computeBounceBack, localDateFromInstant, type BounceBackResult, type DayOutcome, type LocalDate } from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
 import { dataErr, dataOk, type DataResult } from '../data/types';
 import { mapDataError } from '../data/errors';
@@ -19,6 +19,7 @@ export async function computeHabitBounceBack(
   userId: string,
   killHabitId: number,
   today: LocalDate,
+  timezone: string,
 ): Promise<DataResult<BounceBackResult>> {
   const { data: habit, error: habitError } = await client
     .from('kill_habits')
@@ -28,7 +29,11 @@ export async function computeHabitBounceBack(
     .single();
   if (habitError) return dataErr(mapDataError(habitError));
 
-  const startDate: LocalDate = new Date(habit.created_at).toISOString().slice(0, 10);
+  // B4: `created_at` is an instant; the day it belongs to is a LOCAL day. Slicing the UTC
+  // ISO string can push the start date a day later than the habit really began (any
+  // evening creation in a negative-offset zone), which silently excludes day one's
+  // kill_events from the series below and understates the first bounce-back.
+  const startDate: LocalDate = localDateFromInstant(new Date(habit.created_at), timezone);
 
   const { data: events, error: eventsError } = await client
     .from('kill_events')

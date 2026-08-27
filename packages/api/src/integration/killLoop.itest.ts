@@ -123,7 +123,7 @@ describe('the Kill Loop against a dedicated throwaway user', () => {
     expect(resisted.ok).toBe(true);
     // Deliberately nothing logged for day-2 or today -- those must read as 'untracked'.
 
-    const result = await computeHabitBounceBack(client, userId, habit.data.id, today);
+    const result = await computeHabitBounceBack(client, userId, habit.data.id, today, TIMEZONE);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
 

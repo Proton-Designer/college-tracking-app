@@ -53,9 +53,28 @@ export async function updateProfileAction(input: UpdateProfileInput): Promise<Ac
   return { ok: true };
 }
 
+/**
+ * Upper bound on the self-service monthly LLM ceiling. The pre-flight budget check in the
+ * edge-function gateway is the ONLY spend throttle in the system -- there is no rate limit
+ * behind it -- so this value is the brake, and a field the user can set to anything is not
+ * a brake. $200 is far above real single-user usage (the default is $5) while keeping a
+ * fat-fingered "50000" from authorising five figures of spend.
+ *
+ * Enforced here rather than only in the client: this is a server action, so the component's
+ * validation is a convenience, not a control. Mirrored by a CHECK constraint in the
+ * migration that adds the database-level bound -- keep the two numbers in step.
+ */
+const MAX_LLM_MONTHLY_BUDGET_USD = 200;
+
 export async function updateLlmBudget(llmMonthlyBudgetUsd: number): Promise<ActionResult> {
   const caller = await requireUserId();
   if (!caller.ok) return caller;
+  if (!Number.isFinite(llmMonthlyBudgetUsd) || llmMonthlyBudgetUsd <= 0) {
+    return { ok: false, error: "Monthly budget must be a positive number." };
+  }
+  if (llmMonthlyBudgetUsd > MAX_LLM_MONTHLY_BUDGET_USD) {
+    return { ok: false, error: `Monthly budget cannot exceed $${MAX_LLM_MONTHLY_BUDGET_USD}.` };
+  }
   const client = await getServerSupabaseClient();
   const result = await updateOwnProfile(client, caller.userId, { llm_monthly_budget_usd: llmMonthlyBudgetUsd });
   if (!result.ok) return { ok: false, error: result.error.message };

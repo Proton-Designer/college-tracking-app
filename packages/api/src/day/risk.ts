@@ -3,6 +3,7 @@ import {
   computeAssignmentRisk,
   computeCourseRisk,
   daysBetween,
+  localDateFromInstant,
   localTimeToInstant,
   type AssignmentRiskInput,
   type CourseRiskSummary,
@@ -132,7 +133,10 @@ export async function computeRiskAssessment(
   const startDelays: number[] = [];
   for (const s of sessions ?? []) {
     const plannedDate = (s.tasks as unknown as { planned_date: LocalDate }).planned_date;
-    const actualDate = new Date(s.actual_start!).toISOString().slice(0, 10);
+    // B4: the day a session actually started is a LOCAL day. Slicing the UTC ISO string
+    // files an 8pm CDT start under the next calendar day, which inflates every start
+    // delay by one for anyone who works in the evening.
+    const actualDate = localDateFromInstant(new Date(s.actual_start!), timezone);
     startDelays.push(Math.max(0, daysBetween(plannedDate, actualDate)));
   }
   const userMeanStartDelayDays =

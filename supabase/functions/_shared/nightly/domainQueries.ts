@@ -27,6 +27,7 @@ import {
   computeRecoveryModeTrigger,
   daysBetween,
   addDays,
+  localDateFromInstant,
   localTimeToInstant,
   type AssignmentRiskInput,
   type BounceBackResult,
@@ -238,7 +239,9 @@ export async function computeRiskAssessment(
   // deno-lint-ignore no-explicit-any
   for (const s of (sessions ?? []) as any[]) {
     const plannedDate = s.tasks.planned_date as LocalDate;
-    const actualDate = new Date(s.actual_start!).toISOString().slice(0, 10);
+    // B4: mirrors packages/api/src/day/risk.ts -- an evening start must not be filed
+    // under the next UTC day, which would inflate every start delay by one.
+    const actualDate = localDateFromInstant(new Date(s.actual_start!), timezone);
     startDelays.push(Math.max(0, daysBetween(plannedDate, actualDate)));
   }
   const userMeanStartDelayDays =
@@ -463,6 +466,7 @@ export async function computeHabitBounceBack(
   userId: string,
   killHabitId: number,
   today: LocalDate,
+  timezone: string,
 ): Promise<BounceBackResult> {
   const { data: habit, error: habitError } = await client
     .from("kill_habits")
@@ -472,7 +476,9 @@ export async function computeHabitBounceBack(
     .single();
   if (habitError) throw habitError;
 
-  const startDate: LocalDate = new Date(habit.created_at).toISOString().slice(0, 10);
+  // B4: mirrors packages/api/src/day/killLoopBounceBack.ts -- a UTC-sliced start date can
+  // exclude day one's kill_events from the series.
+  const startDate: LocalDate = localDateFromInstant(new Date(habit.created_at), timezone);
 
   const { data: events, error: eventsError } = await client
     .from("kill_events")

@@ -158,10 +158,23 @@ export async function loadQuestionBank(
     return dataOk({ queue: [], calibration: [], totalActiveQuestions: 0, courseCodeById: {} });
   }
 
+  // Scoped to the active questions actually being scheduled. Every attempt belonging to an
+  // inactive or deleted question was previously fetched and then discarded downstream (see
+  // the `courseByQuestion.has` filter below), so this is output-equivalent and keeps the
+  // fetch proportional to the working set rather than to lifetime history.
+  //
+  // Deliberately NOT limited by row count or date window: `computeSchedulerState` replays
+  // the full ordered attempt list per question to derive SM-2 interval and ease (migration
+  // 42 stores no scheduler state precisely so it cannot drift). Truncating this query would
+  // silently change every due date rather than merely making the screen faster.
   const { data: attempts, error: aError } = await client
     .from('attempts')
     .select('question_id, local_date, confidence, correct')
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .in(
+      'question_id',
+      questions.map((q) => q.id),
+    );
   if (aError) return dataErr(mapDataError(aError));
 
   const byQuestion = new Map<number, { localDate: string; correct: boolean; confidence: RetrievalConfidence }[]>();

@@ -148,7 +148,7 @@ export function useInsightsData() {
 
           Promise.all(
             killHabitsResult.data.map(async (habit) => {
-              const result = await computeHabitBounceBack(client, userId, habit.id, today);
+              const result = await computeHabitBounceBack(client, userId, habit.id, today, profile.timezone);
               return result.ok ? { habit, result: result.data } : null;
             }),
           ).then((bounceBackResults) => {

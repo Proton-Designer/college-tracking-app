@@ -82,7 +82,7 @@ export async function assembleDeterministicNightlyReport(
     // deno-lint-ignore no-explicit-any
     (activeHabits ?? []).map(async (habit: any) => {
       const [bounceBack, { data: eventsToday, error: eventsError }] = await Promise.all([
-        computeHabitBounceBack(client, userId, habit.id, localDate),
+        computeHabitBounceBack(client, userId, habit.id, localDate, profile.timezone),
         client.from("kill_events").select("outcome").eq("user_id", userId).eq("kill_habit_id", habit.id).eq("local_date", localDate),
       ]);
       if (eventsError) throw eventsError;

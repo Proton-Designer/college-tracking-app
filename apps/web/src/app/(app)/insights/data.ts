@@ -128,7 +128,7 @@ export async function loadInsightsData(): Promise<InsightsLoadResult> {
   const bounceBackByHabit: HabitBounceBack[] = (
     await Promise.all(
       killHabitsResult.data.map(async (habit) => {
-        const result = await computeHabitBounceBack(client, user.id, habit.id, today);
+        const result = await computeHabitBounceBack(client, user.id, habit.id, today, profile.timezone);
         return result.ok ? { habit, result: result.data } : null;
       }),
     )
