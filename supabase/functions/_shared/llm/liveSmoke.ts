@@ -36,6 +36,11 @@ let failed = false;
 for (const model of MODELS) {
   try {
     const result = await provider.call({
+      // Arbitrary but valid: anthropicProvider.call() never reads callType (it's a
+      // gateway-logging field, not part of the actual request), and there is no
+      // dedicated smoke-test call type -- "classify" is the closest existing match to
+      // what this script actually does.
+      callType: "friction_classify",
       model,
       maxTokens: 64,
       systemPrompt: "You classify colors. Use the tool.",

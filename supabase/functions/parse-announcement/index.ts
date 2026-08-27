@@ -107,7 +107,7 @@ Deno.serve(async (req: Request) => {
     .order("local_due_date", { ascending: true })
     .limit(50);
   if (delivError) return apiErr(delivError.message, 500);
-  const courseItems: CourseItemContext[] = (deliverables ?? []).map((d) => ({
+  const courseItems: CourseItemContext[] = (deliverables ?? []).map((d: { title: string; local_due_date: string | null; type: string }) => ({
     title: d.title,
     dueDate: d.local_due_date,
     type: d.type,
