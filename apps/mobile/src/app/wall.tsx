@@ -1,13 +1,14 @@
 import { color, radius, space } from "@collegeos/design/native";
 import { useRouter } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { WallCursor } from "@collegeos/api";
 import { Aurora, Button, EmptyState, Panel } from "../components/ui";
 import { textStyle } from "../design/typography";
 import { loadWall, type WallDay } from "../lib/wallActions";
 import { useAuthSession } from "../lib/useAuthSession";
+import { useRefreshOnForeground } from "../lib/useRefreshOnForeground";
 
 /**
  * The Wall -- BLUEPRINT Part IV-A. Every completed Hour as a permanent tile.
@@ -33,11 +34,23 @@ export default function WallScreen() {
   const [totalCount, setTotalCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Every load carries a token; a response only applies if it's still the most recent one
+  // in flight. Without this, a foreground/pull refresh racing an in-progress "Show older
+  // Hours" fetch can have the load-more response land after the refresh's page-one reset
+  // and re-merge stale older tiles onto it -- exactly the duplicate/orphan the refresh was
+  // supposed to prevent.
+  const requestIdRef = useRef(0);
 
   const refresh = useCallback(async () => {
     if (userId == null) return;
+    setRefreshing(true);
+    const requestId = ++requestIdRef.current;
     const result = await loadWall(userId);
+    setRefreshing(false);
+    if (requestIdRef.current !== requestId) return;
     if (result.ok) {
       setDays(result.data.days);
       setNextCursor(result.data.nextCursor);
@@ -50,11 +63,16 @@ export default function WallScreen() {
     void refresh();
   }, [refresh]);
 
+  useRefreshOnForeground(refresh);
+
   const onLoadMore = useCallback(async () => {
     if (userId == null || nextCursor == null) return;
     setLoadingMore(true);
+    const requestId = ++requestIdRef.current;
     const result = await loadWall(userId, nextCursor);
+    const stillCurrent = requestIdRef.current === requestId;
     setLoadingMore(false);
+    if (!stillCurrent) return;
     if (!result.ok) {
       setError(result.error);
       return;
@@ -79,10 +97,12 @@ export default function WallScreen() {
     <View style={styles.screen}>
       <Aurora band={null} />
       <ScrollView
+        testID="wall-scroll"
         contentContainerStyle={[
           styles.content,
           { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] },
         ]}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} />}
       >
         <Pressable onPress={() => router.back()} accessibilityRole="button">
           <Text style={textStyle("bodyS", color.inkMuted)}>← Back</Text>
@@ -128,7 +148,12 @@ export default function WallScreen() {
               </View>
             ))}
             {nextCursor != null ? (
-              <Button variant="secondary" onPress={() => void onLoadMore()} loading={loadingMore} disabled={loadingMore}>
+              <Button
+                variant="secondary"
+                onPress={() => void onLoadMore()}
+                loading={loadingMore}
+                disabled={loadingMore || refreshing}
+              >
                 Show older Hours
               </Button>
             ) : null}

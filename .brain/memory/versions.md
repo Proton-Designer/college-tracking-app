@@ -3,23 +3,30 @@
 Recorded by NOVA (Eng B) during app-shell scaffolding, 2026-08-18/19. Re-verify before bumping
 any of these — see the "do not bump" notes below.
 
+**Mobile rows below were corrected 2026-08-27** after a review pass found this table still
+described the SDK 57 scaffold, two commits after `13b3c80` downgraded mobile to SDK 54 so Expo
+Go could run on a physical phone — see landmine #8. Web's row was never affected.
+
 ## Chosen versions
 
 | Package | Version | Why |
 |---|---|---|
 | Next.js | 16.3.1 | npm latest at time of scaffold |
-| React / React DOM | 19.2.8 | matches what Expo SDK 57 bundles — no cross-platform drift |
+| React / React DOM (web) | 19.2.8 | what Next.js 16.3.1 resolves |
+| React (mobile) | **19.1.0** — not 19.2.x, see landmine #8 | what Expo SDK 54 bundles |
 | Tailwind CSS | v4.3.3 | CSS-first config (`@import "tailwindcss"`), no `tailwind.config.ts` |
 | TypeScript | **5.9.3** (not npm `latest`) | see landmine #1 |
 | ESLint | **9.39.5** (not npm `latest` 10.8.1) | both `eslint-config-next` and `eslint-config-expo` declare support for 10.x, but it shipped only weeks ago — declining to be the first to hit its flat-config edge cases unattended overnight. Safe to bump later after checking changelogs. |
-| Expo SDK | 57 (via `npx create-expo-app` / `npx expo install` only) | see landmine #2 |
-| React Native | 0.86.2 (whatever Expo SDK 57 bundles — do not pin manually) | |
-| react-native-reanimated | whatever Expo SDK 57 bundles (4.3–4.5 range) | |
+| Expo SDK | **54** (via `npx create-expo-app` / `npx expo install` only) | see landmine #2 and landmine #8 |
+| React Native | **0.81.5** (whatever Expo SDK 54 bundles — do not pin manually) | |
+| react-native-reanimated | **4.1.7** (whatever Expo SDK 54 bundles) | |
+| react-native-gesture-handler | **2.28.0** (whatever Expo SDK 54 bundles) | |
+| expo-router | **6.0.24** (whatever Expo SDK 54 bundles) | |
 | @supabase/supabase-js | 2.112.3 | |
 | @supabase/ssr | 0.12.4 | |
 | @playwright/test | 1.62.1 | npm latest |
 | jest | **29.7.0** (not npm `latest` 30.4.2) | see landmine #3 |
-| jest-expo | ~57.0.4 | matches SDK 57 |
+| jest-expo | ~54.0.18 | matches SDK 54 |
 | @testing-library/react-native | 14.0.1 | see landmine #4 for its breaking `render()` change |
 
 ## Landmine 1 — TypeScript 7.0 is npm `latest` but is NOT safe to use yet
@@ -93,12 +100,17 @@ signup-confirmation flow will need `enable_confirmations = true`** for that flow
 end-to-end testable via Mailpit the way the brief describes ("Sunday weekly planning" email
 confirmation, etc.) — flag this to whoever owns that migration/config change.
 
-## Non-landmine (confirmed safe)
+## Non-landmine, as of the SDK 57 scaffold (superseded — see landmine #8)
 
 React version alignment between Next.js and Expo — the thing most likely to drift in a shared
-monorepo — is **not** a problem right now. Next 16.3.1 accepts React `^19.0.0`; Expo SDK 57 bundles
-React 19.2 (unchanged from SDK 56). Both apps land on React 19.2.x with no manual reconciliation
-needed.
+monorepo — was **not** a problem at scaffold time. Next 16.3.1 accepts React `^19.0.0`; Expo SDK 57
+bundled React 19.2 (unchanged from SDK 56), so both apps landed on React 19.2.x with no manual
+reconciliation needed. **This stopped being true once mobile downgraded to SDK 54** (React 19.1.0,
+see landmine #8) — the two platforms have carried different React majors-minor since, and the
+`apps/mobile/package.json` `jest.moduleNameMapper` dedup workaround (forcing `react`/`react/*` to
+resolve from `apps/mobile/node_modules`) is what keeps that split from producing two React
+instances inside one test run. Left here rather than deleted so the "why does a dedup mapper
+exist" question has its origin on record.
 
 ## Landmine 6 — Tailwind v4's built-in `max-w-prose` (65ch) silently wins over a same-named custom token
 
@@ -135,3 +147,28 @@ silently breaks (looks like a session that "sometimes" doesn't survive reload �
 deterministic). Fix: `test.describe.serial(...)` for spec files that share the "authenticated"
 project's storageState, so they never refresh concurrently. See
 `apps/web/e2e/authenticated/session.spec.ts`.
+
+## Landmine 8 — mobile is on Expo SDK 54, not SDK 57, and an SDK 57 bump would NOT retire the dual-React dedup workaround
+
+Commit `13b3c80` downgraded mobile from the SDK 57 scaffold (recorded above) to **SDK 54**, so
+Expo Go on a physical iPhone could run the app — Expo Go only runs the SDK version it ships with,
+and SDK 57 wasn't in Expo Go at the time. Real current mobile versions: Expo **54.0.37**, React
+Native **0.81.5**, React **19.1.0**, react-native-reanimated **4.1.7**,
+react-native-gesture-handler **2.28.0**, expo-router **6.0.24**. Web is unaffected and stays on
+React 19.2.8 (Next.js 16.3.1's resolution). Commit `8cfbef2` later added an SDK 57
+*assessment* (`docs/SDK57_ASSESSMENT.md`) plus EAS scaffolding — assessment only, nothing
+migrated; confirmed by diff (`apps/mobile/eas.json` and the assessment doc, two new files, no
+existing file touched).
+
+**The thing worth recording here specifically:** an eventual SDK 57 migration does **not** retire
+`apps/mobile/package.json`'s `jest.moduleNameMapper` (`^react$` / `^react/(.*)$` forced to resolve
+from `apps/mobile/node_modules`) or the matching `metro.config.js` dedup. SDK 57 moves mobile's
+React to **19.2.3** — still not the same as web's **19.2.8**. The dedup workaround is only safe to
+remove once both platforms land on the exact same React version in the same change —
+`docs/SDK57_ASSESSMENT.md`'s own compatibility table already carries this rule; an SDK 57 bump
+alone gets mobile closer but does not close the gap.
+
+**Before ever bumping mobile off SDK 54:** re-run `npx expo-doctor`, re-check
+`npm view jest-expo peerDependencies` against whatever jest-expo version ships for the target SDK
+(landmine #3 still applies), and re-verify the dedup workaround is still needed by diffing both
+platforms' resolved React versions — don't assume either has changed without checking.

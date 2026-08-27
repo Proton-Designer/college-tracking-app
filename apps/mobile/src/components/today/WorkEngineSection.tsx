@@ -1,7 +1,7 @@
 import { color, radius, space } from "@collegeos/design/native";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
-import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Button, Panel } from "../ui";
 import { textStyle } from "../../design/typography";
 import { loadDay, loadMorningBrief, startDayAction, type DayState } from "../../lib/dayActions";
@@ -10,6 +10,7 @@ import {
   MORNING_ROUTINE_ITEMS,
   toggleMorningItem,
 } from "../../lib/routineActions";
+import { useRefreshOnForeground } from "../../lib/useRefreshOnForeground";
 import { isScheduledOn } from "@collegeos/core";
 
 function formatClock(totalSeconds: number): string {
@@ -76,15 +77,11 @@ export function WorkEngineSection({ userId }: { userId: string }) {
     });
   }, [userId]);
 
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (s) => {
-      if (s === "active") {
-        setNow(Date.now());
-        void refresh();
-      }
-    });
-    return () => sub.remove();
+  const onForeground = useCallback(() => {
+    setNow(Date.now());
+    void refresh();
   }, [refresh]);
+  useRefreshOnForeground(onForeground);
 
   const wakeAtMs = state?.day?.wake_at != null ? Date.parse(state.day.wake_at) : null;
   const deltaSettled = state?.deltaSeconds != null;

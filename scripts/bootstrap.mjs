@@ -20,12 +20,21 @@
  *   --force      regenerate the env files
  *   --no-start   (local mode) don't run `supabase start` if the stack is down
  */
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { createInterface } from "node:readline/promises";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { setTimeout as sleep } from "node:timers/promises";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const CLOUD = process.argv.includes("--cloud");
@@ -113,9 +122,59 @@ if (existsSync(join(ROOT, "node_modules"))) {
   ok("npm install");
 }
 
-// ── 3. commit-msg hook ──────────────────────────────────────────────────────
+// ── 3. Mobile typed routes ──────────────────────────────────────────────────
+// apps/mobile/.expo/types/router.d.ts is gitignored (it's derived, and its paths are
+// machine-specific) but `npm run verify`'s mobile typecheck imports from it -- a fresh clone
+// fails with 11 "cannot find module" errors before that file has ever been generated once.
+// There's no one-shot Expo/EAS CLI command that produces it (`expo export` and `expo
+// customize` don't touch this code path); only the dev server does, as a side effect of
+// booting. So: start it detached, wait for the file to actually change, kill it.
+step("3. Mobile typed routes");
+{
+  const routerTypesPath = join(ROOT, "apps", "mobile", ".expo", "types", "router.d.ts");
+  // Existence alone proves nothing on an established machine -- the file can already be
+  // there and stale from a previous run -- so wait for its mtime to advance past this.
+  const mtimeBefore = existsSync(routerTypesPath) ? statSync(routerTypesPath).mtimeMs : null;
+
+  const expoProc = spawn("npx", ["expo", "start", "--offline"], {
+    cwd: join(ROOT, "apps", "mobile"),
+    detached: true,
+    stdio: "ignore",
+  });
+
+  // macOS has no `timeout` binary, so poll by hand rather than shelling out to one.
+  const deadlineMs = Date.now() + 60_000;
+  let regenerated = false;
+  while (Date.now() < deadlineMs) {
+    if (existsSync(routerTypesPath)) {
+      const mtime = statSync(routerTypesPath).mtimeMs;
+      if (mtimeBefore == null || mtime > mtimeBefore) {
+        regenerated = true;
+        break;
+      }
+    }
+    await sleep(1000);
+  }
+
+  // A negative PID targets the whole process group `detached: true` put expoProc.pid at the
+  // head of, not just the `npx` process -- Metro's watcher is a child of that, and a plain
+  // SIGTERM to expoProc.pid alone would leave it running.
+  try {
+    process.kill(-expoProc.pid, "SIGTERM");
+  } catch {
+    /* already exited */
+  }
+
+  if (regenerated) {
+    ok("apps/mobile/.expo/types/router.d.ts generated");
+  } else {
+    warn("timed out waiting for router.d.ts -- run `cd apps/mobile && npx expo start` once by hand");
+  }
+}
+
+// ── 4. commit-msg hook ──────────────────────────────────────────────────────
 // `.git/hooks` is not tracked by git, so this does not survive a clone and has to be reinstalled.
-step("3. Git hook");
+step("4. Git hook");
 const HOOK = `#!/bin/sh
 # Repo-owner policy: commits are attributed to the repository owner only.
 # Strips assistant attribution trailers regardless of which local agent authors the commit,
@@ -177,7 +236,7 @@ let footer = "";
 
 if (CLOUD) {
   // ── 4 (cloud). Project credentials ───────────────────────────────────────
-  step("4. Supabase project credentials");
+  step("5. Supabase project credentials");
   console.log("     Supabase dashboard → Project Settings → API Keys, and → Database");
 
   // Sources in order: already-exported env, a .env file filled in from .env.example, then an
@@ -295,7 +354,7 @@ if (CLOUD) {
   footer = `\n# Dashboard: https://supabase.com/dashboard/project/${host.split(".")[0]}`;
 } else {
   // ── 4/5 (local). The Docker stack ────────────────────────────────────────
-  step("4. supabase/.env.local");
+  step("5. supabase/.env.local");
   const cronPath = join(ROOT, "supabase", ".env.local");
   if (existsSync(cronPath) && !FORCE) {
     skip("already present (--force to regenerate)");
@@ -305,7 +364,7 @@ if (CLOUD) {
     ok("written with a fresh CRON_SHARED_SECRET");
   }
 
-  step("5. Local Supabase stack");
+  step("6. Local Supabase stack");
   const statusEnv = () =>
     spawnSync("supabase", ["status", "-o", "env"], { cwd: ROOT, encoding: "utf8" });
 
@@ -363,7 +422,7 @@ if (CLOUD) {
 // consumers are packages/api/src/integration/testSupport.ts and
 // apps/web/e2e/fixtures/supabase-admin.ts. Against a real project there is no reason for an
 // RLS-bypassing key to sit in an app directory at all, so it doesn't.
-step(`${CLOUD ? "5" : "6"}. Environment files`);
+step(`${CLOUD ? "6" : "7"}. Environment files`);
 
 const kv = (k, v) => `${k}=${v}`;
 const bodies = {
