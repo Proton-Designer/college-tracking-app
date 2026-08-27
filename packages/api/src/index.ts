@@ -229,6 +229,13 @@ export type { ProofOfWorkType, SubmitProofOfWorkInput } from "./data/proofOfWork
 export { generateAndPersistBackplan, computeCapacityHorizon } from "./academic/backplan";
 export type { GenerateBackplanResult, CapacityDay } from "./academic/backplan";
 export { generateAndPersistWeeklyPlan, getWeeklyPlan, updateWeeklyPlanBlockStatus } from "./planning/weeklyPlan";
+export { loadCalendarHorizon, loadThisWeekView, loadBackplanChains } from "./planning/calendarView";
+export type {
+  CalendarHorizon,
+  CalendarObligation,
+  ThisWeekView,
+  BackplanChain,
+} from "./planning/calendarView";
 export type {
   WeeklyPlanGenerationResult,
   SkippedDeliverable,

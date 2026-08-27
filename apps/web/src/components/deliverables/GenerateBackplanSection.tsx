@@ -6,7 +6,7 @@ import { BackplanChain } from "@/components/courses/BackplanChain";
 import { Button, Panel, WarningCard } from "@/components/ui";
 import { useToast } from "@/components/ui/ToastProvider";
 import { generateBackplanAction } from "@/app/(app)/deliverables/[id]/actions";
-import type { BackplanChain as BackplanChainData } from "@/lib/loadBackplanChains";
+import type { BackplanChain as BackplanChainData } from "@collegeos/api";
 
 export function GenerateBackplanSection({ deliverableId, chain }: { deliverableId: number; chain: BackplanChainData | undefined }) {
   const router = useRouter();

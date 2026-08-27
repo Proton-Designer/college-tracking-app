@@ -9,7 +9,7 @@ import {
   type Deliverable,
   type Task,
 } from "@collegeos/api";
-import { loadBackplanChains, type BackplanChain } from "@/lib/loadBackplanChains";
+import { loadBackplanChains, type BackplanChain } from "@collegeos/api";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
 export interface DeliverableDetailData {

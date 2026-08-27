@@ -1,41 +1,26 @@
 import "server-only";
 import {
-  computeCapacityHorizon,
-  computeRiskAssessment,
-  getOwnProfile,
-  getUserLocalToday,
-  getWeeklyPlan,
-  listCourses,
-  listDeliverables,
-  loadCourseGradeProjections,
-  type Course,
-  type Deliverable,
-  type DeliverableRisk,
-  type WeeklyPlanView,
+  loadCalendarHorizon as loadSharedCalendarHorizon,
+  loadThisWeekView as loadSharedThisWeekView,
+  type CalendarHorizon,
+  type ThisWeekView,
 } from "@collegeos/api";
-import { addDays, startOfWeek, type DayCapacity, type LocalDate } from "@collegeos/core";
-import { loadBackplanChains, type BackplanChain } from "@/lib/loadBackplanChains";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
-/** How far ahead the capacity strip looks — matches Today's own deadline horizon
- *  convention rather than the (much longer) full obligations list. */
-const CAPACITY_HORIZON_DAYS = 13;
-
-export interface CalendarObligation {
-  deliverable: Deliverable;
-  risk: DeliverableRisk | null;
-  backplan: BackplanChain | undefined;
-}
-
-export interface CalendarData {
-  today: string;
-  /** Every open deliverable across every course, in due-date order — a horizon, not a month grid. */
-  obligations: CalendarObligation[];
-  courses: Record<number, Course>;
-  capacity: DayCapacity[];
-}
+/**
+ * Web's calendar loaders. The read model itself lives in
+ * `packages/api/src/planning/calendarView.ts` so that mobile renders the same horizon from
+ * the same code -- these wrappers only resolve the server client and the signed-in user,
+ * which is the genuinely platform-specific part.
+ *
+ * Re-exported types keep existing component imports from this module working unchanged.
+ */
+export type CalendarData = CalendarHorizon;
+export type ThisWeekData = ThisWeekView;
+export type { CalendarObligation, BackplanChain } from "@collegeos/api";
 
 export type CalendarLoadResult = { ok: true; data: CalendarData } | { ok: false; error: string };
+export type ThisWeekLoadResult = { ok: true; data: ThisWeekData } | { ok: false; error: string };
 
 export async function loadCalendarHorizon(): Promise<CalendarLoadResult> {
   const client = await getServerSupabaseClient();
@@ -44,62 +29,10 @@ export async function loadCalendarHorizon(): Promise<CalendarLoadResult> {
   } = await client.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in." };
 
-  const profileResult = await getOwnProfile(client);
-  if (!profileResult.ok) return { ok: false, error: profileResult.error.message };
-  const profile = profileResult.data;
-
-  const coursesResult = await listCourses(client);
-  if (!coursesResult.ok) return { ok: false, error: coursesResult.error.message };
-  const courses = coursesResult.data;
-
-  const today = getUserLocalToday(profile.timezone, new Date());
-  const gradeProjections = await loadCourseGradeProjections(client, user.id);
-
-  const courseFacts = courses.map((c) => ({
-    id: c.id,
-    code: c.code,
-    name: c.name,
-    difficulty_rating: c.difficulty_rating,
-    confidence_rating: c.confidence_rating,
-    target_grade_pct: c.target_grade_pct,
-  }));
-
-  const [risk, deliverablesByCourse, capacityResult] = await Promise.all([
-    computeRiskAssessment(client, user.id, today, courseFacts, gradeProjections, profile.sleep_baseline_hours, profile.timezone),
-    Promise.all(courses.map((c) => listDeliverables(client, c.id))),
-    computeCapacityHorizon(client, user.id, today, addDays(today, CAPACITY_HORIZON_DAYS), profile.sleep_baseline_hours, profile.timezone),
-  ]);
-
-  const badCourse = deliverablesByCourse.find((r) => !r.ok);
-  if (badCourse && !badCourse.ok) return { ok: false, error: badCourse.error.message };
-  if (!capacityResult.ok) return { ok: false, error: capacityResult.error.message };
-
-  const riskByDeliverableId = new Map(risk.deliverableRisks.map((dr) => [dr.deliverableId, dr]));
-  const allDeliverables = deliverablesByCourse.flatMap((r) => (r.ok ? r.data : []));
-  const openDeliverables = allDeliverables.filter((d) => d.status !== "completed");
-
-  const backplanChains = await loadBackplanChains(client, openDeliverables.map((d) => d.id));
-
-  const obligations: CalendarObligation[] = openDeliverables
-    .map((d) => ({ deliverable: d, risk: riskByDeliverableId.get(d.id) ?? null, backplan: backplanChains.get(d.id) }))
-    .sort((a, b) => (a.deliverable.local_due_date < b.deliverable.local_due_date ? -1 : a.deliverable.local_due_date > b.deliverable.local_due_date ? 1 : 0));
-
-  return {
-    ok: true,
-    data: { today, obligations, courses: Object.fromEntries(courses.map((c) => [c.id, c])), capacity: capacityResult.data },
-  };
+  const result = await loadSharedCalendarHorizon(client, user.id);
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true, data: result.data };
 }
-
-export interface ThisWeekData {
-  today: string;
-  weekStartDate: LocalDate;
-  timezone: string;
-  /** Null means no plan has been generated for this week yet -- the empty state's trigger,
-   *  never an error. */
-  plan: WeeklyPlanView | null;
-}
-
-export type ThisWeekLoadResult = { ok: true; data: ThisWeekData } | { ok: false; error: string };
 
 export async function loadThisWeekView(): Promise<ThisWeekLoadResult> {
   const client = await getServerSupabaseClient();
@@ -108,15 +41,7 @@ export async function loadThisWeekView(): Promise<ThisWeekLoadResult> {
   } = await client.auth.getUser();
   if (!user) return { ok: false, error: "Not signed in." };
 
-  const profileResult = await getOwnProfile(client);
-  if (!profileResult.ok) return { ok: false, error: profileResult.error.message };
-  const profile = profileResult.data;
-
-  const today = getUserLocalToday(profile.timezone, new Date());
-  const weekStartDate = startOfWeek(today);
-
-  const planResult = await getWeeklyPlan(client, user.id, weekStartDate, today);
-  if (!planResult.ok) return { ok: false, error: planResult.error.message };
-
-  return { ok: true, data: { today, weekStartDate, timezone: profile.timezone, plan: planResult.data } };
+  const result = await loadSharedThisWeekView(client, user.id);
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true, data: result.data };
 }

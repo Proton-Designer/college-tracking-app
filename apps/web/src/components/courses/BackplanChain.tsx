@@ -1,4 +1,4 @@
-import type { BackplanChain as BackplanChainData } from "@/lib/loadBackplanChains";
+import type { BackplanChain as BackplanChainData } from "@collegeos/api";
 import { formatShortDate } from "@/lib/dates";
 
 function phaseLabel(phase: string): string {

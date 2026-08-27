@@ -2,7 +2,7 @@ import Link from "next/link";
 import type { Deliverable, GradeCategoryRow, GradeItemRow } from "@collegeos/api";
 import { BackplanChain } from "@/components/courses/BackplanChain";
 import { daysRemainingLabel } from "@/lib/dates";
-import type { BackplanChain as BackplanChainData } from "@/lib/loadBackplanChains";
+import type { BackplanChain as BackplanChainData } from "@collegeos/api";
 
 function typeLabel(type: string): string {
   return type.replace(/_/g, " ");

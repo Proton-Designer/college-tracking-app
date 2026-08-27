@@ -1,29 +1,11 @@
-import "server-only";
-import { getBackplan, listMilestones, type BackplanMilestoneRow, type DeliverableBackplanRow, type TypedSupabaseClient } from "@collegeos/api";
-
-export interface BackplanChain {
-  backplan: DeliverableBackplanRow;
-  milestones: BackplanMilestoneRow[];
-}
-
-/** One backplan (if any) + its milestones per deliverable id — a deliverable with no
- *  backplan yet just has no entry, not a null placeholder. */
-export async function loadBackplanChains(
-  client: TypedSupabaseClient,
-  deliverableIds: number[],
-): Promise<Map<number, BackplanChain>> {
-  const entries = await Promise.all(
-    deliverableIds.map(async (deliverableId) => {
-      const backplanResult = await getBackplan(client, deliverableId);
-      if (!backplanResult.ok || backplanResult.data == null) return null;
-      const backplan = backplanResult.data;
-
-      const milestonesResult = await listMilestones(client, backplan.id);
-      const milestones = milestonesResult.ok ? milestonesResult.data : [];
-
-      return [deliverableId, { backplan, milestones }] as const;
-    }),
-  );
-
-  return new Map(entries.filter((e): e is readonly [number, BackplanChain] => e != null));
-}
+/**
+ * DEPRECATED re-export. The real implementation moved to
+ * `packages/api/src/planning/calendarView.ts` so mobile can call it too — it was only ever
+ * here because nothing outside web had needed it yet, which is how two shells start
+ * computing the same thing differently.
+ *
+ * Import `loadBackplanChains` from `@collegeos/api` directly. This file exists so the
+ * move didn't have to land in the same commit as every call site, and should be deleted
+ * once the last import of it is gone.
+ */
+export { loadBackplanChains, type BackplanChain } from "@collegeos/api";
