@@ -20,6 +20,8 @@ const LINKS: [label: string, href: string][] = [
   ["Goals", "/goals"],
   ["Baselines", "/baselines"],
   ["Week", "/week"],
+  ["Lectures", "/lectures"],
+  ["Announcements", "/announcements"],
 ];
 
 export interface WorkEngineSectionProps {
