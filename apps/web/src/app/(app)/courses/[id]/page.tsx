@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AddAssignmentModal } from "@/components/courses/AddAssignmentModal";
+import { AnnouncementHistorySection } from "@/components/courses/AnnouncementHistorySection";
 import { AssignmentsTable } from "@/components/courses/AssignmentsTable";
 import { CourseRiskPanel } from "@/components/courses/CourseRiskPanel";
 import { EditCourseModal } from "@/components/courses/EditCourseModal";
@@ -42,8 +43,20 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
     );
   }
 
-  const { course, gradeResult, courseRisk, deliverableRisks, today, categories, gradeItems, gradeBoundaries, deliverables, backplanChains, officeHours } =
-    result.data;
+  const {
+    course,
+    gradeResult,
+    courseRisk,
+    deliverableRisks,
+    today,
+    categories,
+    gradeItems,
+    gradeBoundaries,
+    deliverables,
+    backplanChains,
+    officeHours,
+    announcements,
+  } = result.data;
   const weightSumIssue = gradeResult?.issues.find((i) => i.kind === "weightSumWarning");
   const categoryNameById = new Map(categories.map((c) => [String(c.id), c.name]));
 
@@ -142,6 +155,8 @@ export default async function CourseDetailPage({ params }: { params: Promise<{ i
           />
         </Panel>
       </section>
+
+      <AnnouncementHistorySection announcements={announcements} />
 
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Policies</h2>

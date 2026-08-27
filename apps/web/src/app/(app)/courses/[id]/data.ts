@@ -4,12 +4,14 @@ import {
   getCourse,
   getOwnProfile,
   getUserLocalToday,
+  listAnnouncementsForCourse,
   listDeliverables,
   listCourseOfficeHours,
   listGradeBoundaries,
   listGradeCategories,
   listGradeItems,
   loadCourseGradeProjections,
+  type AnnouncementRow,
   type Course,
   type CourseRiskSummary,
   type Deliverable,
@@ -20,7 +22,7 @@ import {
   type GradeItemRow,
 } from "@collegeos/api";
 import type { CourseGradeResult } from "@collegeos/core";
-import { loadBackplanChains, type BackplanChain } from "@/lib/loadBackplanChains";
+import { loadBackplanChains, type BackplanChain } from "@collegeos/api";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
 export interface CourseDetailData {
@@ -38,6 +40,10 @@ export interface CourseDetailData {
   officeHours: CourseOfficeHourRow[];
   deliverables: Deliverable[];
   backplanChains: Map<number, BackplanChain>;
+  /** Every announcement filed to this course, any status -- the record mobile's
+   *  AnnouncementHistorySection reads. Reference data, same degrade posture as
+   *  officeHours: a failed read is "nothing on record", never a reason to fail the page. */
+  announcements: AnnouncementRow[];
 }
 
 export type CourseDetailLoadResult = { ok: true; data: CourseDetailData } | { ok: false; error: string };
@@ -71,14 +77,16 @@ export async function loadCourseDetail(courseId: number): Promise<CourseDetailLo
     },
   ];
 
-  const [risk, categoriesResult, gradeItemsResult, gradeBoundariesResult, deliverablesResult, officeHoursResult] = await Promise.all([
-    computeRiskAssessment(client, user.id, today, courseFacts, gradeProjections, profile.sleep_baseline_hours, profile.timezone),
-    listGradeCategories(client, courseId),
-    listGradeItems(client, courseId),
-    listGradeBoundaries(client, courseId),
-    listDeliverables(client, courseId),
-    listCourseOfficeHours(client, courseId),
-  ]);
+  const [risk, categoriesResult, gradeItemsResult, gradeBoundariesResult, deliverablesResult, officeHoursResult, announcementsResult] =
+    await Promise.all([
+      computeRiskAssessment(client, user.id, today, courseFacts, gradeProjections, profile.sleep_baseline_hours, profile.timezone),
+      listGradeCategories(client, courseId),
+      listGradeItems(client, courseId),
+      listGradeBoundaries(client, courseId),
+      listDeliverables(client, courseId),
+      listCourseOfficeHours(client, courseId),
+      listAnnouncementsForCourse(client, user.id, courseId),
+    ]);
 
   if (!categoriesResult.ok) return { ok: false, error: categoriesResult.error.message };
   if (!gradeItemsResult.ok) return { ok: false, error: gradeItemsResult.error.message };
@@ -104,6 +112,7 @@ export async function loadCourseDetail(courseId: number): Promise<CourseDetailLo
       officeHours: officeHoursResult.ok ? officeHoursResult.data : [],
       deliverables: deliverablesResult.data,
       backplanChains,
+      announcements: announcementsResult.ok ? announcementsResult.data : [],
     },
   };
 }
