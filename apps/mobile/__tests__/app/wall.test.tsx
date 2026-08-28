@@ -1,17 +1,17 @@
 import { act, fireEvent, render, waitFor } from "@testing-library/react-native";
-import type { WallLoad } from "../lib/wallActions";
-import WallScreen from "./wall";
+import type { WallLoad } from "../../src/lib/wallActions";
+import WallScreen from "../../src/app/wall";
 
 jest.mock("expo-router", () => ({
   useRouter: () => ({ back: jest.fn(), push: jest.fn() }),
 }));
 
-jest.mock("../lib/useAuthSession", () => ({
+jest.mock("../../src/lib/useAuthSession", () => ({
   useAuthSession: () => ({ loading: false, session: { user: { id: "user-1" } } }),
 }));
 
 const mockLoadWall = jest.fn();
-jest.mock("../lib/wallActions", () => ({
+jest.mock("../../src/lib/wallActions", () => ({
   loadWall: (...args: unknown[]) => mockLoadWall(...args),
 }));
 
