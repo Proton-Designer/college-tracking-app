@@ -40,7 +40,7 @@ export function ChipGroup({ label, options, value, onChange, disabled = false }:
                 "outline-none transition-colors duration-90",
                 "focus-visible:[outline:2px_solid_var(--color-accent)] focus-visible:outline-offset-2",
                 selected
-                  ? "border-accent bg-accent text-white"
+                  ? "border-accent bg-accent text-accent-on"
                   : "border-border bg-surface text-ink hover:bg-surface-sunken",
                 disabled && "cursor-not-allowed opacity-40",
               )}

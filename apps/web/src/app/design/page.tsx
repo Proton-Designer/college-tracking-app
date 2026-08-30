@@ -37,7 +37,7 @@ const TYPE_SAMPLE: Record<keyof typeof typeScale, string> = {
 };
 
 const FONT_VAR: Record<string, string> = {
-  "Instrument Sans": "--font-instrument-sans",
+  "Geist": "--font-geist-sans",
   "Geist Mono": "--font-geist-mono",
 };
 
@@ -200,7 +200,7 @@ export default function DesignPreviewPage() {
       <Section title="The Island" note="§5 — the primary nav on both platforms. Shown here as a static swatch; the real floating dock lands with the shell (work item 3).">
         <div className="island-surface inline-flex items-center gap-1 rounded-pill p-1.5">
           <span
-            className="rounded-pill px-4 py-2 font-sans text-body-s font-medium text-white"
+            className="rounded-pill px-4 py-2 font-sans text-body-s font-medium text-accent-on"
             style={{ backgroundColor: color.accent }}
           >
             Today
@@ -260,7 +260,7 @@ export default function DesignPreviewPage() {
         </div>
       </Section>
 
-      <Section title="Typography" note="Instrument Sans (display + UI) and Geist Mono (data + eyebrows). Tabular numerals everywhere, without exception.">
+      <Section title="Typography" note="Geist (display + UI) and Geist Mono (data, eyebrows and every number). Tabular numerals everywhere, without exception.">
         <div className="flex flex-col gap-5">
           {(Object.keys(typeScale) as Array<keyof typeof typeScale>).map((step) => {
             const t = typeScale[step];
@@ -268,7 +268,7 @@ export default function DesignPreviewPage() {
               <div key={step} className="flex flex-col gap-1 border-b border-hairline pb-4">
                 <span
                   style={{
-                    fontFamily: `var(${FONT_VAR[t.fontFamily] ?? "--font-instrument-sans"})`,
+                    fontFamily: `var(${FONT_VAR[t.fontFamily] ?? "--font-geist-sans"})`,
                     fontSize: t.fontSize,
                     lineHeight: `${t.lineHeight}px`,
                     fontWeight: t.fontWeight,

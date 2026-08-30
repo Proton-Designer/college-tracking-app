@@ -2,7 +2,9 @@ export {
   aurora,
   auroraForRisk,
   border,
+  chartSeries,
   color,
+  domainColor,
   contentWidth,
   elevation,
   fontFamily,
@@ -16,4 +18,4 @@ export {
   type,
   zIndex,
 } from "./tokens";
-export type { RiskBand } from "./tokens";
+export type { DomainColorKey, RiskBand } from "./tokens";

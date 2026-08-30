@@ -46,7 +46,7 @@ export function SegmentedControl({
                 "outline-none transition-colors duration-90",
                 "focus-visible:[outline:2px_solid_var(--color-accent)] focus-visible:outline-offset-2",
                 selected
-                  ? "border-accent bg-accent text-white"
+                  ? "border-accent bg-accent text-accent-on"
                   : "glass-sunken border-border text-ink hover:brightness-[1.04]",
                 disabled && "cursor-not-allowed border-hairline bg-surface-sunken text-ink-faint hover:bg-surface-sunken",
               )}

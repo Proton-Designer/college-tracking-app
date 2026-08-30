@@ -3,14 +3,14 @@ import { cn } from "./cn";
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "destructive";
 
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary: cn("bg-accent text-white", "hover:bg-accent-hover", "active:bg-accent-hover"),
+  primary: cn("bg-accent text-accent-on", "hover:bg-accent-hover", "active:bg-accent-hover"),
   secondary: cn(
     "bg-surface text-ink border border-border",
     "hover:bg-surface-sunken",
     "active:bg-surface-sunken",
   ),
   ghost: cn("bg-transparent text-ink", "hover:bg-surface-sunken", "active:bg-surface-sunken"),
-  destructive: cn("bg-risk-critical text-white", "hover:brightness-90", "active:brightness-90"),
+  destructive: cn("bg-risk-critical text-accent-on", "hover:brightness-90", "active:brightness-90"),
 };
 
 /**

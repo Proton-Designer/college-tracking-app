@@ -1,13 +1,14 @@
-import { Geist_Mono, Instrument_Sans } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 
 // Self-hosted via next/font — no layout shift, no request to Google at runtime.
-// v2 ("Aurora", docs/DESIGN_LANGUAGE_V2.md §3) replaces Instrument's IBM Plex trio entirely:
-// Instrument Sans carries display + UI, Geist Mono carries data + eyebrows. There is no serif face.
+// v3 ("Ihsan"): Geist carries display + UI, Geist Mono carries data, eyebrows and every number.
+// There is no serif face. Setting figures in mono with tabular numerals is half of why the data
+// surfaces read calm -- columns of digits stop shifting as they update.
 
-export const instrumentSans = Instrument_Sans({
+export const geistSans = Geist({
   subsets: ["latin"],
   weight: ["400", "500", "600"],
-  variable: "--font-instrument-sans",
+  variable: "--font-geist-sans",
   display: "swap",
 });
 

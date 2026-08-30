@@ -61,7 +61,7 @@ export function Island() {
                     // that can't signal focus here is the one every other control uses. White
                     // reads against both the accent pill and the near-black dock. Scoped to this
                     // one case; don't generalize it.
-                    "bg-accent text-white focus-visible:[outline:2px_solid_var(--color-island-ink)]"
+                    "bg-accent text-accent-on focus-visible:[outline:2px_solid_var(--color-island-ink)]"
                   : "text-island-ink-dim hover:text-island-ink focus-visible:[outline:2px_solid_var(--color-accent)]",
               )}
             >

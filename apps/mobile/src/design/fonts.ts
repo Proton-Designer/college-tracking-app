@@ -1,20 +1,15 @@
-import {
-  InstrumentSans_400Regular,
-  InstrumentSans_500Medium,
-  InstrumentSans_600SemiBold,
-} from "@expo-google-fonts/instrument-sans";
+import { Geist_400Regular, Geist_500Medium, Geist_600SemiBold } from "@expo-google-fonts/geist";
 import { GeistMono_400Regular, GeistMono_500Medium } from "@expo-google-fonts/geist-mono";
 import { useFonts } from "expo-font";
 
 /**
- * Only the weights DESIGN_LANGUAGE_V2.md §3's type scale actually uses. Add a weight here (and to
- * the map below) only when a new type step needs one — every font asset costs a load-time
- * fetch/cache entry.
+ * Only the weights the type scale actually uses. Add a weight here (and to the map below) only
+ * when a new type step needs one — every font asset costs a load-time fetch/cache entry.
  */
 const fontAssets = {
-  InstrumentSans_400Regular,
-  InstrumentSans_500Medium,
-  InstrumentSans_600SemiBold,
+  Geist_400Regular,
+  Geist_500Medium,
+  Geist_600SemiBold,
   GeistMono_400Regular,
   GeistMono_500Medium,
 };
@@ -25,9 +20,9 @@ export function useDesignFonts() {
 }
 
 const FONT_NAME_BY_FAMILY_WEIGHT: Record<string, keyof typeof fontAssets> = {
-  "Instrument Sans:400": "InstrumentSans_400Regular",
-  "Instrument Sans:500": "InstrumentSans_500Medium",
-  "Instrument Sans:600": "InstrumentSans_600SemiBold",
+  "Geist:400": "Geist_400Regular",
+  "Geist:500": "Geist_500Medium",
+  "Geist:600": "Geist_600SemiBold",
   "Geist Mono:400": "GeistMono_400Regular",
   "Geist Mono:500": "GeistMono_500Medium",
 };

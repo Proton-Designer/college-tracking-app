@@ -3,12 +3,14 @@
  * stays testable and importable outside a native runtime. Consumers pass these into RN's
  * `StyleSheet.create` / Reanimated APIs directly.
  *
- * v2 "Aurora" — see docs/DESIGN_LANGUAGE_V2.md.
+ * v3 "Ihsan" — dark, domain-coloured. See packages/design/src/tokens.ts.
  */
 import {
   aurora,
   auroraForRisk,
+  chartSeries,
   color,
+  domainColor,
   fontFamily,
   glass,
   island,
@@ -19,12 +21,14 @@ import {
   space,
   type,
 } from "./tokens";
-import type { RiskBand } from "./tokens";
+import type { DomainColorKey, RiskBand } from "./tokens";
 
 export {
   aurora,
   auroraForRisk,
+  chartSeries,
   color,
+  domainColor,
   fontFamily,
   glass,
   island,
@@ -34,7 +38,7 @@ export {
   space,
   type,
 };
-export type { RiskBand };
+export type { DomainColorKey, RiskBand };
 
 /**
  * RN has no native hairline color; consumers pair this width with `color.hairline` or

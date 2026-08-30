@@ -28,11 +28,13 @@ const VARIANT_BG: Record<Exclude<ButtonVariant, "secondary">, string> = {
   destructive: color.riskCritical,
 };
 
+/** On a dark ground both saturated fills carry a near-black label: white lands near 3.7:1 on
+ *  each and fails, near-black clears 5:1 on both. See tokens.ts `accentOn`. */
 const VARIANT_TEXT_COLOR: Record<ButtonVariant, string> = {
-  primary: "#FFFFFF",
+  primary: color.accentOn,
   secondary: color.ink,
   ghost: color.ink,
-  destructive: "#FFFFFF",
+  destructive: color.accentOn,
 };
 
 export function Button({
