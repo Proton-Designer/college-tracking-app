@@ -20,6 +20,7 @@ const STEP_LABELS: Record<string, string> = {
   embedding: "Indexing",
   extracting_lessons: "Extracting lessons",
   merging: "Merging and ranking",
+  generating_cards: "Writing the cards",
   done: "Ready",
   failed: "Failed",
 };

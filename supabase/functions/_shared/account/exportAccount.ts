@@ -19,7 +19,16 @@
 
 import type { SupabaseClient } from "npm:@supabase/supabase-js@2";
 
-const BUCKETS = ["syllabi", "proof", "avatars"] as const;
+// EVERY private bucket in the project must be listed here. Two were missing and both were found
+// the same way -- by asking what a new bucket's path shape had to be, not by anything failing:
+// `sources` (Learn PDFs, migration 59) and `screen-time` (migration 65). An unlisted bucket means
+// those files SURVIVE an account deletion, which is the quietest possible failure of the one
+// promise a delete makes.
+//
+// A bucket added anywhere in this repo must be added here in the same commit. There is no
+// mechanical guard for this; adding one would mean enumerating buckets at runtime, which trades a
+// silent omission for a silent extra round-trip on every delete.
+const BUCKETS = ["syllabi", "proof", "avatars", "sources", "screen-time"] as const;
 const SIGNED_URL_EXPIRY_SECONDS = 60 * 60; // 1 hour -- long enough to actually download, short-lived by design
 
 export interface AccountExportFile {

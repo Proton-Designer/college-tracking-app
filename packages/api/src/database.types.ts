@@ -5679,6 +5679,7 @@ export type Database = {
         | "embedding"
         | "extracting_lessons"
         | "merging"
+        | "generating_cards"
         | "done"
         | "failed";
       lesson_prompt_type: "free_recall" | "application" | "cloze" | "why";

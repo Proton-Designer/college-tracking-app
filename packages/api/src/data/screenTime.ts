@@ -51,14 +51,17 @@ export type ScreenTimeWeekRow = Database['public']['Tables']['screen_time_weeks'
 /**
  * The private bucket the screenshot lands in.
  *
- * `syllabi` rather than a bucket of its own, and that is a constraint rather than a choice:
- * migration 64 defines the three screen-time tables but no bucket, and the migrations are settled.
- * This bucket is private, allows `image/png` and `image/jpeg`, and its RLS policy requires the
- * owner's id as the first path segment — the same three properties a dedicated bucket would have
- * had. When a `screen-time` bucket is added, this constant and `buildScreenTimeStoragePath` are
- * the only two things that change.
+ * Its own bucket (migration 65), not `syllabi`. The reuse was a defensible stopgap and is wrong
+ * for two reasons worth keeping: an account export would hand someone a file list where their
+ * screen time is labelled as coursework, and a future policy scoped to academic uploads would
+ * silently reach data that is not academic.
+ *
+ * **The path stays FLAT** — `<uid>/screen-time-<week>.png`, never a `screen-time/` subfolder.
+ * `deleteAccount.ts` enumerates each bucket with a NON-RECURSIVE `list(userId)`, so a subfolder
+ * would list as a single directory entry, `remove()` would not delete its contents, and the files
+ * would survive an account deletion.
  */
-export const SCREEN_TIME_BUCKET = 'syllabi';
+export const SCREEN_TIME_BUCKET = 'screen-time';
 
 /** How many weeks the series covers by default. A quarter of weeks: long enough for a rise to be a
  *  rise rather than a busy fortnight, short enough that the holes stay legible. */

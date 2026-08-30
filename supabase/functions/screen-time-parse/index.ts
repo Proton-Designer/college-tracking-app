@@ -35,10 +35,10 @@ const RequestSchema = z.object({
   uploadId: z.number().int().positive(),
 });
 
-/** The bucket the screenshot lives in — kept in step with packages/api's
- *  SCREEN_TIME_BUCKET, which explains why it is the syllabi bucket and not one of its
- *  own (migration 64 defines no bucket and the migrations are settled). */
-const SCREEN_TIME_BUCKET = "syllabi";
+/** The bucket the screenshot lives in — kept in step with packages/api's SCREEN_TIME_BUCKET.
+ *  Its own bucket as of migration 65; the path within it is flat, because deleteAccount lists
+ *  each bucket non-recursively and a subfolder's contents would survive an account delete. */
+const SCREEN_TIME_BUCKET = "screen-time";
 
 /** Base64 in fixed-size chunks. `String.fromCharCode(...bytes)` on a whole multi-megabyte
  *  screenshot blows the argument limit and throws a RangeError -- a crash that would read
