@@ -1,6 +1,13 @@
-# CollegeOS
+# Ihsan
 
-A personal **closed-loop operating system** for a college student. Not a habit tracker.
+A personal **closed-loop operating system**. Not a habit tracker.
+
+Ihsan is the merge of three apps into one: CollegeOS (the base -- the day's engine), LifeOS
+(structure, the Deen module, and the visual language), and ULM (the learning pillar), plus a
+new pillar, Desired Self. `docs/IHSAN_RECONCILIATION.md` is the map and
+`.brain/memory/decisions.md` D27-D43 are the rulings behind it. The repo directory and the
+`@collegeos/*` package scope still carry the old name; D43 holds that rename to the
+TestFlight cutover, since the iOS bundle id is permanent at first submission.
 
 ```
 Observe → Plan → Execute → Detect deviation → Intervene → Reflect → Learn → Update next plan
@@ -27,7 +34,8 @@ what remains before production.
 
 | You need | Read |
 |---|---|
-| **Handover package (2026-08-26) — start here** | **`docs/HANDOVER.md`** |
+| **The merge: map, rulings, phased plan** | **`docs/IHSAN_RECONCILIATION.md`** |
+| **Handover package (2026-08-26)** | **`docs/HANDOVER.md`** |
 | **Full deep handoff** | **`HANDOFF.md`** |
 | **Setting this up on a new machine** | **`HANDOFF.md` §3** |
 | Supabase schema, migrations, cloud move | `HANDOFF.md` §4 → `docs/SUPABASE_SETUP.md` |
@@ -38,7 +46,7 @@ what remains before production.
 | Current project state | `docs/STATUS.md` |
 | Original product brief (requirements) | `docs/context/SOURCE_BRIEF.txt` |
 | Database schema | `docs/DATA_MODEL.md` |
-| **Visual language + tokens** | **`docs/DESIGN_LANGUAGE_V2.md`**, `packages/design/` (`DESIGN_SYSTEM.md` is v1, superseded) |
+| **Visual language + tokens** | **`docs/DESIGN_LANGUAGE_V3.md`**, `packages/design/` (V2 "Aurora" and DESIGN_SYSTEM.md are superseded) |
 | Cloud provisioning runbook | `docs/SUPABASE_SETUP.md` |
 | Durable decisions | `.brain/memory/decisions.md` |
 
