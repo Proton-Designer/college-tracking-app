@@ -23,6 +23,11 @@ of them is reachable, typed, and building on both platforms.
 | **P4** — Learn | Schema, FSRS scheduler, ingestion pipeline with the provenance firewall, embeddings provider with a working absent-key path, session and library surfaces. |
 | **P5** — Desired Self | Schema, the evidence-derived standing engine, routing map, surfaces on both platforms. |
 
+Navigation ended where the plan said it would: **Today · Learn · Life · Self · Review** on a phone,
+the same architecture unfolded in the web sidebar with the five domains listed directly. Every tab
+arrived only on the day its destination became real — that rule held from P1 through P5 without an
+exception.
+
 ---
 
 ## The decisions that shaped the code most
@@ -63,7 +68,10 @@ Executed at the end of the build:
 
 - `npm run verify` — exit 0. Four guards, typecheck across five workspaces, lint, tests.
 - Core tests: **598** across 55 files (up from 458 at the start).
-- API tests: 30. Deno: **192** (up from 133).
+- API tests: 30. Mobile: 7 (1 skipped). Deno: **259**, run twice consecutively per D14 (up from
+  133 before the merge).
+- 59 migrations · 96 tables · 32 commits, none pushed (nobody asked; `main` is 32 ahead of
+  `origin/main`).
 - `next build` — clean, every route including `/deen`, `/fitness`, `/work`, `/business`, `/life`,
   `/learn`, `/learn/library`, `/self`.
 - RLS audited across migrations 51–58: every new table has `enable` + `force` + an owner-scoped
