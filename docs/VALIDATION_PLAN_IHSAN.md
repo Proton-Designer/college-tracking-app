@@ -20,13 +20,13 @@
 
 | # | Do | Must happen |
 |---|---|---|
-| 0.1 | `supabase migration list` | Remote is at 46. Migrations 47–57 are pending. |
-| 0.2 | `supabase db push` | All eleven apply cleanly, in order, with no manual intervention. |
+| 0.1 | `supabase migration list` | Remote is at 46. Migrations 47–64 are pending. |
+| 0.2 | `supabase db push` | All eighteen apply cleanly, in order, with no manual intervention. |
 | 0.3 | **`npm run db:types:cloud`**, then `npm run verify` | ⚠️ **The single highest-risk step in this plan.** `database.types.ts` was hand-written for 33 tables because this build had no database. A regeneration that changes the file means a transcription error; verify must still exit 0 afterwards. **Any type error here is a real defect, not noise.** |
 | 0.4 | `npm run verify` | Exit 0. Baseline at handover: 598 core + 30 api tests. |
 | 0.5 | `cd supabase/functions && deno test -A` | The `-A` matters — without it 4 tests fail on env/net permissions. That is the flag, not a regression. |
 | 0.6 | `cd apps/web && npx next build` | Clean. |
-| 0.7 | Sign in as **all three users** and confirm each sees only their own data | D39 made this a live property. Every table added in migrations 48–57 is owner-only; one cross-account check per new surface is cheaper than discovering a leak later. |
+| 0.7 | Sign in as **all three users** and confirm each sees only their own data | D39 made this a live property. Every table added in migrations 48–64 is owner-only; one cross-account check per new surface is cheaper than discovering a leak later. |
 
 ---
 
@@ -47,7 +47,7 @@
    element that only became legible on the old light surface.
 
 **Mobile**:
-7. Tabs are Today · Life · Review (plus Learn and Self once those pillars ship). No Insights tab.
+7. Tabs are Today · Learn · Life · Self · Review — the full five. No Insights tab, and no Courses tab (it lives inside Life as School).
 8. The Island renders detached, and no scroll view traps content beneath it.
 
 **Both**:
@@ -241,7 +241,7 @@ Run each of these once; any change from pre-merge behaviour is a regression, not
 
 ## 10. Security and isolation
 
-1. With three real accounts, confirm each new table (migrations 48–57) is owner-only. An anon probe
+1. With three real accounts, confirm each new table (migrations 48–64) is owner-only. An anon probe
    reads `200 []` and an insert is refused.
 2. `lesson_reviews` accepts INSERT and SELECT and **rejects UPDATE and DELETE** — the absence of
    those policies is the enforcement, so prove it rather than assuming it.
