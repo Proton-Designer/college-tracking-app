@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { Button, EmptyState, Input, Modal, Panel, Select, Textarea } from "@/components/ui";
 import { useToast } from "@/components/ui/ToastProvider";
 import { createDimensionAction, setRouteAction } from "@/app/(app)/self/selfActions";
+import { setDriftStatementAction, toggleDriftAlertsAction } from "@/app/(app)/self/driftStatementActions";
 
 /**
  * Desired Self.
@@ -142,6 +143,12 @@ export function SelfClient({ view }: { view: SelfView }) {
             key={standing.dimensionId}
             standing={standing}
             subDimensions={view.standings.filter((s) => s.parentId === standing.dimensionId)}
+            driftStatement={
+              view.dimensions.find((d) => d.id === standing.dimensionId)?.drift_statement ?? null
+            }
+            alertsEnabled={
+              view.dimensions.find((d) => d.id === standing.dimensionId)?.drift_alerts_enabled ?? true
+            }
           />
         ))}
       </div>
@@ -188,11 +195,109 @@ export function SelfClient({ view }: { view: SelfView }) {
   );
 }
 
+/**
+ * The drift statement (D50): who you become if this dimension keeps being neglected.
+ *
+ * Offered, never required — and the offer is deliberately quiet. A dimension is complete without
+ * one, and nothing fires for a dimension that has none, so the empty state here is an invitation
+ * rather than a gap. The placeholder is the only guidance given; the app supplies no example
+ * sentence, because a suggested phrasing would start shaping words that are supposed to be
+ * entirely the user's.
+ */
+function DriftStatementEditor({
+  dimensionId,
+  statement,
+  alertsEnabled,
+}: {
+  dimensionId: number;
+  statement: string | null;
+  alertsEnabled: boolean;
+}) {
+  const router = useRouter();
+  const toast = useToast();
+  const [isPending, startTransition] = useTransition();
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(statement ?? "");
+
+  function save() {
+    startTransition(async () => {
+      const result = await setDriftStatementAction(dimensionId, draft);
+      if (!result.ok) {
+        toast.show(result.error);
+        return;
+      }
+      setOpen(false);
+      router.refresh();
+    });
+  }
+
+  function toggleAlerts() {
+    startTransition(async () => {
+      const result = await toggleDriftAlertsAction(dimensionId, !alertsEnabled);
+      if (!result.ok) {
+        toast.show(result.error);
+        return;
+      }
+      router.refresh();
+    });
+  }
+
+  if (!open) {
+    return (
+      <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-hairline pt-4">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="font-mono text-caption text-ink-faint underline underline-offset-2 outline-none hover:text-ink-muted focus-visible:[outline:2px_solid_var(--color-accent)] focus-visible:outline-offset-2"
+        >
+          {statement ? "Edit what you're running from" : "Write what you're running from"}
+        </button>
+        {statement ? (
+          <button
+            type="button"
+            onClick={toggleAlerts}
+            disabled={isPending}
+            className="font-mono text-caption text-ink-faint underline underline-offset-2 outline-none hover:text-ink-muted focus-visible:[outline:2px_solid_var(--color-accent)] focus-visible:outline-offset-2 disabled:pointer-events-none disabled:opacity-40"
+          >
+            {/* One tap, no confirmation dialog. A mechanic this sharp that cannot be declined
+                is not a tool. */}
+            {alertsEnabled ? "Turn these off for this one" : "Turn these back on"}
+          </button>
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 flex flex-col gap-3 border-t border-hairline pt-4">
+      <Textarea
+        label="If this keeps being neglected, in ten years…"
+        value={draft}
+        onChange={(event) => setDraft(event.target.value)}
+        rows={4}
+        placeholder="First person, present tense, your own words. Ihsan will never rewrite this, summarise it, or add anything to it — it only chooses when to show it back to you, rarely."
+      />
+      <div className="flex gap-3">
+        <Button onClick={save} loading={isPending}>
+          Save
+        </Button>
+        <Button variant="ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 function DimensionPanel({
   standing,
   subDimensions,
+  driftStatement,
+  alertsEnabled,
 }: {
   standing: DimensionStanding;
+  driftStatement: string | null;
+  alertsEnabled: boolean;
   /** Traits' sub-dimensions, when this is Traits. Named explicitly rather than `children`, which
    *  would collide with React's own slot and read as markup rather than as data. */
   subDimensions: DimensionStanding[];
@@ -256,6 +361,12 @@ function DimensionPanel({
           No acts route here yet. Add a rule below and this starts counting.
         </p>
       )}
+
+      <DriftStatementEditor
+        dimensionId={standing.dimensionId}
+        statement={driftStatement}
+        alertsEnabled={alertsEnabled}
+      />
 
       {subDimensions.length > 0 ? (
         <div className="mt-5 flex flex-col gap-2 border-t border-hairline pt-4">
