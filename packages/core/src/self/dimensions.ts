@@ -1,0 +1,270 @@
+/**
+ * Desired Self — dimension standing, derived from evidence.
+ *
+ * Aristotle's golden mean is the framing: virtues as trainable dimensions with an aimed-at middle.
+ * Three properties make that framing survive contact with a scoring function, and each is enforced
+ * here rather than promised in a UI.
+ *
+ * **1. Points are evidence, not currency.** A dimension's standing is computed from the acts that
+ * fed it, and the acts travel with the number — `DimensionStanding` carries its own contributing
+ * evidence, so no surface can render a bare score even by accident. The schema has nowhere to store
+ * a point, so there is nothing to optimise instead of the thing being measured.
+ *
+ * **2. Per dimension, never a total (D34).** Nothing in this file sums across dimensions and
+ * nothing returns a global number. The dimensions are incommensurable — there is no defensible
+ * exchange rate between Deen and Physique, and any weighting would be a philosophy of value
+ * smuggled in as a constant. The one legitimate cross-dimension view is *attention*: how many acts
+ * each received, which is information about where a life is going rather than a score of it.
+ *
+ * **3. Fades, never resets.** Same decay model as `habitScore`, for the same reason D23 gives:
+ * a counter that returns to zero is the mechanic that makes people quit. A neglected dimension
+ * drifts down and can never reach zero, and a new one shows no number at all until there is
+ * something to judge.
+ */
+
+import type { LocalDate } from '../types';
+import { addDays, compareLocalDate } from '../util/date';
+
+export type EvidenceKind =
+  | 'session'
+  | 'habit_log'
+  | 'prayer'
+  | 'quran_session'
+  | 'workout_set'
+  | 'body_metric'
+  | 'lesson_review'
+  | 'milestone'
+  | 'experiment';
+
+export const EVIDENCE_KIND_LABELS: Readonly<Record<EvidenceKind, string>> = {
+  session: 'Hours',
+  habit_log: 'Habit votes',
+  prayer: 'Prayers',
+  quran_session: "Qur'an sessions",
+  workout_set: 'Sets',
+  body_metric: 'Measurements',
+  lesson_review: 'Reviews',
+  milestone: 'Milestones',
+  experiment: 'Experiments tried',
+};
+
+/** One act that fed a dimension. Always carries enough to name itself on screen. */
+export interface EvidenceAct {
+  kind: EvidenceKind;
+  date: LocalDate;
+  /** What to show: "Hour — ship the pricing page", "Fajr on time", "3 sets, bench press". */
+  label: string;
+  weight: number;
+}
+
+export interface DimensionInput {
+  id: number;
+  name: string;
+  parentId: number | null;
+  /** The user's own ceiling for this dimension, in acts per week. Null means no ceiling. */
+  ceiling: number | null;
+}
+
+/**
+ * How much of the remaining distance to 100 one act closes.
+ *
+ * Expressed as a proportion rather than a flat "+N", exactly as `habitScore` argues: a flat boost
+ * makes the last points as cheap as the first, which would let a dimension sit at 100 on mediocre
+ * effort. Closing a fraction means the top has to be earned by consistency while recovery from a
+ * neglected patch is fast — the asymmetry a no-guilt design wants.
+ */
+const ACT_GAIN = 0.08;
+
+/** Multiplier applied per day with no qualifying act. Matches the habits model. */
+const IDLE_DECAY = 0.97;
+
+/**
+ * Where a dimension with no evidence sits: neither proven nor failed.
+ *
+ * Deliberately not 0. A dimension scored 0 on the day it is created reads as "you are failing at
+ * this", which is the guilt mechanic the whole model exists to avoid. Callers get `observedActs`
+ * alongside, so a surface can decline to show a number at all until there is something to judge —
+ * and `standing` is null until then, so it cannot be rendered by mistake.
+ */
+const NEUTRAL_START = 50;
+
+/** Acts observed before a standing is shown at all. Below this the answer is "too early to say". */
+export const MIN_ACTS_TO_JUDGE = 3;
+
+export type OvershootState = 'below' | 'within' | 'over';
+
+export interface DimensionStanding {
+  dimensionId: number;
+  name: string;
+  parentId: number | null;
+  /**
+   * 0-100, or null when there is not yet enough evidence to say anything.
+   *
+   * Null rather than 50 for a fresh dimension: the neutral start is where the decay maths begins,
+   * not a claim about the person. Showing it would be reporting an initial condition as a
+   * measurement.
+   */
+  standing: number | null;
+  observedActs: number;
+  /** The acts behind the number, most recent first. Never separable from it. */
+  evidence: EvidenceAct[];
+  /** Acts in the last 7 days -- what the ceiling is judged against. */
+  actsThisWeek: number;
+  overshoot: OvershootState;
+  lastActDate: LocalDate | null;
+}
+
+export interface StandingInput {
+  dimension: DimensionInput;
+  acts: EvidenceAct[];
+  /** Local day the standing is computed for. */
+  today: LocalDate;
+  /** How far back to replay. Older acts have decayed to irrelevance anyway. */
+  windowDays?: number;
+}
+
+/**
+ * Replays a dimension's acts into its current standing.
+ *
+ * Day by day rather than act by act, because the decay is what makes neglect visible: an act
+ * raises the score, and every day without one lowers it slightly. Several acts in one day each
+ * contribute, which is intended — a day with a workout, an Hour and a logged prayer really did
+ * serve Physique, Work/Craft and Deen respectively.
+ */
+export function dimensionStanding(input: StandingInput): DimensionStanding {
+  const { dimension, acts, today, windowDays = 90 } = input;
+  const windowStart = addDays(today, -windowDays);
+
+  const inWindow = acts
+    .filter((a) => compareLocalDate(a.date, windowStart) >= 0 && compareLocalDate(a.date, today) <= 0)
+    .sort((a, b) => compareLocalDate(a.date, b.date));
+
+  const byDate = new Map<LocalDate, EvidenceAct[]>();
+  for (const act of inWindow) {
+    const bucket = byDate.get(act.date);
+    if (bucket) bucket.push(act);
+    else byDate.set(act.date, [act]);
+  }
+
+  let score = NEUTRAL_START;
+  let cursor = windowStart;
+  // Bounded: the window is at most a few hundred days, and an unbounded walk over malformed dates
+  // would hang a page render.
+  for (let i = 0; i <= windowDays; i += 1) {
+    const dayActs = byDate.get(cursor);
+    if (dayActs && dayActs.length > 0) {
+      for (const act of dayActs) {
+        const gain = ACT_GAIN * Math.max(0, act.weight);
+        score += (100 - score) * Math.min(1, gain);
+      }
+    } else {
+      score *= IDLE_DECAY;
+    }
+    if (cursor === today) break;
+    cursor = addDays(cursor, 1);
+  }
+
+  const weekStart = addDays(today, -6);
+  const actsThisWeek = inWindow.filter((a) => compareLocalDate(a.date, weekStart) >= 0).length;
+
+  const lastAct = inWindow.length > 0 ? inWindow[inWindow.length - 1]! : null;
+
+  return {
+    dimensionId: dimension.id,
+    name: dimension.name,
+    parentId: dimension.parentId,
+    standing: inWindow.length < MIN_ACTS_TO_JUDGE ? null : Math.round(Math.min(100, Math.max(0, score))),
+    observedActs: inWindow.length,
+    evidence: [...inWindow].reverse(),
+    actsThisWeek,
+    overshoot: resolveOvershoot(dimension.ceiling, actsThisWeek),
+    lastActDate: lastAct ? lastAct.date : null,
+  };
+}
+
+/**
+ * D35 — overshoot fires only against a ceiling the user set themselves.
+ *
+ * No ceiling means no overshoot, which is the default and the honest state for most dimensions:
+ * arrogance and obsession are not machine-detectable, and an app guessing at character flaws is
+ * worse than an app that stays quiet. `below` is not a warning — it is simply "you have room", and
+ * no surface should scold with it.
+ */
+export function resolveOvershoot(ceiling: number | null, actsThisWeek: number): OvershootState {
+  if (ceiling === null) return 'within';
+  if (actsThisWeek > ceiling) return 'over';
+  if (actsThisWeek < ceiling * 0.5) return 'below';
+  return 'within';
+}
+
+/**
+ * The one legitimate cross-dimension view: where attention went, not who won.
+ *
+ * Returns act counts, deliberately never scores. "Focus received 14 acts this week and Deen
+ * received 2" is a fact about where a life is going; ranking the two by standing would be the
+ * grand total D34 refuses, wearing a list's clothing.
+ */
+export function attentionThisWeek(
+  standings: DimensionStanding[],
+): { dimensionId: number; name: string; acts: number }[] {
+  return standings
+    .map((s) => ({ dimensionId: s.dimensionId, name: s.name, acts: s.actsThisWeek }))
+    .sort((a, b) => b.acts - a.acts);
+}
+
+export interface RouteRule {
+  dimensionId: number;
+  kind: EvidenceKind;
+  /** Narrows the kind: a life domain, a source id, a habit id. Null matches every act of the kind. */
+  matchValue: string | null;
+  weight: number;
+}
+
+export interface RoutableAct {
+  kind: EvidenceKind;
+  date: LocalDate;
+  label: string;
+  /** The discriminator a rule's `matchValue` is compared against. */
+  matchValue: string | null;
+}
+
+/**
+ * Applies the routing map: every act declares which dimension it serves, and this is where the
+ * declaration is honoured.
+ *
+ * An act may feed more than one dimension when more than one rule matches — a Business Hour can
+ * serve both Work/Craft and Focus, and forcing a single owner would make the user choose which
+ * truth to record. A more specific rule (one with a `matchValue`) wins over a catch-all for the
+ * same dimension, so a general rule can be written once and refined later without deleting it.
+ *
+ * An act matching no rule is simply not routed. It is not dropped from the app and not counted
+ * anywhere by default: an unrouted act is a routing map that has not been finished, and inventing
+ * a destination for it would put acts behind a number nobody assigned them to.
+ */
+export function routeActs(acts: RoutableAct[], rules: RouteRule[]): Map<number, EvidenceAct[]> {
+  const byDimension = new Map<number, EvidenceAct[]>();
+
+  for (const act of acts) {
+    const candidates = rules.filter(
+      (rule) => rule.kind === act.kind && (rule.matchValue === null || rule.matchValue === act.matchValue),
+    );
+    if (candidates.length === 0) continue;
+
+    // Per dimension, the most specific matching rule wins.
+    const bestPerDimension = new Map<number, RouteRule>();
+    for (const rule of candidates) {
+      const existing = bestPerDimension.get(rule.dimensionId);
+      if (!existing || (existing.matchValue === null && rule.matchValue !== null)) {
+        bestPerDimension.set(rule.dimensionId, rule);
+      }
+    }
+
+    for (const [dimensionId, rule] of bestPerDimension) {
+      const bucket = byDimension.get(dimensionId) ?? [];
+      bucket.push({ kind: act.kind, date: act.date, label: act.label, weight: rule.weight });
+      byDimension.set(dimensionId, bucket);
+    }
+  }
+
+  return byDimension;
+}
