@@ -1,0 +1,300 @@
+/**
+ * Prayer times — standard sun-position / hour-angle calculation.
+ *
+ * **Ported from LifeOS (`lib/prayer-times/calculate.ts` + `windows.ts`), and deliberately not
+ * rewritten.** The astronomy is the same algorithm behind praytimes.org and adhan; it was already
+ * pure, dependency-free and correct at high latitudes, and re-deriving it would have risked a
+ * subtly wrong prayer time — the one class of bug in this module a user would experience as the
+ * app lying to them about an obligation. D42: the code ports, the surrounding schema is
+ * re-authored.
+ *
+ * What changed in the port, and why:
+ *
+ * 1. **Timezone handling.** LifeOS passed a raw `timezoneOffsetMinutes` from its own date utility.
+ *    This repo's rule is that a local day is always derived from an IANA zone name (B4, and
+ *    `localToday.ts`'s header), so the offset is derived per-date from the zone here. That also
+ *    keeps the DST correctness his comment describes: the offset is resolved for each calendar
+ *    day rather than reused across a boundary.
+ *
+ * 2. **ISO strings out, not `Date` objects.** Everything else in `packages/core` passes instants as
+ *    ISO strings, and returning `Date`s here would make prayer times the one exception every
+ *    caller has to remember.
+ *
+ * 3. **`null` is preserved exactly.** At high latitude the sun may never reach the defining angle,
+ *    and the hour-angle clamp would otherwise produce a plausible-looking wrong time. A null window
+ *    means "this prayer has no computable time here today" and a caller must never derive a missed
+ *    status from one. This is the same real-zero-is-not-absent rule this codebase already enforces
+ *    elsewhere, in the place where getting it wrong would matter most.
+ */
+
+import type { LocalDate } from '../types';
+import { localTimeToInstant } from '../util/localToday';
+
+export type CalcMethod = 'mwl' | 'isna' | 'karachi' | 'egyptian';
+export type AsrMadhab = 'standard' | 'hanafi';
+
+/** Ordered as the day runs. Sunrise is a boundary, not a prayer, and is excluded. */
+export const PRAYER_NAMES = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'] as const;
+export type PrayerName = (typeof PRAYER_NAMES)[number];
+
+export const PRAYER_LABELS: Readonly<Record<PrayerName, string>> = {
+  fajr: 'Fajr',
+  dhuhr: 'Dhuhr',
+  asr: 'Asr',
+  maghrib: 'Maghrib',
+  isha: 'Isha',
+};
+
+/** Fajr and Isha angles per convention. Values as LifeOS shipped them. */
+export const METHOD_ANGLES: Record<CalcMethod, { fajr: number; isha: number }> = {
+  mwl: { fajr: 18, isha: 17 },
+  isna: { fajr: 15, isha: 15 },
+  karachi: { fajr: 18, isha: 18 },
+  egyptian: { fajr: 19.5, isha: 17.5 },
+};
+
+export const CALC_METHOD_LABELS: Readonly<Record<CalcMethod, string>> = {
+  mwl: 'Muslim World League',
+  isna: 'ISNA (North America)',
+  karachi: 'University of Islamic Sciences, Karachi',
+  egyptian: 'Egyptian General Authority',
+};
+
+/** Standard sunset refraction angle. */
+const MAGHRIB_ANGLE = 0.833;
+
+export interface PrayerInstants {
+  fajr: string;
+  sunrise: string;
+  dhuhr: string;
+  asr: string;
+  maghrib: string;
+  isha: string;
+}
+
+/** `[start, end)` during which a prayer is still valid to pray. Both ISO instants. */
+export interface PrayerWindow {
+  start: string;
+  end: string;
+}
+
+function degToRad(deg: number): number {
+  return (deg * Math.PI) / 180;
+}
+
+function radToDeg(rad: number): number {
+  return (rad * 180) / Math.PI;
+}
+
+function julianDate(year: number, month: number, day: number): number {
+  let y = year;
+  let m = month;
+  if (m <= 2) {
+    y -= 1;
+    m += 12;
+  }
+  const a = Math.floor(y / 100);
+  const b = 2 - a + Math.floor(a / 4);
+  return Math.floor(365.25 * (y + 4716)) + Math.floor(30.6001 * (m + 1)) + day + b - 1524.5;
+}
+
+/** Sun declination (deg) and equation of time (minutes) for a given Julian date. */
+function sunPosition(jd: number): { declination: number; equationOfTime: number } {
+  const d = jd - 2451545.0;
+  const g = degToRad((357.529 + 0.98560028 * d) % 360);
+  const q = (280.459 + 0.98564736 * d) % 360;
+  const l = degToRad((q + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g) + 360) % 360);
+  const e = degToRad(23.439 - 0.00000036 * d);
+
+  const declination = Math.asin(Math.sin(e) * Math.sin(l));
+
+  const ra = radToDeg(Math.atan2(Math.cos(e) * Math.sin(l), Math.cos(l))) / 15;
+  const raNormalized = ((ra % 24) + 24) % 24;
+  const qHours = q / 15;
+  let equationOfTime = qHours - raNormalized;
+  if (equationOfTime > 12) equationOfTime -= 24;
+  if (equationOfTime < -12) equationOfTime += 24;
+  equationOfTime *= 60;
+
+  return { declination: radToDeg(declination), equationOfTime };
+}
+
+function rawCosH(angle: number, lat: number, declination: number): number {
+  const latRad = degToRad(lat);
+  const declRad = degToRad(declination);
+  return (
+    (-Math.sin(degToRad(angle)) - Math.sin(latRad) * Math.sin(declRad)) /
+    (Math.cos(latRad) * Math.cos(declRad))
+  );
+}
+
+/** Hour angle (in hours) for the sun to reach `angle` degrees below the horizon. */
+function hourAngle(angle: number, lat: number, declination: number): number {
+  const clamped = Math.max(-1, Math.min(1, rawCosH(angle, lat, declination)));
+  return radToDeg(Math.acos(clamped)) / 15;
+}
+
+/**
+ * Whether the sun actually reaches `angle` degrees below the horizon at this latitude and
+ * declination. `hourAngle`'s clamp silently produces a plausible-looking wrong time when it does
+ * not (white nights, midnight sun), so every caller that could hit a high latitude must consult
+ * this rather than trusting the number.
+ */
+export function isSunAngleReachable(angle: number, lat: number, declination: number): boolean {
+  const cosH = rawCosH(angle, lat, declination);
+  return cosH >= -1 && cosH <= 1;
+}
+
+/** Sun declination (deg) for a UTC-anchored calendar date and longitude. */
+export function sunDeclinationDeg(utcAnchor: Date, lng: number): number {
+  const jd = julianDate(utcAnchor.getUTCFullYear(), utcAnchor.getUTCMonth() + 1, utcAnchor.getUTCDate());
+  return sunPosition(jd - lng / (15 * 24)).declination;
+}
+
+/** Asr hour angle: sun altitude where shadow length = shadowFactor + tan(|lat - decl|). */
+function asrHourAngle(shadowFactor: number, lat: number, declination: number): number {
+  const latRad = degToRad(lat);
+  const declRad = degToRad(declination);
+  // `hourAngle`'s parameter is a below-horizon depression angle, so an above-horizon altitude is
+  // passed negated.
+  const altitude = Math.atan(1 / (shadowFactor + Math.tan(Math.abs(latRad - declRad))));
+  return hourAngle(-radToDeg(altitude), lat, declination);
+}
+
+/**
+ * The zone's real UTC offset in minutes on a given local date.
+ *
+ * Derived from an actual conversion rather than a static table, reusing `localTimeToInstant`'s
+ * format-compare-correct technique, so it is correct across a DST transition without special-casing
+ * one. Noon is the sampling point deliberately: it is the furthest a wall-clock time can be from
+ * either side of a transition, so the offset it reports is the one the day actually ran on.
+ */
+export function zoneOffsetMinutes(date: LocalDate, timeZone: string): number {
+  const [year, month, day] = date.split('-').map(Number) as [number, number, number];
+  const noonUtcMs = Date.UTC(year, month - 1, day, 12, 0, 0, 0);
+  const actualMs = Date.parse(localTimeToInstant(date, 12, 0, timeZone));
+  return Math.round((noonUtcMs - actualMs) / 60000);
+}
+
+/** `localClockHours` is a decimal local-clock time (e.g. 12.8 = 12:48 local). */
+function localClockHoursToIso(utcAnchor: Date, localClockHours: number, tzHours: number): string {
+  const result = new Date(
+    Date.UTC(utcAnchor.getUTCFullYear(), utcAnchor.getUTCMonth(), utcAnchor.getUTCDate()),
+  );
+  const utcHours = localClockHours - tzHours;
+  result.setUTCMinutes(result.getUTCMinutes() + Math.round(utcHours * 60));
+  return result.toISOString();
+}
+
+export interface PrayerTimesInput {
+  /** The local calendar day being computed. Never a UTC day — see B4. */
+  date: LocalDate;
+  lat: number;
+  lng: number;
+  /** IANA zone name, from `profiles.timezone`. */
+  timeZone: string;
+  calcMethod: CalcMethod;
+  asrMadhab: AsrMadhab;
+}
+
+/**
+ * The six sun events for one local day. Callers that need validity rather than instants should use
+ * `computePrayerWindows`, which also handles the high-latitude null cases.
+ */
+export function calculatePrayerTimes(input: PrayerTimesInput): PrayerInstants {
+  const { date, lat, lng, timeZone, calcMethod, asrMadhab } = input;
+  const tzHours = zoneOffsetMinutes(date, timeZone) / 60;
+  const utcAnchor = new Date(`${date}T00:00:00Z`);
+
+  // The Julian date is shifted by longitude to approximate the sun's position at local solar noon
+  // for this calendar date — standard practice for this algorithm.
+  const jd = julianDate(utcAnchor.getUTCFullYear(), utcAnchor.getUTCMonth() + 1, utcAnchor.getUTCDate());
+  const { declination, equationOfTime } = sunPosition(jd - lng / (15 * 24));
+
+  const dhuhrClock = 12 + tzHours - lng / 15 - equationOfTime / 60;
+
+  const angles = METHOD_ANGLES[calcMethod];
+  const fajrHA = hourAngle(angles.fajr, lat, declination);
+  const ishaHA = hourAngle(angles.isha, lat, declination);
+  const maghribHA = hourAngle(MAGHRIB_ANGLE, lat, declination);
+  const asrHA = asrHourAngle(asrMadhab === 'hanafi' ? 2 : 1, lat, declination);
+
+  return {
+    fajr: localClockHoursToIso(utcAnchor, dhuhrClock - fajrHA, tzHours),
+    sunrise: localClockHoursToIso(utcAnchor, dhuhrClock - maghribHA, tzHours),
+    dhuhr: localClockHoursToIso(utcAnchor, dhuhrClock, tzHours),
+    asr: localClockHoursToIso(utcAnchor, dhuhrClock + asrHA, tzHours),
+    maghrib: localClockHoursToIso(utcAnchor, dhuhrClock + maghribHA, tzHours),
+    isha: localClockHoursToIso(utcAnchor, dhuhrClock + ishaHA, tzHours),
+  };
+}
+
+/**
+ * Each prayer as a `[start, end)` validity window rather than an instant.
+ *
+ * Isha's window ends at the *next* day's Fajr (the majority fiqh position — the stricter "Islamic
+ * midnight" bound is a preferred-time hint, not the valid-until bound), so tomorrow's times are
+ * computed too, with tomorrow's own UTC offset. Reusing today's offset across the boundary would
+ * shift Isha's end by an hour across a DST transition.
+ *
+ * A window is `null` when its defining angle is unreachable at this latitude and date. Callers must
+ * treat null as "no computable window", never as a missed prayer.
+ */
+export function computePrayerWindows(input: PrayerTimesInput): Record<PrayerName, PrayerWindow | null> {
+  const { date, lat, lng, timeZone, calcMethod, asrMadhab } = input;
+
+  const todayAnchor = new Date(`${date}T00:00:00Z`);
+  const tomorrowAnchor = new Date(
+    Date.UTC(todayAnchor.getUTCFullYear(), todayAnchor.getUTCMonth(), todayAnchor.getUTCDate() + 1),
+  );
+  const tomorrow = tomorrowAnchor.toISOString().slice(0, 10) as LocalDate;
+
+  const today = calculatePrayerTimes(input);
+  const next = calculatePrayerTimes({ date: tomorrow, lat, lng, timeZone, calcMethod, asrMadhab });
+
+  const angles = METHOD_ANGLES[calcMethod];
+  const todayDeclination = sunDeclinationDeg(todayAnchor, lng);
+  const tomorrowDeclination = sunDeclinationDeg(tomorrowAnchor, lng);
+
+  const fajrExistsToday = isSunAngleReachable(angles.fajr, lat, todayDeclination);
+  const ishaExistsToday = isSunAngleReachable(angles.isha, lat, todayDeclination);
+  const fajrExistsTomorrow = isSunAngleReachable(angles.fajr, lat, tomorrowDeclination);
+
+  return {
+    fajr: fajrExistsToday ? { start: today.fajr, end: today.sunrise } : null,
+    dhuhr: { start: today.dhuhr, end: today.asr },
+    asr: { start: today.asr, end: today.maghrib },
+    maghrib: { start: today.maghrib, end: today.isha },
+    isha: ishaExistsToday && fajrExistsTomorrow ? { start: today.isha, end: next.fajr } : null,
+  };
+}
+
+/**
+ * The next prayer whose window has not yet opened, or the one currently open.
+ *
+ * Returns null when nothing is computable — an unset location or a high-latitude day with no
+ * resolvable windows. Today's "Now" row renders that as a prompt to set a location, never as a
+ * fabricated time (D40).
+ */
+export function nextPrayer(
+  windows: Record<PrayerName, PrayerWindow | null>,
+  now: Date,
+): { name: PrayerName; window: PrayerWindow; isCurrent: boolean } | null {
+  const nowMs = now.getTime();
+  let upcoming: { name: PrayerName; window: PrayerWindow; isCurrent: boolean } | null = null;
+
+  for (const name of PRAYER_NAMES) {
+    const window = windows[name];
+    if (window === null) continue;
+    const startMs = Date.parse(window.start);
+    const endMs = Date.parse(window.end);
+    if (Number.isNaN(startMs) || Number.isNaN(endMs)) continue;
+
+    if (nowMs >= startMs && nowMs < endMs) return { name, window, isCurrent: true };
+    if (nowMs < startMs && (upcoming === null || startMs < Date.parse(upcoming.window.start))) {
+      upcoming = { name, window, isCurrent: false };
+    }
+  }
+
+  return upcoming;
+}
