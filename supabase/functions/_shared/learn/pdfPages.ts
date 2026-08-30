@@ -49,6 +49,31 @@ type TextItem = any;
  * page was never extracted" — the same distinction migration 54's cursor depends on to
  * know where it got to.
  */
+/**
+ * Strip what Postgres will not accept, before it can become a poison pill.
+ *
+ * A `U+0000` in a `text` column is rejected outright by Postgres — not truncated, not escaped,
+ * rejected. The resulting error is an ordinary `Error` with no structured code, so a retrying
+ * pipeline classifies it as transient and retries forever against text that can never be stored.
+ * One byte in one page of one PDF kills the whole book, permanently.
+ *
+ * Learned from ULM's L6 failure-injection campaign (`.brain/memory/known-issues.md`), where it was
+ * found by adversarial PDF content rather than by review — our pipeline had the identical defect
+ * and no test that would have caught it.
+ *
+ * Lone surrogates go too, for the same reason in a different layer: they survive JS string
+ * handling happily and then fail at the UTF-8 boundary on the way into the database.
+ */
+export function sanitizePageText(text: string): string {
+  return text
+    .replace(/\u0000/g, "")
+    // Unpaired surrogate halves — a high surrogate not followed by a low one, or a low one not
+    // preceded by a high one.
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])/g, "")
+    .replace(/(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, "")
+    .trim();
+}
+
 export async function extractPdfPageRange(
   bytes: Uint8Array,
   fromPage: number,
@@ -81,7 +106,7 @@ export async function extractPdfPageRange(
       // one line and heading detection has nothing to detect.
       text += item.hasEOL ? "\n" : "";
     }
-    pages.push({ page: pageNumber, text: text.trim() });
+    pages.push({ page: pageNumber, text: sanitizePageText(text) });
   }
 
   return { pageCount, pages };

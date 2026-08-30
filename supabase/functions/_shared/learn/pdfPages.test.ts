@@ -1,6 +1,6 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { decodeBase64 } from "jsr:@std/encoding@1/base64";
-import { extractPdfPageRange } from "./pdfPages.ts";
+import { extractPdfPageRange, sanitizePageText } from "./pdfPages.ts";
 
 // A real, hand-built THREE-page PDF (the syllabus test's single-page fixture proves
 // unpdf parses PDF structure; this one proves the page-range slice actually slices).
@@ -65,4 +65,30 @@ Deno.test("extractPdfPageRange: line breaks survive, so heading detection has li
   const lines = result.pages[0]!.text.split("\n");
   assertEquals(lines.length >= 2, true, `expected multiple lines, got ${JSON.stringify(result.pages[0]!.text)}`);
   assertEquals(lines[0]!.trim(), "Chapter 1: The Two-Minute Rule");
+});
+
+Deno.test("sanitizePageText strips a NUL byte rather than letting it poison the job", () => {
+  // Postgres rejects U+0000 in a text column outright, and the resulting plain Error carries no
+  // structured code -- so a retrying pipeline classifies it as transient and retries forever
+  // against text that can never be stored. One byte kills the whole book, permanently.
+  const withNul = "The two-minute rule" + String.fromCharCode(0) + " says start small.";
+  assertEquals(sanitizePageText(withNul), "The two-minute rule says start small.");
+});
+
+Deno.test("sanitizePageText strips lone surrogates, which fail at the UTF-8 boundary", () => {
+  // These survive JS string handling happily and only fail on the way into the database.
+  assertEquals(sanitizePageText("before " + String.fromCharCode(0xd800) + " after"), "before  after");
+  assertEquals(sanitizePageText("before " + String.fromCharCode(0xdc00) + " after"), "before  after");
+});
+
+Deno.test("sanitizePageText leaves a valid surrogate PAIR intact", () => {
+  // The guard must not eat real astral-plane characters -- an emoji or a CJK extension glyph is
+  // legitimate book content, and over-stripping would silently corrupt a quote whose verbatim
+  // match the provenance gate then rejects.
+  const emoji = "a rocket \u{1F680} here";
+  assertEquals(sanitizePageText(emoji), emoji);
+});
+
+Deno.test("sanitizePageText still trims, preserving the previous behaviour", () => {
+  assertEquals(sanitizePageText("  padded  "), "padded");
 });

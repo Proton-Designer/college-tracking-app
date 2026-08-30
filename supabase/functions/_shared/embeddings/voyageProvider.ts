@@ -20,6 +20,9 @@ import {
 } from "./types.ts";
 
 const VOYAGE_EMBEDDINGS_URL = "https://api.voyageai.com/v1/embeddings";
+/** A hung embedding batch must fail rather than hold a lease forever. */
+const REQUEST_TIMEOUT_MS = 30_000;
+
 const MODEL = "voyage-3.5-lite" as const;
 
 interface VoyageResponseBody {
@@ -51,6 +54,10 @@ export function createVoyageProvider(apiKey: string, fetchImpl: typeof fetch = f
       let response: Response;
       try {
         response = await fetchImpl(VOYAGE_EMBEDDINGS_URL, {
+          // Same reasoning as the Anthropic provider: a hung request with no timeout, plus a
+          // progress-independent heartbeat, is an immortal job. Shorter here because an
+          // embedding batch is a much smaller unit of work than an extraction.
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
           method: "POST",
           headers: { Authorization: `Bearer ${apiKey}`, "content-type": "application/json" },
           body: JSON.stringify({ model: MODEL, input: texts, input_type: inputType }),

@@ -45,12 +45,30 @@ interface AnthropicResponse {
   };
 }
 
+/**
+ * A request that never answers must not become a job that never ends.
+ *
+ * ULM's L6 failure injection found this exact shape: a provider call with no timeout, combined
+ * with a heartbeat that runs on a fixed timer independent of pipeline progress, produces an
+ * IMMORTAL JOB -- it heartbeats forever, holds its lease forever, and never reaches the
+ * retry-then-flag path that exists precisely for a failing provider. Two individually-correct
+ * decisions combining into harm (`.brain/memory/lessons.md`).
+ *
+ * Our re-driver looks at `heartbeat_at`, so we have the same exposure. 90s matches theirs and is
+ * comfortably above a slow Sonnet extraction.
+ */
+const REQUEST_TIMEOUT_MS = 90_000;
+
 export function createAnthropicProvider(apiKey: string): LlmProvider {
   return {
     async call(request: LlmToolCallRequest): Promise<LlmProviderResult> {
       const started = Date.now();
 
+      // `AbortSignal.timeout` rejects with a TimeoutError DOMException, which the gateway's
+      // catch already treats as a provider failure -- so a hang now takes the same path a 500
+      // does rather than a path of its own.
       const response = await fetch(ANTHROPIC_API_URL, {
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
         method: "POST",
         headers: {
           "content-type": "application/json",
