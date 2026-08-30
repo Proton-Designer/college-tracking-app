@@ -101,6 +101,28 @@ export type {
   FocusSessionContext,
 } from "./day/focusSessions";
 export {
+  loadDailySession,
+  recordReview,
+  startLearnSession,
+  completeLearnSession,
+  countDue,
+  loadLibrary,
+  listLessonsForSource,
+  createSource,
+} from "./data/learn";
+export type {
+  SourceRow,
+  LessonRow,
+  LessonCardRow,
+  LessonReviewRow,
+  LearnSessionRow,
+  IngestJobRow,
+  LearnCard,
+  DailySessionView,
+  SessionCompletion,
+  SourceLibraryEntry,
+} from "./data/learn";
+export {
   buildWindowsForDay,
   loadDaySignal,
   saveAllocation,
