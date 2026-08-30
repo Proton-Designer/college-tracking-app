@@ -110,3 +110,18 @@ Web nests `/vision/review`; mobile uses `/vision-review`. Expo Router builds rou
 `app/vision.tsx` already owns the `vision` segment, so a sibling `vision/` directory beside it is
 the kind of ambiguity that resolves differently between Metro versions. **Do not "fix" this into
 matching web.**
+
+### `Constants` in `database.types.ts` is generated, complete, and imported by nothing
+The generator emits a runtime `Constants` object with every enum's values as arrays. It is correct
+as of the 2026-08-30 regeneration (30 enums, `card_type` including `enemy`) and **nothing in the
+repo imports it** — it is not even re-exported from `packages/api`'s barrel.
+
+**That is the right state; do not "fix" it by wiring it up.** The places that need an enum's values
+at runtime — `LIFE_DOMAINS`, `PRAYER_NAMES`, `MUSCLE_GROUPS`, `GOAL_RELATIONSHIPS`, the evidence
+kinds — all live in `packages/core`, which must not import the generated database types: core is
+pure by rule, and coupling the domain engine to a generated schema file would invert the dependency
+the whole layout law exists to protect. `packages/api` is the only layer allowed to know about
+`database.types.ts`, and it needs the *types*, not the arrays.
+
+The one thing that would change this: a surface in `packages/api` needing to enumerate an enum at
+runtime. There is none today.

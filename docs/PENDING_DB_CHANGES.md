@@ -1,17 +1,21 @@
 # Pending database changes — for the machine that has Supabase credentials
 
-> ## ⚠️ SUPERSEDED for the migration list — see `docs/CONNECTION_CHECKLIST.md` §0
+> ## ✅ FULLY APPLIED — nothing in this document is outstanding (2026-08-30)
 >
-> This document was written on 2026-08-27 against **migration 47 only**. Since then the Ihsan
-> merge added **48 through 64**, and this file does not describe them. Its "last applied
-> migration is 46" statement is still true; its *pending list* is not.
+> **Migration 47, the subject of this document, is applied.** So are 48–65, which this document
+> was written before and never described. `supabase db push` ran against
+> `jcikqbxwjmdduwprixpy` on 2026-08-30 and the remote migration history is now complete through
+> 65.
 >
-> **`docs/CONNECTION_CHECKLIST.md` §0 is the authoritative apply sequence** and covers all
-> eighteen. Everything below stays as the detailed write-up of migration 47 specifically —
-> the budget clamp — which is genuinely useful and is not repeated in the checklist.
+> **Two claims below are wrong and are corrected here rather than edited out.** §0 says the last
+> applied migration is 46 — it was **47**, already applied at some point before this build, which
+> neither this file nor the connection checklist knew. And the pending list names 47 alone; the
+> real pending set at push time was 48 through 65.
 >
-> Left rather than rewritten because a doc row is a claim about the past: this one accurately
-> records what was owed on 2026-08-27, and editing it to look current would destroy that.
+> Why the rest is left standing: a doc row is a claim about the past, and this one accurately
+> records what its author believed on 2026-08-27. Its migration-47 write-up — the budget clamp,
+> its failure modes, its verification SQL — is the only place that reasoning exists and is worth
+> keeping. `docs/CONNECTION_CHECKLIST.md` §0 is the live apply sequence for a fresh project.
 
 > **Read this before running anything.** Work done on 2026-08-27 produced schema and
 > data-layer changes that **could not be applied or verified here**, because this machine

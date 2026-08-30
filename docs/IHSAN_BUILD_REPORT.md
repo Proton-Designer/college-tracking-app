@@ -87,14 +87,21 @@ Executed at the end of the build:
   `origin/main`).
 - `next build` — clean, every route including `/deen`, `/fitness`, `/work`, `/business`, `/life`,
   `/learn`, `/learn/library`, `/self`.
-- RLS audited across migrations 51–58: every new table has `enable` + `force` + an owner-scoped
-  policy; 34 policies, all referencing `auth.uid()`.
+- **RLS verified against the LIVE DATABASE**, not read off the migration files: `108 tables,
+  0 without RLS, 0 without force`, queried directly on 2026-08-30 after `db push`. The
+  migration-file audit had said the same thing, but only the live query proves the migrations
+  produced what they claimed — an audit of the SQL is an audit of intent.
 - `check:core-mirror` green — the Deno mirror matches `packages/core/src` byte for byte.
 
-**Not verified, and the reason:** this machine has no Docker and no Supabase credentials, so no
-migration has touched a database and no live query has run. `database.types.ts` was hand-written for
-33 tables. Regenerating it with `db:types:cloud` is step 0.3 of the connection checklist and is
-required rather than advisory — a regeneration that changes the file means a transcription error.
+**Since resolved (2026-08-30).** The machine turned out to have working Supabase credentials after
+all. Migrations 48–65 are applied and `db:types:cloud` has run — and it found **two real
+transcription errors** the hand-written file had carried: a phantom `sunnah_slot` column on
+`task_sessions` (it belongs to `sunnah_logs` and leaked across during bulk insertion) and a missing
+`llm_usage_log.provider` (migration 55 adds it; the types never gained it). Both were invisible to
+typecheck, lint and every test, because a type that describes a column nothing references is wrong
+in a way no gate can see. That is exactly why the regeneration was written in as required.
+
+**Still not verified:** pgTAP, the E2E suite and the api integration suite — all need Docker.
 
 ---
 

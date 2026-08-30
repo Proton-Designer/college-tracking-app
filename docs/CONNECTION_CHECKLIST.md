@@ -32,10 +32,11 @@ touched a database.
 
 | # | Do | Why / notes |
 |---|---|---|
-| 0.1 | `supabase migration list` | Confirm the last **remote** migration is `46`. Migration **47** (LLM budget upper clamp) was written before this build and is still unapplied — see `docs/PENDING_DB_CHANGES.md`. |
+| 0.1 | `supabase migration list` | ✅ Run 2026-08-30. The remote was at **47**, not 46 — migration 47 had already been applied and neither this file nor `PENDING_DB_CHANGES.md` knew it. **48–65 were the real pending set.** |
 | 0.2 | `supabase db push` | Applies **47 through 65**: the budget clamp, session type + domain, profile life settings, pgvector, Deen, Fitness, Work + weekly goals, Learn, embeddings usage, Desired Self, allocation check-ins, global distractions, the sources bucket + ingest cron, progressive availability + `card_states`, the vision chain, drift confrontation, Goal Ecology, screen time, and the screen-time storage bucket. |
-| 0.3 | **`npm run db:types:cloud`** | ⚠️ **Required, not optional.** `packages/api/src/database.types.ts` was **hand-extended** during this build because `db:types` needs a live database. Every field was cross-checked against its migration by hand, but a real regeneration is the only thing that proves it. Do this before trusting a type. |
+| 0.3 | **`npm run db:types:cloud`** | ✅ Run 2026-08-30 — **and it earned its place**: a phantom `sunnah_slot` on `task_sessions` and a missing `llm_usage_log.provider`, neither visible to any gate. ⚠️ **Required, not optional.** `packages/api/src/database.types.ts` was **hand-extended** during this build because `db:types` needs a live database. Every field was cross-checked against its migration by hand, but a real regeneration is the only thing that proves it. Do this before trusting a type. |
 | 0.4 | `npm run verify` | Must exit 0 against the regenerated types. A mismatch here is a hand-transcription error, and this is where it surfaces. |
+| 0.4b | RLS on the live database | ✅ Queried 2026-08-30: **108 tables, 0 without RLS, 0 without force**. Verified against the database itself, not read off the migration files. |
 | 0.5 | Verify pgvector | Migration 50 enables it. On hosted Supabase this may instead need Dashboard → Database → Extensions, exactly as migration 1 notes for pgtap. |
 | 0.6 | **[Ayman]** First Docker session: `npm run db:reset && npm run db:test` | pgTAP over all 65 migrations. The RLS record for everything since migration 34 is live anon probes plus psql role-simulation — both passed, both weaker than pgTAP. This is the oldest debt in the repo. |
 
