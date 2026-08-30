@@ -40,9 +40,15 @@ function createRoutingProvider(options: RoutingOptions = {}): LlmProvider & { se
       }
 
       if (request.callType === "lesson_extraction") {
+        // These have to survive the write-time gates, which is the point: a fixture that would
+        // be rejected in production is not modelling production. The first version of this
+        // generator echoed a slice of the chunk back as the claim, which is precisely the
+        // selection-not-transformation failure `passesClaimNotQuote` exists to catch -- so the
+        // gates rejected every synthetic lesson and the pipeline tests went red. The gates were
+        // right; the fixture was lying about what a model returns.
         const lessons = Array.from({ length: lessonsPerChunk }, (_, i) => ({
-          title: `Lesson ${i} from chunk starting "${request.userContent.slice(0, 12)}"`,
-          coreClaim: `Claim ${i}: ${request.userContent.slice(0, 40)}`,
+          title: `Rehearse the idea instead of rereading it (${i})`,
+          coreClaim: `Deliberate rehearsal beats passive review because retrieval strengthens memory (${i}).`,
           mechanism: null,
           claimToTask: "Try it once this week.",
           evidenceStrength: "single_study",

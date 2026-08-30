@@ -5,6 +5,12 @@ import type { GatewayDeps } from "../llm/gateway.ts";
 import { callLlm } from "../llm/gateway.ts";
 import { verifyQuoteInChunk, type QuoteRejection } from "./provenance.ts";
 import {
+  passesCardTextSanity,
+  passesClaimNotQuote,
+  passesLanguageSanity,
+  passesTitleSanity,
+} from "./invariants.ts";
+import {
   EXTRACTION_TOOL_SCHEMA,
   ExtractionResultSchema,
   TRIAGE_TOOL_SCHEMA,
@@ -152,10 +158,20 @@ export interface VerifiedLesson {
   pageRef: number | null;
 }
 
+/**
+ * Why a candidate was dropped.
+ *
+ * The union spans two families deliberately: `QuoteRejection` values mean the citation was not
+ * real, and the invariant values mean the citation was real but the lesson around it was not
+ * usable. Keeping them in one channel means one drop-rate to watch, and a shift in the MIX is the
+ * earliest signal that a model's behaviour moved.
+ */
+export type DropReason = QuoteRejection | "claim_is_quote" | "language_sanity" | "text_sanity";
+
 export interface DroppedCandidate {
   chunkId: number;
   title: string;
-  reason: QuoteRejection;
+  reason: DropReason;
 }
 
 export type ExtractOutcome =
@@ -198,6 +214,34 @@ export async function extractLessonsFromChunk(
     const verification = verifyQuoteInChunk(candidate.provenanceQuote, input.chunk.text);
     if (!verification.ok) {
       dropped.push({ chunkId: input.chunk.id, title: candidate.title, reason: verification.reason });
+      continue;
+    }
+
+    // The lexical write-time gates (ULM ADR-011). These run on every provider's output and need
+    // no embeddings, so they are unconditional — unlike the semantic gates, which under D41 may
+    // have no embeddings to work with and report `unknown` instead.
+    //
+    // Ordered cheapest-first, and claim-not-quote is first among them for a reason: it is the gate
+    // that measures whether anything was actually GENERATED. A claim that is its own quote means
+    // the extractor selected rather than transformed, and every later gate would then be checking
+    // a copy against itself and passing for a degenerate reason.
+    if (!passesClaimNotQuote(candidate)) {
+      dropped.push({ chunkId: input.chunk.id, title: candidate.title, reason: "claim_is_quote" });
+      continue;
+    }
+    if (
+      !passesLanguageSanity(candidate.coreClaim) ||
+      !passesLanguageSanity(candidate.title) ||
+      (candidate.mechanism !== null && !passesLanguageSanity(candidate.mechanism))
+    ) {
+      dropped.push({ chunkId: input.chunk.id, title: candidate.title, reason: "language_sanity" });
+      continue;
+    }
+    // Both are user-facing and carry the same scaffolding risk a card prompt does — "as outlined
+    // in application answer:" reached a real database this way. The title takes the headline
+    // variant: an imperative title correctly has no terminal punctuation.
+    if (!passesTitleSanity(candidate.title) || !passesCardTextSanity(candidate.coreClaim)) {
+      dropped.push({ chunkId: input.chunk.id, title: candidate.title, reason: "text_sanity" });
       continue;
     }
     lessons.push({
