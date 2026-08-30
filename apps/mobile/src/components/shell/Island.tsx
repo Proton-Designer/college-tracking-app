@@ -1,4 +1,4 @@
-import {  BookOpen, ClipboardCheck, Home } from "lucide-react-native";
+import { ClipboardCheck, Compass, Home } from "lucide-react-native";
 import { BlurView } from "expo-blur";
 // SDK 54's expo-router (6.x) re-exports only the `Tabs` navigator from `expo-router/tabs`,
 // not the tab-bar prop types -- those live in @react-navigation/bottom-tabs, which expo-router
@@ -19,9 +19,18 @@ import { resolveFontFamily } from "../../design/fonts";
 
 type IconComponent = typeof Home;
 
+/**
+ * One icon per dock destination. A route with no entry here falls back to `Home`, which would
+ * be wrong rather than merely plain -- so this map is updated in the same change that adds a
+ * tab to `(tabs)/_layout.tsx`, never after it.
+ *
+ * `Compass` for Life: the hub is a place you orient from, and the five domains inside it each
+ * carry their own colour on their own cards. A book would have tied the tab to School, which is
+ * now one of five domains rather than the destination.
+ */
 const ICON_BY_ROUTE: Record<string, IconComponent> = {
   today: Home,
-  courses: BookOpen,
+  life: Compass,
   review: ClipboardCheck,
 };
 

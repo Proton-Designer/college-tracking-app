@@ -2,14 +2,21 @@ import { Tabs } from "expo-router";
 import { Island } from "../../components/shell/Island";
 
 /**
- * Mobile bottom tabs: Today · Courses · Review. Calendar is a segment inside Courses, not a
- * fourth tab. Settings lives in the Today header, not here.
+ * Mobile bottom tabs: Today · Life · Review. Calendar is a segment inside Courses, not a
+ * separate tab. Settings lives in the Today header, not here.
  *
  * **Where this is going.** The merged app's IA is five tabs — Today · Learn · Life · Self ·
- * Review — with Courses folding into Life▸School. Each of those joins this navigator on the day
- * its destination becomes real (Life's domains in Phase 2, Learn in Phase 4, Self in Phase 5),
- * because a tab that opens a "coming soon" screen is scaffolding wearing an empty state's clothes
- * rather than an honest one (D40).
+ * Review. Each joins this navigator on the day its destination becomes real (Learn in Phase 4,
+ * Self in Phase 5), because a tab that opens a "coming soon" screen is scaffolding wearing an
+ * empty state's clothes rather than an honest one (D40).
+ *
+ * **Life arrived when its last domain did.** The rule is that a tab joins the dock when its
+ * destination is real, and Life's destination is five real domain surfaces: Deen, Business,
+ * School, Fitness and Work all exist now. Courses gave up its tab to it and moved to
+ * `app/courses/index.tsx` — the route is unchanged (`/courses`) and it is reached from Life's
+ * School card, which is where the merged IA puts it (DESIGN_LANGUAGE_V3 §4.1). A phone can show
+ * five destinations, so on mobile the five tabs are the whole IA and the domains live inside the
+ * hub; the web sidebar unfolds the same architecture and lists them directly.
  *
  * Insights is gone as a tab: it merged into Review (collision M7), so "how am I doing" has one
  * destination instead of two competing ones.
@@ -30,7 +37,7 @@ export default function TabsLayout() {
       {/* D24: the Work Engine merged into Today as its base; the separate Hours tab is
           retired. Today is the default open, so the merged surface is the default. */}
       <Tabs.Screen name="today" options={{ title: "Today" }} />
-      <Tabs.Screen name="courses" options={{ title: "Courses" }} />
+      <Tabs.Screen name="life" options={{ title: "Life" }} />
       <Tabs.Screen name="review" options={{ title: "Review" }} />
     </Tabs>
   );

@@ -2,12 +2,13 @@ import { deriveDayBand } from "@collegeos/core";
 import { color, space } from "@collegeos/design/native";
 import { useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CapacityStrip } from "../../components/calendar/CapacityStrip";
 import { ThisWeekView } from "../../components/calendar/ThisWeekView";
 import { AddCourseModal } from "../../components/courses/AddCourseModal";
 import { BackplanChain } from "../../components/courses/BackplanChain";
-import { Aurora, Button, EmptyState, RiskPill, Skeleton, TabScreenScrollView } from "../../components/ui";
+import { Aurora, Button, EmptyState, NavLink, RiskPill, Skeleton } from "../../components/ui";
 import { textStyle } from "../../design/typography";
 import { type CalendarObligation, useCalendarData } from "../../lib/useCalendarData";
 import { type CoursesIndexRow, useCoursesIndexData } from "../../lib/useCoursesIndexData";
@@ -38,8 +39,17 @@ const VIEW_TITLE: Record<View_, string> = {
  * "what's coming" are three equal answers to "what do I want to look at right now," not a
  * thing and a sub-thing -- ratified over an earlier nested-segments proposal specifically
  * to avoid the second row reading as a sub-mode nobody presses.
+ *
+ * **This screen moved out of the `(tabs)` group** when Life took its place in the dock
+ * (DESIGN_LANGUAGE_V3 §4.1: five tabs are the whole IA on a phone, and Life is the hub the
+ * domains live inside). The route is unchanged — `/courses`, now `app/courses/index.tsx` —
+ * and the destination is reached from Life's School card. It is a plain ScrollView rather
+ * than `TabScreenScrollView` because there is no dock underneath it here; padding for a bar
+ * nothing is rendering would be dead space.
  */
 export default function CoursesScreen() {
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
   const [view, setView] = useState<View_>("courses");
   const { session } = useAuthSession();
   const courses = useCoursesIndexData();
@@ -54,7 +64,14 @@ export default function CoursesScreen() {
   return (
     <View style={styles.screen}>
       <Aurora band={dayBand} />
-      <TabScreenScrollView transparent>
+      <ScrollView
+        contentContainerStyle={[
+          styles.content,
+          { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[8] },
+        ]}
+      >
+        <NavLink label="Life" onPress={() => router.back()} />
+
         <View style={styles.headerRow}>
           <Text style={textStyle("displayM", color.ink)}>{VIEW_TITLE[view]}</Text>
           {showHeaderAddCourse ? <AddCourseModal onCreated={courses.refetch} /> : null}
@@ -69,7 +86,7 @@ export default function CoursesScreen() {
         {view === "courses" ? <CoursesView state={courses} /> : null}
         {view === "week" ? <ThisWeekSection userId={session?.user.id} state={thisWeek} /> : null}
         {view === "horizon" ? <CalendarView state={calendar} /> : null}
-      </TabScreenScrollView>
+      </ScrollView>
     </View>
   );
 }
@@ -284,6 +301,10 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: color.ground,
+  },
+  content: {
+    paddingHorizontal: space[5],
+    gap: space[6],
   },
   headerRow: {
     flexDirection: "row",
