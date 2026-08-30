@@ -1,8 +1,15 @@
 import Link from "next/link";
-import { getOwnProfile, getUserLocalToday, loadUnanchoredDrift, loadWeekReviewData } from "@collegeos/api";
+import {
+  getOwnProfile,
+  getUserLocalToday,
+  loadScreenTimeSeries,
+  loadUnanchoredDrift,
+  loadWeekReviewData,
+} from "@collegeos/api";
 import { addDays, computeWeekReview, driftLine, startOfWeek } from "@collegeos/core";
 import { Aurora, PageHeader } from "@/components/ui";
 import { UnanchoredDriftLine } from "@/components/vision/UnanchoredDriftLine";
+import { WeeklySeries } from "@/components/review/ScreenTimeStep";
 import { WeekReview } from "@/components/week/WeekReview";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -65,6 +72,9 @@ export default async function WeekPage() {
   // it, and an error banner over a review is worse than a section that is simply absent.
   const driftResult = await loadUnanchoredDrift(client, user.id, { from: fromDate, to: toDate });
 
+  // Same posture as the drift panel above: a failed read drops the section rather than the page.
+  const seriesResult = await loadScreenTimeSeries(client, user.id, fromDate);
+
   return (
     <main className="mx-auto flex w-full max-w-report flex-1 flex-col gap-8 px-8 py-10">
       <Aurora band={null} />
@@ -75,6 +85,17 @@ export default async function WeekPage() {
       <WeekReview review={review} fromDate={fromDate} toDate={toDate} />
       {driftResult.ok ? (
         <UnanchoredDriftLine report={driftResult.data} line={driftLine(driftResult.data)} />
+      ) : null}
+
+      {/* The screen-time series sits BESIDE the Hours, which is where the directive asked for it
+          and where it is legible: this page is already the place the week's time is accounted
+          for. Uploading and confirming stay on /review — this is the read, not the ritual.
+
+          Dropped entirely rather than rendered empty when nothing has ever been reported. A
+          series with no points is not a chart with holes; it is a feature the user has not
+          started, and an empty frame here would imply a gap where there is simply no history. */}
+      {seriesResult.ok && seriesResult.data.summary.reportedWeeks > 0 ? (
+        <WeeklySeries points={seriesResult.data.points} summary={seriesResult.data.summary} />
       ) : null}
     </main>
   );

@@ -328,7 +328,7 @@ function ConfirmStaged({
  * D51's rule made visual: the app does not know what happened that week and must not draw a claim
  * that it does. Nothing here counts weeks in a row.
  */
-function WeeklySeries({
+export function WeeklySeries({
   points,
   summary,
 }: {
