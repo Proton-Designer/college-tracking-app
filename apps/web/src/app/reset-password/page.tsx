@@ -84,7 +84,7 @@ export default function ResetPasswordPage() {
     return (
       <AuthShell title="Password updated">
         <p data-testid="reset-password-success" className="text-body text-ink-muted">
-          Taking you to CollegeOS.
+          Taking you to Ihsan.
         </p>
       </AuthShell>
     );

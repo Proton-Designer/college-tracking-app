@@ -298,7 +298,7 @@ export default function NightPlanScreen() {
                     ? `On, every day at ${NIGHT_PLAN_REMINDER_LABEL}.`
                     : reminder.permitted
                       ? `Off. A reminder at ${NIGHT_PLAN_REMINDER_LABEL} is what makes this a habit.`
-                      : `Notifications are off for CollegeOS, so the ${NIGHT_PLAN_REMINDER_LABEL} reminder can't run.`}
+                      : `Notifications are off for Ihsan, so the ${NIGHT_PLAN_REMINDER_LABEL} reminder can't run.`}
                 </Text>
                 <View style={styles.spacedTop}>
                   <Button variant="secondary" onPress={onToggleReminder}>

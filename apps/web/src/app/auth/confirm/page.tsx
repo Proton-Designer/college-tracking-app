@@ -49,7 +49,7 @@ export default function ConfirmEmailPage() {
   return (
     <AuthShell title="Email confirmed">
       <p data-testid="confirm-success" className="text-body text-ink-muted">
-        Taking you to CollegeOS.
+        Taking you to Ihsan.
       </p>
     </AuthShell>
   );

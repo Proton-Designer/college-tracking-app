@@ -1,4 +1,4 @@
-import { BarChart3, BookOpen, ClipboardCheck, Home } from "lucide-react-native";
+import {  BookOpen, ClipboardCheck, Home } from "lucide-react-native";
 import { BlurView } from "expo-blur";
 // SDK 54's expo-router (6.x) re-exports only the `Tabs` navigator from `expo-router/tabs`,
 // not the tab-bar prop types -- those live in @react-navigation/bottom-tabs, which expo-router
@@ -23,7 +23,6 @@ const ICON_BY_ROUTE: Record<string, IconComponent> = {
   today: Home,
   courses: BookOpen,
   review: ClipboardCheck,
-  insights: BarChart3,
 };
 
 /** `island.fill` composed with `fillAlpha` -- the tint layer sits over the blur, per §5/§2. */

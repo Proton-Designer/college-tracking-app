@@ -4,7 +4,7 @@ import { geistMono, geistSans } from "./fonts";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "CollegeOS",
+  title: "Ihsan",
   description: "A personal closed-loop operating system for a college student.",
 };
 

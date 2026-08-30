@@ -21,6 +21,7 @@ export * from './backplan/phaseTemplates';
 export * from './backplan/buildBackplan';
 
 export * from './bounceback/bounceBack';
+export * from './deen/prayerTimes';
 export * from './domains/domains';
 export * from './hours/hours';
 export * from './habits/habitScore';

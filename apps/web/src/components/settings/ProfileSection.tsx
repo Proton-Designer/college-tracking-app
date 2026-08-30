@@ -51,7 +51,7 @@ export function ProfileSection({ profile }: { profile: Profile }) {
           placeholder="America/New_York"
         />
         <p className="text-caption text-ink-faint">
-          An IANA timezone name. Every day boundary in CollegeOS — when Today rolls over, when the nightly report runs — is
+          An IANA timezone name. Every day boundary in Ihsan — when Today rolls over, when the nightly report runs — is
           computed from this. If it&apos;s wrong, your days will be wrong until you fix it.
         </p>
       </div>

@@ -44,7 +44,7 @@ export function ProfileSection({ userId, profile }: { userId: string; profile: P
       <View style={{ gap: space[1] }}>
         <Input label="Timezone" required value={timezone} onChangeText={setTimezone} placeholder="America/New_York" autoCapitalize="none" />
         <Text style={textStyle("caption", color.inkFaint)}>
-          An IANA timezone name. Every day boundary in CollegeOS — when Today rolls over, when the nightly report runs — is
+          An IANA timezone name. Every day boundary in Ihsan — when Today rolls over, when the nightly report runs — is
           computed from this. If it&apos;s wrong, your days will be wrong until you fix it.
         </Text>
       </View>

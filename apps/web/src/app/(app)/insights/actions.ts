@@ -67,7 +67,7 @@ export async function runExperiment(input: RunExperimentInput): Promise<RunExper
   });
   if (!result.ok) return { ok: false, error: result.error.message };
 
-  revalidatePath("/insights");
+  revalidatePath("/review");
   return { ok: true };
 }
 
@@ -119,7 +119,7 @@ export async function logMeasurement(input: LogMeasurementInput): Promise<Action
   });
   if (!result.ok) return { ok: false, error: result.error.message };
 
-  revalidatePath("/insights");
+  revalidatePath("/review");
   return { ok: true };
 }
 
@@ -156,7 +156,7 @@ export async function closeExperiment(input: CloseExperimentInput): Promise<Acti
   });
   if (!result.ok) return { ok: false, error: result.error.message };
 
-  revalidatePath("/insights");
+  revalidatePath("/review");
   return { ok: true };
 }
 
@@ -201,7 +201,7 @@ export async function logDecisionAction(input: LogDecisionActionInput): Promise<
   });
   if (!result.ok) return { ok: false, error: result.error.message };
 
-  revalidatePath("/insights");
+  revalidatePath("/review");
   return { ok: true };
 }
 
@@ -220,6 +220,6 @@ export async function scoreDecisionAction(input: { decisionId: number; actualOut
   const result = await scoreDecision(client, input.decisionId, { actualOutcome });
   if (!result.ok) return { ok: false, error: result.error.message };
 
-  revalidatePath("/insights");
+  revalidatePath("/review");
   return { ok: true };
 }

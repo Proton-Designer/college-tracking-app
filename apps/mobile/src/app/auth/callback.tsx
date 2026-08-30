@@ -39,7 +39,7 @@ export default function AuthCallbackScreen() {
   return (
     <AuthShell title="Email confirmed">
       <Text testID="confirm-success" style={textStyle("body", color.inkMuted)}>
-        Taking you to CollegeOS.
+        Taking you to Ihsan.
       </Text>
     </AuthShell>
   );

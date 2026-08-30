@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { parseUtterance, type ParsedUtterance } from "@collegeos/core";
 import { Button, DatePicker, Modal, TimePicker } from "@/components/ui";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -18,13 +18,28 @@ import { addTaskAction } from "@/app/(app)/today/actions";
  */
 export function VoiceCaptureModal({ today }: { today: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const toast = useToast();
-  const [open, setOpen] = useState(false);
+  const [manuallyOpened, setManuallyOpened] = useState(false);
   const [utterance, setUtterance] = useState("");
   const [dateOverride, setDateOverride] = useState<string | null>(null);
   const [timeOverride, setTimeOverride] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+
+  /**
+   * The directive asks for Capture reachable from anywhere, so the shell links here with
+   * `?capture=1` rather than duplicating the modal into the sidebar.
+   *
+   * Open state is DERIVED from the URL rather than mirrored into state by an effect. Mirroring
+   * would mean a setState inside an effect (a cascading render, and the lint rule that names it),
+   * and would also break the case that motivated the query param in the first place: pressing
+   * Capture while already on /today is a soft navigation that does not remount this component, so
+   * an initial-state read would never fire. Closing clears the param, which is what makes the
+   * modal closable while the URL still carries it.
+   */
+  const captureRequested = searchParams.get("capture") === "1";
+  const open = manuallyOpened || captureRequested;
 
   const parsed: ParsedUtterance = useMemo(() => {
     const now = new Date();
@@ -43,7 +58,8 @@ export function VoiceCaptureModal({ today }: { today: string }) {
 
   function close() {
     if (isPending) return;
-    setOpen(false);
+    setManuallyOpened(false);
+    if (captureRequested) router.replace(window.location.pathname, { scroll: false });
     setUtterance("");
     setDateOverride(null);
     setTimeOverride(null);
@@ -71,7 +87,7 @@ export function VoiceCaptureModal({ today }: { today: string }) {
 
   return (
     <>
-      <Button variant="ghost" onClick={() => setOpen(true)}>
+      <Button variant="ghost" onClick={() => setManuallyOpened(true)}>
         Capture
       </Button>
       <Modal open={open} onClose={close} title="Capture">

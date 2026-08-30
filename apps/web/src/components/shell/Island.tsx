@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, BookOpen, CalendarDays, ClipboardCheck, Settings, Sun } from "lucide-react";
+import { BookOpen, CalendarDays, ClipboardCheck, Settings, Sun } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
@@ -12,12 +12,15 @@ interface NavItem {
   icon: ComponentType<{ size?: number; strokeWidth?: number }>;
 }
 
+/**
+ * Insights is gone as a destination: it merged into Review (collision M7), so "how am I doing"
+ * has one answer rather than two competing ones.
+ */
 const NAV_ITEMS: NavItem[] = [
   { href: "/today", label: "Today", icon: Sun },
   { href: "/courses", label: "Courses", icon: BookOpen },
   { href: "/calendar", label: "Calendar", icon: CalendarDays },
   { href: "/review", label: "Review", icon: ClipboardCheck },
-  { href: "/insights", label: "Insights", icon: BarChart3 },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -26,8 +29,8 @@ function isActive(pathname: string, href: string): boolean {
 }
 
 /**
- * DESIGN_LANGUAGE_V2 §5 — the primary nav on both platforms. A floating, detached,
- * near-black glass dock: active item shows an accent pill with icon+label, inactive items
+ * The primary nav on narrow screens (the sidebar takes over from `lg` up). A floating, detached
+ * glass dock: active item shows an accent pill with icon+label, inactive items
  * are icon-only. Content reserves 88px of bottom padding (see (app)/layout.tsx) so nothing
  * is ever trapped under it. Tap targets stay 44x44 regardless of the visual icon size.
  */

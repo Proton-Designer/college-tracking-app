@@ -70,7 +70,7 @@ export default function ResetPasswordScreen() {
     return (
       <AuthShell title="Password updated">
         <Text testID="reset-password-success" style={textStyle("body", color.inkMuted)}>
-          Taking you to CollegeOS.
+          Taking you to Ihsan.
         </Text>
       </AuthShell>
     );

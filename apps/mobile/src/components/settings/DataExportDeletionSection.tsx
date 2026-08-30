@@ -57,9 +57,9 @@ function ExportCard() {
         tempFile = new File(Paths.cache, `collegeos-export-${result.data.exportedAt.slice(0, 10)}.json`);
         tempFile.create({ overwrite: true });
         tempFile.write(JSON.stringify(result.data, null, 2));
-        await Share.share({ title: "CollegeOS data export", url: tempFile.uri });
+        await Share.share({ title: "Ihsan data export", url: tempFile.uri });
       } else {
-        await Share.share({ title: "CollegeOS data export", message: JSON.stringify(result.data, null, 2) });
+        await Share.share({ title: "Ihsan data export", message: JSON.stringify(result.data, null, 2) });
       }
     } catch {
       toast.show("Couldn't open the share sheet — try again.", "error");

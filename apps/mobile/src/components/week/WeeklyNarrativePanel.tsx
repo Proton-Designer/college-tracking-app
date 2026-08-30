@@ -71,7 +71,7 @@ export function WeeklyNarrativePanel({ userId: _userId }: { userId: string }) {
           ))}
           {analysis.system_failure.length > 0 ? (
             <View style={styles.spacedTop}>
-              <Text style={textStyle("label", color.riskHigh)}>System failure — what about CollegeOS isn&apos;t working</Text>
+              <Text style={textStyle("label", color.riskHigh)}>System failure — what about Ihsan isn&apos;t working</Text>
               {analysis.system_failure.map((item, i) => (
                 <Text key={i} style={textStyle("bodyS", color.ink)}>
                   · {typeof item === "string" ? item : item.claim ?? ""}

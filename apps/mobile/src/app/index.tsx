@@ -62,7 +62,7 @@ export default function WelcomeScreen() {
         style={[styles.scroll, { paddingTop: insets.top }]}
         contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + space[8] }]}
       >
-        <Text style={textStyle("title", color.ink)}>CollegeOS</Text>
+        <Text style={textStyle("title", color.ink)}>Ihsan</Text>
 
         <View style={styles.hero}>
           <Text style={textStyle("label", color.inkFaint)}>A closed-loop system for college</Text>
@@ -70,7 +70,7 @@ export default function WelcomeScreen() {
             The day you planned.{"\n"}The day you had.
           </Text>
           <Text style={[textStyle("body", color.inkMuted), styles.subhead]}>
-            CollegeOS measures the gap between the two, explains why it opened, and changes
+            Ihsan measures the gap between the two, explains why it opened, and changes
             tomorrow&apos;s plan because of it. It doesn&apos;t cheer you on.
           </Text>
         </View>

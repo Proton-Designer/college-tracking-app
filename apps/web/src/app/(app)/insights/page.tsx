@@ -1,102 +1,23 @@
-import type { ReactNode } from "react";
-import { ActiveExperiments } from "@/components/insights/ActiveExperiments";
-import { DecisionJournal } from "@/components/insights/DecisionJournal";
-import { BounceBackSection } from "@/components/insights/BounceBackSection";
-import { CalibrationTable } from "@/components/insights/CalibrationTable";
-import { FrictionDistributionSection } from "@/components/insights/FrictionDistributionSection";
-import { InsightsList } from "@/components/insights/InsightsList";
-import { PlanningExecutionQuadrant } from "@/components/insights/PlanningExecutionQuadrant";
-import { Aurora, PageHeader, Panel } from "@/components/ui";
-import { loadInsightsData } from "./data";
+import { permanentRedirect } from "next/navigation";
 
 /**
- * L13.1 composition. This screen was six repetitions of the same hand-written section
- * markup in one undifferentiated column — every readout given identical weight, at full
- * page width, so a 1440px viewport got very long lines and no sense of what mattered.
+ * M7 (docs/IHSAN_RECONCILIATION.md §4): Insights merged into Review — one destination for
+ * "how am I doing" instead of two. The screen's contents now live in
+ * `apps/web/src/app/(app)/review/page.tsx`; this route survives only as a redirect so that
+ * bookmarks, the e2e route sweep, and any link still pointing here keep resolving.
  *
- * Two changes, both from docs/L13_DESIGN_PASS.md:
+ * Done in the page rather than as a `redirects()` entry in `next.config.ts` for two reasons:
+ * the rule belongs next to the thing it is about (a config entry would be the only trace of a
+ * moved screen, three directories away from the screen), and `next.config.ts` is outside this
+ * change's ownership. `permanentRedirect` and not `redirect` because this is a 308, not a 307
+ * — the move is permanent and should be cached as such.
  *
- * 1. One `Section` component instead of six copies, so the rhythm lives in a single place
- *    and the next section added inherits it rather than reinventing it. The hairline above
- *    each heading is the "layered hairlines, not shadows" rule from the ratified direction.
- *
- * 2. The four analytical readouts pair into two columns at >=1280px. They are independent
- *    of each other and none needs full width, so side-by-side both shortens the scroll and
- *    fixes the unmanaged line length. The three interactive sections above stay full-width:
- *    they contain forms, and a form in a half-width column on a wide screen reads as an
- *    afterthought.
+ * `data.ts` and `actions.ts` stay in this directory: they are the production callers' import
+ * path (`@/app/(app)/insights/{data,actions}`) for `@/components/insights/*`, and moving them
+ * would edit component files this change does not own. `loadInsightsData` is now called by
+ * `review/page.tsx`; the server actions are still called by ActiveExperiments, DecisionJournal
+ * and InsightsList, and now revalidate `/review`.
  */
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-3">
-      <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">{title}</h2>
-      <Panel>{children}</Panel>
-    </section>
-  );
-}
-
-export default async function InsightsPage() {
-  const result = await loadInsightsData();
-
-  if (!result.ok) {
-    return (
-      <main className="mx-auto flex w-full max-w-app flex-1 flex-col items-start gap-3 px-8 py-12">
-        <p className="font-mono text-label uppercase tracking-[0.1em] text-risk-critical">Couldn&apos;t load insights</p>
-        <p className="text-body text-ink-muted">{result.error}</p>
-      </main>
-    );
-  }
-
-  const {
-    today,
-    insightsByTier,
-    activeExperiments,
-    calibrationTable,
-    frictionDistribution,
-    frictionTrend,
-    bounceBackByHabit,
-    planningExecution,
-    decisions,
-  } = result.data;
-
-  return (
-    <main className="mx-auto flex w-full max-w-app flex-1 flex-col gap-6 px-8 py-10">
-      {/* §6.0 -- resting wash, per the Lead's ruling. This is the barest of the flat screens
-          and the explicit test case for whether 0.15 is enough for glass to read here. */}
-      <Aurora />
-      <PageHeader title="Insights" context="Last 30 days" />
-
-      <Panel>
-        <InsightsList insightsByTier={insightsByTier} />
-      </Panel>
-
-      {/* Observe-then-score, together and above the fold: an unscored trial sitting next to
-          an unscored decision is what turns closing the loop into a habit. */}
-      <Section title="Active experiments">
-        <ActiveExperiments experiments={activeExperiments} today={today} />
-      </Section>
-
-      <Section title="Decision journal">
-        <DecisionJournal decisions={decisions} />
-      </Section>
-
-      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <Section title="Task-duration calibration">
-          <CalibrationTable rows={calibrationTable} />
-        </Section>
-
-        <Section title="Friction, last 30 days">
-          <FrictionDistributionSection distribution={frictionDistribution} trend={frictionTrend} />
-        </Section>
-
-        <Section title="Bounce-back">
-          <BounceBackSection items={bounceBackByHabit} />
-        </Section>
-
-        <Section title="Planning vs. execution — yesterday">
-          <PlanningExecutionQuadrant result={planningExecution} />
-        </Section>
-      </div>
-    </main>
-  );
+export default function InsightsPage(): never {
+  permanentRedirect("/review");
 }

@@ -25,7 +25,7 @@ export default function LandingPage() {
         <AuthCodeRedirect />
       </Suspense>
       <header className="mx-auto flex w-full max-w-app items-center justify-between px-6 pt-8 sm:px-10">
-        <span className="font-sans text-title font-semibold text-ink">CollegeOS</span>
+        <span className="font-sans text-title font-semibold text-ink">Ihsan</span>
         <Link href="/login" className="text-body-s text-ink-muted underline-offset-2 hover:text-ink hover:underline">
           Sign in
         </Link>
@@ -42,7 +42,7 @@ export default function LandingPage() {
           The day you planned. The day you had.
         </h1>
         <p className="max-w-report text-body-l text-ink-muted">
-          CollegeOS measures the gap between the two, explains why it opened, and changes
+          Ihsan measures the gap between the two, explains why it opened, and changes
           tomorrow&apos;s plan because of it. It is not a to-do list, and it does not cheer you on.
         </p>
 

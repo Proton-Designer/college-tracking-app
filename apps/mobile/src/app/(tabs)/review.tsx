@@ -1,60 +1,184 @@
 import type { DailyPredictionRow, DailyReview } from "@collegeos/api";
 import { color, space } from "@collegeos/design/native";
 import { useRouter } from "expo-router";
-import { StyleSheet, Text, View } from "react-native";
+import type { ReactNode } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { ActiveExperiments } from "../../components/insights/ActiveExperiments";
+import { BounceBackSection } from "../../components/insights/BounceBackSection";
+import { CalibrationTable } from "../../components/insights/CalibrationTable";
+import { DecisionJournal } from "../../components/insights/DecisionJournal";
+import { FrictionDistributionSection } from "../../components/insights/FrictionDistributionSection";
+import { InsightsList } from "../../components/insights/InsightsList";
+import { PlanningExecutionQuadrant } from "../../components/insights/PlanningExecutionQuadrant";
 import { Aurora, Button, NavLink, PageHeader, Panel, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { ReviewForm } from "../../components/review/ReviewForm";
 import { textStyle } from "../../design/typography";
 import { useAuthSession } from "../../lib/useAuthSession";
+import { useInsightsData } from "../../lib/useInsightsData";
 import { useReviewData } from "../../lib/useReviewData";
 
+/**
+ * M7 (docs/IHSAN_RECONCILIATION.md §4). The Insights tab is retired and its screen lives here:
+ * one Review destination for "how am I doing" instead of two competing ones. Tonight's review
+ * first, then what the last 30 days say about it. (The Wall joins this screen later, same
+ * ruling.)
+ *
+ * Mirrors web's merged `/review` in order, headings and content. The one deliberate divergence
+ * is the same one the old Insights screen recorded: web pairs the four analytical readouts into
+ * two columns at >=1280px, and that does NOT port -- a phone has one column, and forcing a
+ * side-by-side here would shrink measured values below legibility. Same information, same
+ * order, same rhythm; different layout, which is the divergence SCREEN_SPEC allows.
+ *
+ * The two hooks stay separate and fail separately: a broken analytics query must not blank
+ * tonight's review, so each half carries its own loading, error and "Try again".
+ */
 export default function ReviewScreen() {
   const router = useRouter();
   const { session } = useAuthSession();
-  const result = useReviewData();
+  const review = useReviewData();
+  const insights = useInsightsData();
 
   return (
     <View style={styles.screen}>
       <Aurora band={null} />
       <TabScreenScrollView transparent>
-      <PageHeader
-        title="Night review"
-        actions={
-          result.status === "ready" ? (
-            <NavLink label="Nightly report" direction="forward" onPress={() => router.push(`/review/${result.data.today}`)} />
-          ) : undefined
-        }
-      />
+        <PageHeader
+          title="Review"
+          actions={
+            review.status === "ready" ? (
+              <NavLink label="Nightly report" direction="forward" onPress={() => router.push(`/review/${review.data.today}`)} />
+            ) : undefined
+          }
+        />
+        <WeekLink />
 
-      {result.status === "loading" ? <ReviewLoading /> : null}
+        <SurfaceGroup title="Tonight">
+          {review.status === "loading" ? <ReviewLoading /> : null}
 
-      {result.status === "error" ? (
-        <View style={styles.errorBox}>
-          <Text style={textStyle("label", color.riskCritical)}>Couldn&apos;t load tonight&apos;s review</Text>
-          <Text style={textStyle("body", color.inkMuted)}>{result.error}</Text>
-          <Button variant="secondary" onPress={result.refetch}>
-            Try again
-          </Button>
-        </View>
-      ) : null}
+          {review.status === "error" ? (
+            <View style={styles.errorBox}>
+              <Text style={textStyle("label", color.riskCritical)}>Couldn&apos;t load tonight&apos;s review</Text>
+              <Text style={textStyle("body", color.inkMuted)}>{review.error}</Text>
+              <Button variant="secondary" onPress={review.refetch}>
+                Try again
+              </Button>
+            </View>
+          ) : null}
 
-      {result.status === "ready" && session?.user.id ? (
-        result.data.existingReview ? (
-          <ReviewSaved review={result.data.existingReview} prediction={result.data.prediction} />
-        ) : (
-          <ReviewForm
-            userId={session.user.id}
-            today={result.data.today}
-            incompleteMits={result.data.incompleteMits}
-            draft={result.data.draft}
-            draftCompletionPct={result.data.draftCompletionPct}
-            prediction={result.data.prediction}
-            onSaved={result.refetch}
-          />
-        )
-      ) : null}
+          {review.status === "ready" && session?.user.id ? (
+            review.data.existingReview ? (
+              <ReviewSaved review={review.data.existingReview} prediction={review.data.prediction} />
+            ) : (
+              <ReviewForm
+                userId={session.user.id}
+                today={review.data.today}
+                incompleteMits={review.data.incompleteMits}
+                draft={review.data.draft}
+                draftCompletionPct={review.data.draftCompletionPct}
+                prediction={review.data.prediction}
+                onSaved={review.refetch}
+              />
+            )
+          ) : null}
+        </SurfaceGroup>
+
+        <SurfaceGroup title="Patterns" context="Last 30 days">
+          {insights.status === "loading" ? (
+            <View style={{ gap: space[4] }}>
+              <Skeleton height={80} radius="lg" />
+              <Skeleton height={120} radius="lg" />
+              <Skeleton height={80} radius="lg" />
+            </View>
+          ) : null}
+
+          {insights.status === "error" ? (
+            <View style={styles.errorBox}>
+              <Text style={textStyle("label", color.riskCritical)}>Couldn&apos;t load insights</Text>
+              <Text style={textStyle("body", color.inkMuted)}>{insights.error}</Text>
+              <Button variant="secondary" onPress={insights.refetch}>
+                Try again
+              </Button>
+            </View>
+          ) : null}
+
+          {insights.status === "ready" && session?.user.id ? (
+            <View style={{ gap: space[8] }}>
+              <InsightsList userId={session.user.id} insightsByTier={insights.data.insightsByTier} />
+
+              <Section title="Active experiments">
+                <ActiveExperiments
+                  experiments={insights.data.activeExperiments}
+                  today={insights.data.today}
+                  userId={session.user.id}
+                  onChanged={insights.refetch}
+                />
+              </Section>
+
+              {/* U7 sits beside experiments on purpose: both are observe-then-score, and seeing
+                  an unscored decision next to an unscored trial is what makes closing the loop a
+                  habit rather than a feature. */}
+              <Section title="Decision journal">
+                <DecisionJournal decisions={insights.data.decisions} userId={session.user.id} onChanged={insights.refetch} />
+              </Section>
+
+              <Section title="Task-duration calibration">
+                <CalibrationTable rows={insights.data.calibrationTable} />
+              </Section>
+
+              <Section title="Friction, last 30 days">
+                <FrictionDistributionSection distribution={insights.data.frictionDistribution} trend={insights.data.frictionTrend} />
+              </Section>
+
+              <Section title="Bounce-back">
+                <BounceBackSection items={insights.data.bounceBackByHabit} />
+              </Section>
+
+              <Section title="Planning vs. execution — yesterday">
+                <PlanningExecutionQuadrant result={insights.data.planningExecution} />
+              </Section>
+            </View>
+          ) : null}
+        </SurfaceGroup>
       </TabScreenScrollView>
     </View>
+  );
+}
+
+/** The two halves of the merged screen. Same hairline-plus-eyebrow device as `Section` one rank
+ *  up -- `color.ink` instead of `color.inkMuted` and more air above -- so the split between
+ *  "what happened tonight" and "what the last 30 days say" reads without inventing a new mark. */
+function SurfaceGroup({ title, context, children }: { title: string; context?: string; children: ReactNode }) {
+  return (
+    <View style={styles.group}>
+      <View style={styles.groupHeading}>
+        <Text style={textStyle("label", color.ink)}>{title}</Text>
+        {context ? <Text style={textStyle("label", color.inkFaint)}>{context}</Text> : null}
+      </View>
+      {children}
+    </View>
+  );
+}
+
+/** Matches web's analytics composition (L13.1): a hairline above each heading gives the
+ *  screen rhythm instead of leaving the readouts as one undifferentiated scroll. The
+ *  "layered hairlines, not shadows" rule from docs/L13_DESIGN_PASS.md. */
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <View style={styles.section}>
+      <Text style={textStyle("label", color.inkMuted)}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+/** Entry to the Sunday Review (/week) -- a link, not a section: the week review is its own
+ *  surface and duplicating its numbers here would be a second copy to drift. */
+function WeekLink() {
+  const router = useRouter();
+  return (
+    <Pressable onPress={() => router.push("/week")} accessibilityRole="link" hitSlop={6}>
+      <Text style={textStyle("bodyS", color.accent)}>This week in review →</Text>
+    </Pressable>
   );
 }
 
@@ -113,5 +237,22 @@ const styles = StyleSheet.create({
   },
   fieldGap: {
     gap: space[1],
+  },
+  group: {
+    gap: space[5],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: color.hairline,
+    paddingTop: space[6],
+  },
+  groupHeading: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    gap: space[3],
+  },
+  section: {
+    gap: space[3],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: color.hairline,
+    paddingTop: space[5],
   },
 });

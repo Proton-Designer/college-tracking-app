@@ -32,7 +32,7 @@ export function AuthShell({ title, subtitle, children, footer }: AuthShellProps)
           keyboardShouldPersistTaps="handled"
         >
           <Link href="/" style={textStyle("title", color.ink)}>
-            CollegeOS
+            Ihsan
           </Link>
           <Text style={[textStyle("displayM", color.ink), styles.title]}>{title}</Text>
           {subtitle ? <Text style={[textStyle("body", color.inkMuted), styles.subtitle]}>{subtitle}</Text> : null}

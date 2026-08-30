@@ -25,7 +25,7 @@ export function AuthShell({
       <Aurora reach={1.8} />
       <div className="w-full max-w-sm">
         <Link href="/" className="font-sans text-title font-semibold text-ink">
-          CollegeOS
+          Ihsan
         </Link>
         <h1 className="mt-8 font-sans text-display-m font-semibold tracking-[-0.01em] text-ink">
           {title}
