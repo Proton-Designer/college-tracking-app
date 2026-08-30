@@ -1221,7 +1221,9 @@ export type Database = {
           created_at: string;
           id: number;
           occurred_at: string;
-          session_id: number;
+          local_date: string | null;
+          session_id: number | null;
+          trigger_id: number | null;
           user_id: string;
         };
         Insert: {
@@ -1229,7 +1231,9 @@ export type Database = {
           created_at?: string;
           id?: never;
           occurred_at?: string;
-          session_id: number;
+          local_date?: string | null;
+          session_id?: number | null;
+          trigger_id?: number | null;
           user_id: string;
         };
         Update: {
@@ -1237,7 +1241,9 @@ export type Database = {
           created_at?: string;
           id?: never;
           occurred_at?: string;
-          session_id?: number;
+          local_date?: string | null;
+          session_id?: number | null;
+          trigger_id?: number | null;
           user_id?: string;
         };
         Relationships: [

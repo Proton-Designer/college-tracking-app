@@ -243,6 +243,41 @@ export async function logDistraction(
   return dataOk(data);
 }
 
+/**
+ * A distraction captured OUTSIDE an Hour -- the global counter LifeOS puts in the top bar (M5).
+ *
+ * The same table and the same six causes, with no session behind it. Two consequences worth
+ * naming: `local_date` is supplied by the caller (already computed through
+ * `localDateFromInstant`) because a session-less tap has no other way to be placed on a day, and
+ * deriving one from the timestamp at read time would land it in a UTC day (B4); and the counter
+ * trigger deliberately does nothing here, since a tap outside a session changes no session's
+ * interruption count.
+ *
+ * `triggerId` is optional. A tap with a cause and no named trigger is still a real observation,
+ * and requiring one would make the fast path slower than the thing it is trying to capture.
+ */
+export async function logGlobalDistraction(
+  client: TypedSupabaseClient,
+  userId: string,
+  input: { cause: DistractionCause; localDate: LocalDate; triggerId?: number },
+  now: Date = new Date(),
+): Promise<DataResult<DistractionRow>> {
+  const { data, error } = await client
+    .from('distractions')
+    .insert({
+      user_id: userId,
+      session_id: null,
+      cause: input.cause,
+      local_date: input.localDate,
+      occurred_at: now.toISOString(),
+      ...(input.triggerId != null ? { trigger_id: input.triggerId } : {}),
+    })
+    .select('*')
+    .single();
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(data);
+}
+
 /** Every distraction logged against one Hour, oldest first -- the cause breakdown. */
 export async function listDistractionsForSession(
   client: TypedSupabaseClient,

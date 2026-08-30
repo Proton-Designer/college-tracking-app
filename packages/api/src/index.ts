@@ -107,6 +107,7 @@ export {
   setSleepIntent,
   getDay,
   logDistraction,
+  logGlobalDistraction,
   listDistractionsForSession,
   listHoursForDate,
   listCompletedHoursInRange,
