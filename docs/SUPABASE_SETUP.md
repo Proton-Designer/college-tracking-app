@@ -206,6 +206,7 @@ is done, signup confirmation emails will silently throttle.
 | `syllabi` | **No** | uploaded syllabus PDFs | 10 MB, `application/pdf`, `image/*` |
 | `proof` | **No** | proof-of-work attachments | 10 MB, `image/*`, `application/pdf` |
 | `avatars` | **No** | profile images | 2 MB, `image/*` |
+| `sources` | **No** | Learn (ULM) source uploads | 100 MB, `application/pdf` (migration 56) |
 
 All are private and read through signed URLs. Storage RLS policies restrict every object to a path
 prefixed with the owner's user id. Verify under **Storage → Policies** that no bucket is public —
@@ -240,6 +241,33 @@ supabase secrets list
 # .env.local value (see D13 in .brain/memory/decisions.md — config/env changes need a
 # restart, `db reset` alone does not reload container-level env).
 ```
+
+### Voyage (embeddings) — optional by design, not by omission (D41)
+
+Anthropic ships no embeddings API, so the Learn pillar's pgvector plan needs a second
+vendor. **`VOYAGE_API_KEY` does not exist in any environment this product has been built
+against, and the ingestion pipeline does not wait for it.**
+
+```bash
+supabase secrets set VOYAGE_API_KEY=pa-...   # optional; see below before setting it
+```
+
+Without it, `resolveEmbeddingsProvider()` returns `null`, ingestion runs to completion,
+`source_chunks.embedding` / `lessons.embedding` stay null (migration 54's own comment says
+this is the expected state), the merge pass clusters by lexical similarity instead of
+cosine, and the job records the reason in `ingest_jobs.cursor.embeddingsSkippedReason`.
+Nothing fails and nothing is silently skipped — `supabase/functions/_shared/embeddings/
+embed.test.ts` and `_shared/learn/ingest.test.ts` both exercise the absent-key path
+directly, so it is not a branch that first runs on the day the key arrives.
+
+**Activation, when a key exists:** set the secret, redeploy `learn-ingest`, and backfill
+the vectors for sources ingested before it (`source_chunks` / `lessons` where
+`embedding is null`). Voyage spend then lands in `llm_usage_log` with
+`provider = 'voyage'` (migration 55) and counts toward the same monthly ceiling the
+Anthropic calls do — verify with
+`select provider, sum(cost_usd) from llm_usage_log where user_id = '<id>' group by provider;`.
+Confirm the published `voyage-3.5-lite` rate in `_shared/embeddings/costs.ts` against the
+first real invoice; it has never been checked against one.
 
 **Model per call type** (`docs/LLM_LAYER_SPEC.md` §1 — `LlmModel`/`LlmCallType` in
 `supabase/functions/_shared/llm/types.ts`):
@@ -605,6 +633,16 @@ allowed by migration `00000000000010`'s check constraint, so this integration ne
 
 Nightly analysis and weekly synthesis run via `pg_cron` calling an Edge Function through `pg_net`,
 registered by `supabase/migrations/00000000000014_scheduled_jobs.sql`.
+
+**A third job, `learn-ingest-redrive`, is registered by
+`supabase/migrations/00000000000059_learn_sources_bucket_and_ingest_cron.sql`** — same structure,
+same three Vault secrets, same "a fresh reset registers zero jobs" property. It runs **every minute**
+rather than nightly, because it is a latency mechanism, not a batch: it POSTs
+`{"driveAll": true}` to `learn-ingest`, which advances every `ingest_jobs` row whose `heartbeat_at`
+is older than five minutes by exactly ONE step (at most 20 jobs per tick) and returns. A job that is
+actively progressing has a fresh heartbeat and is not touched. **It spends real money at a paid API,
+which is why the Vault gate matters at least as much here as it did for the nightly job** — a local
+reset that silently started ingesting every seeded source would bill for it.
 
 **Correction to an earlier note in this doc:** an earlier version of this section said `pg_cron`/
 `pg_net` "are not present in the local stack." That was never actually verified against this

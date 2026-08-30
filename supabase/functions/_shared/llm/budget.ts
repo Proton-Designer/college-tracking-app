@@ -30,6 +30,11 @@ export async function logUsage(client: AnySupabaseClient, entry: UsageLogEntry):
   const { error } = await client.from("llm_usage_log").insert({
     user_id: entry.userId,
     call_type: entry.callType,
+    // Migration 55. Voyage embedding spend lands in this same ledger, because
+    // getMonthlySpendUsd above sums the WHOLE table -- a second vendor billing outside
+    // it would make the monthly ceiling quietly stop meaning "everything this user
+    // costs".
+    provider: entry.provider,
     model: entry.model,
     input_tokens: entry.usage.inputTokens,
     output_tokens: entry.usage.outputTokens,

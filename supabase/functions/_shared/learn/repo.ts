@@ -1,0 +1,159 @@
+// The data surface the ingestion state machine needs, as an interface.
+//
+// WHY AN INTERFACE AND NOT A SUPABASE CLIENT. The driver in ingest.ts is the piece whose
+// correctness matters most and is hardest to reason about — eight steps, a checkpointed
+// cursor, a retry ladder, three degrade paths. It has to be testable without a database,
+// and no database is reachable on this machine at all. Handing it a hand-rolled fake of
+// PostgREST's chained builder (`.from().select().eq().order().range()`) would mean the
+// driver's tests mostly test the fake. Behind this interface an in-memory repo is 150
+// honest lines, and supabaseRepo.ts is the only file that has to know what a PostgREST
+// chain looks like.
+//
+// Every method is user-scoped by the client it is built on (the Supabase implementation
+// runs as the calling user under RLS, or as service_role for cron re-drives, which then
+// passes user_id explicitly) — D18's "scope every query" rule, made structural.
+
+export type IngestStep =
+  | "queued"
+  | "extracting_text"
+  | "parsing_structure"
+  | "chunking"
+  | "embedding"
+  | "extracting_lessons"
+  | "merging"
+  | "done"
+  | "failed";
+
+export interface IngestJobRow {
+  id: number;
+  userId: string;
+  sourceId: number;
+  step: IngestStep;
+  cursor: Record<string, unknown>;
+  attempts: number;
+  costUsd: number;
+}
+
+export interface SourceRow {
+  id: number;
+  userId: string;
+  /** Null once the raw upload has been dropped (migration 54 allows retaining a source
+   *  only as its lessons). Ingestion cannot start from that state and says so. */
+  storagePath: string | null;
+  pageCount: number | null;
+  status: string;
+}
+
+export interface PageTextRow {
+  page: number;
+  text: string;
+}
+
+export interface SectionRow {
+  id: number;
+  pageStart: number | null;
+  pageEnd: number | null;
+}
+
+export interface ChunkRow {
+  id: number;
+  text: string;
+  pageStart: number | null;
+  pageEnd: number | null;
+}
+
+export interface CandidateLessonRow {
+  id: number;
+  title: string;
+  coreClaim: string;
+  pageRef: number | null;
+  embedding: number[] | null;
+}
+
+export interface NewChunk {
+  text: string;
+  pageStart: number;
+  pageEnd: number;
+  sortOrder: number;
+  sectionId: number | null;
+}
+
+export interface NewSection {
+  title: string;
+  pageStart: number;
+  pageEnd: number;
+  sortOrder: number;
+}
+
+export interface NewCandidateLesson {
+  title: string;
+  coreClaim: string;
+  mechanism: string | null;
+  claimToTask: string | null;
+  evidenceStrength: string | null;
+  provenanceQuote: string;
+  pageRef: number | null;
+  sectionId: number | null;
+  /** Written at creation when a provider exists, so the merge pass's clustering has
+   *  vectors to use. Null on the D41 path, which is what `lessons.embedding` being
+   *  nullable is for. */
+  embedding: number[] | null;
+}
+
+export interface JobPatch {
+  step?: IngestStep;
+  cursor?: Record<string, unknown>;
+  attempts?: number;
+  lastError?: string | null;
+  /** Added to the existing `cost_usd`, never overwriting it — the column accumulates
+   *  spend across every invocation of a job. */
+  addCostUsd?: number;
+}
+
+export interface IngestRepo {
+  loadJob(jobId: number): Promise<IngestJobRow | null>;
+  /** Jobs in a non-terminal step whose heartbeat predates `staleBefore` — the cron
+   *  re-driver's whole query. */
+  findStalledJobs(staleBefore: Date, limit: number): Promise<IngestJobRow[]>;
+  /** Always bumps `heartbeat_at`: any write from the driver IS a sign of life. */
+  saveJob(jobId: number, patch: JobPatch): Promise<void>;
+
+  loadSource(sourceId: number): Promise<SourceRow | null>;
+  saveSource(sourceId: number, patch: { status?: string; pageCount?: number; lessonCount?: number }): Promise<void>;
+  downloadSource(storagePath: string): Promise<Uint8Array>;
+
+  // EVERY write takes the owning `userId` EXPLICITLY rather than the repo capturing one
+  // at construction. Found the hard way while reviewing the cron path: the re-driver runs
+  // as service_role across every user's jobs and has no single caller identity, so a
+  // captured owner would have been an empty string on exactly that path — writing
+  // `user_id: ''` (a constraint violation at best, a mis-owned row at worst). The driver
+  // always has `job.userId`; passing it makes the owner of every row visible at the call
+  // site instead of implied by how the repo happened to be built.
+
+  /** `source_chunks` rows holding ONE PAGE of raw text each — the staging form described
+   *  in ingest.ts's header. Written by `extracting_text`, consumed and deleted by
+   *  `chunking`. */
+  insertPageTexts(userId: string, sourceId: number, rows: PageTextRow[]): Promise<void>;
+  loadPageTexts(sourceId: number, fromPage: number, toPage: number): Promise<PageTextRow[]>;
+  deletePageTexts(sourceId: number, fromPage: number, toPage: number): Promise<void>;
+
+  insertSections(userId: string, sourceId: number, rows: NewSection[]): Promise<void>;
+  loadSections(sourceId: number): Promise<SectionRow[]>;
+
+  insertChunks(userId: string, sourceId: number, rows: NewChunk[]): Promise<void>;
+  /** Real chunks only (never the page-text staging rows), id-ordered, id > afterId. */
+  loadChunksAfter(sourceId: number, afterChunkId: number, limit: number): Promise<ChunkRow[]>;
+  loadChunksWithoutEmbedding(sourceId: number, limit: number): Promise<ChunkRow[]>;
+  saveChunkEmbeddings(updates: Array<{ id: number; embedding: number[] }>): Promise<void>;
+
+  /** Candidates land as `lessons` rows with `active = false`. See ingest.ts's header for
+   *  why that, and not a new staging table. */
+  insertCandidateLessons(userId: string, sourceId: number, rows: NewCandidateLesson[]): Promise<void>;
+  loadCandidateLessons(sourceId: number): Promise<CandidateLessonRow[]>;
+  countCandidateLessons(sourceId: number): Promise<number>;
+  activateLessons(ids: number[]): Promise<void>;
+  deleteLessons(ids: number[]): Promise<void>;
+
+  /** `profiles.llm_monthly_budget_usd` — the gateway's ceiling for this user. */
+  loadBudgetCeilingUsd(userId: string): Promise<number>;
+}

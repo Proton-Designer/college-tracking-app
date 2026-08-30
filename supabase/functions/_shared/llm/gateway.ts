@@ -107,6 +107,10 @@ export async function callLlm<T>(deps: GatewayDeps, request: CallLlmRequest<T>):
       const logError = await tryLog(deps, {
         userId: request.userId,
         callType: request.callType,
+        // Every callLlm path is Anthropic by construction -- this gateway has no other
+        // provider. Voyage rows are written by the embeddings path, which does not (and
+        // must not) pass through the forced-tool-call contract this function encodes.
+        provider: "anthropic",
         model: request.model,
         usage: providerResult.usage,
         costUsd,
@@ -125,6 +129,7 @@ export async function callLlm<T>(deps: GatewayDeps, request: CallLlmRequest<T>):
     const schemaLogError = await tryLog(deps, {
       userId: request.userId,
       callType: request.callType,
+      provider: "anthropic",
       model: request.model,
       usage: providerResult.usage,
       costUsd: computeCostUsd(request.model, providerResult.usage, now),
@@ -147,6 +152,7 @@ async function logFailure<T>(
   return tryLog(deps, {
     userId: request.userId,
     callType: request.callType,
+    provider: "anthropic",
     model: request.model,
     usage: usage ?? { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
     costUsd: 0,

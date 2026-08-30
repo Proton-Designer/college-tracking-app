@@ -1,0 +1,643 @@
+// The `ingest_jobs` state machine — migration 54, section 5, implemented.
+//
+// THE ONE RULE: one invocation advances ONE step, checkpoints its cursor, and returns.
+// Never a loop that keeps going "while there is time left". Steps that are inherently
+// long (text extraction over 300 pages, extraction over 200 chunks) advance a SLICE and
+// leave the step where it is, so the next invocation resumes from the cursor rather than
+// from the beginning. Nothing here runs for minutes, and nothing here is lost if the
+// runtime kills the invocation mid-flight — the worst case is that one slice is redone.
+//
+// WHERE THE INTERMEDIATE TEXT LIVES, and why. Between `extracting_text` and `chunking`
+// the pipeline is holding a book's worth of raw page text across invocations. It cannot
+// live in `ingest_jobs.cursor` (megabytes of jsonb rewritten on every checkpoint) and
+// there is no page table in migration 54. So it lives in `source_chunks` in a STAGING
+// FORM: one row per page, `page_start = page_end = <page>`, and **`sort_order = -page`**.
+// The negative sort_order is the discriminator and is load-bearing — real chunks always
+// have `sort_order >= 0`, so "page rows" and "chunks" are distinguishable by a plain
+// `lt`/`gte` predicate with no extra column and no ambiguity. `chunking` reads a window
+// of page rows, writes the real chunks, and deletes the page rows it consumed, so the
+// staging form exists only inside a source whose status is still 'processing' and which
+// no reader is looking at.
+//
+// WHERE CANDIDATE LESSONS LIVE, and why. `extracting_lessons` writes candidates straight
+// into `lessons` with `active = false`; `merging` activates the survivors and deletes the
+// rest. That puts every candidate under the NOT NULL `provenance_quote` constraint at the
+// moment it is written — the schema-level firewall applies to candidates too, not only to
+// the final set — which a separate jsonb staging blob would have bypassed entirely. The
+// cost is that `active` carries a second meaning during ingestion; it is bounded by the
+// step (only ever inside a 'processing' source) and by `merging` deleting every loser.
+//
+// D9 throughout: the model triages, extracts and ranks. Deterministic code decides page
+// ranges, chunk boundaries, section structure, similarity clusters, the lesson count, the
+// dedupe guarantee, and — the one that matters most — whether a citation is real.
+
+import { embedTexts } from "../embeddings/embed.ts";
+import type { EmbeddingsProvider } from "../embeddings/types.ts";
+import { computeEmbeddingsCostUsd } from "../embeddings/costs.ts";
+import type { GatewayDeps } from "../llm/gateway.ts";
+import type { UsageLogEntry } from "../llm/types.ts";
+import { chunkPages } from "./chunking.ts";
+import { extractLessonsFromChunk, triageChunks, type ChunkForModel } from "./lessonExtraction.ts";
+import { buildClusterPlan, mergeAndRank, type MergeCandidate } from "./merge.ts";
+import { extractPdfPageRange } from "./pdfPages.ts";
+import type { IngestJobRow, IngestRepo, IngestStep, NewCandidateLesson, NewChunk } from "./repo.ts";
+import { detectSections, sectionForPage, type DetectedSection } from "./structure.ts";
+import {
+  CHUNK_WINDOW_PAGES,
+  EMBED_BATCH_SIZE,
+  EXTRACT_CHUNKS_PER_INVOCATION,
+  MAX_CANDIDATES,
+  MAX_STEP_ATTEMPTS,
+  TEXT_SLICE_PAGES,
+  TRIAGE_BATCH_SIZE,
+} from "./types.ts";
+
+export interface IngestDeps {
+  repo: IngestRepo;
+  /** Null when no ANTHROPIC_API_KEY is configured. The model steps then BLOCK (they do
+   *  not fail and do not burn attempts) — a missing key is a server configuration state
+   *  the operator fixes, not a job defect, and the job resumes the moment it is fixed. */
+  gateway: GatewayDeps | null;
+  /** Null when no VOYAGE_API_KEY is configured — D41's expected state today. */
+  embeddings: EmbeddingsProvider | null;
+  /** Injected so the driver's tests never open a PDF. */
+  extractPages: typeof extractPdfPageRange;
+  /** Voyage spend into the same ledger the budget gate sums (migration 55). */
+  logUsage: (entry: UsageLogEntry) => Promise<void>;
+  now: () => Date;
+}
+
+export type AdvanceOutcome =
+  /** A step advanced (or a slice of one did). `moreWork` says whether another invocation
+   *  has something to do right now. */
+  | { kind: "advanced"; step: IngestStep; moreWork: boolean; note: string | null }
+  /** Waiting on a credential or a decision outside this job. NOT an attempt, NOT a
+   *  failure: the cron keeps re-driving and the job proceeds when the block clears. */
+  | { kind: "blocked"; step: IngestStep; reason: string }
+  | { kind: "retry"; step: IngestStep; attempts: number; reason: string }
+  | { kind: "failed"; reason: string }
+  | { kind: "done" }
+  | { kind: "notFound" };
+
+// ============================================================================
+// Cursor readers — tolerant of a cursor written by an older shape, never crashing
+// ============================================================================
+
+function num(cursor: Record<string, unknown>, key: string, fallback: number): number {
+  const value = cursor[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function bool(cursor: Record<string, unknown>, key: string, fallback: boolean): boolean {
+  const value = cursor[key];
+  return typeof value === "boolean" ? value : fallback;
+}
+
+// ============================================================================
+// Entry points
+// ============================================================================
+
+export async function advanceIngestJob(deps: IngestDeps, jobId: number): Promise<AdvanceOutcome> {
+  const job = await deps.repo.loadJob(jobId);
+  if (!job) return { kind: "notFound" };
+  if (job.step === "done") return { kind: "done" };
+  if (job.step === "failed") return { kind: "failed", reason: "Job already failed." };
+
+  try {
+    return await runStep(deps, job);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    return await recordFailure(deps, job, reason);
+  }
+}
+
+/**
+ * Cron re-drive: every non-terminal job whose heartbeat is older than `staleBefore` gets
+ * ONE step advanced. Deliberately one step each rather than draining a job to completion:
+ * a single stalled job must not be able to consume the whole cron invocation, and the
+ * next tick will pick it up again anyway.
+ */
+export async function redriveStalledJobs(
+  deps: IngestDeps,
+  staleBefore: Date,
+  limit: number,
+): Promise<Array<{ jobId: number; outcome: AdvanceOutcome }>> {
+  const stalled = await deps.repo.findStalledJobs(staleBefore, limit);
+  const results: Array<{ jobId: number; outcome: AdvanceOutcome }> = [];
+  for (const job of stalled) {
+    results.push({ jobId: job.id, outcome: await advanceIngestJob(deps, job.id) });
+  }
+  return results;
+}
+
+// ============================================================================
+// Failure ladder
+// ============================================================================
+
+async function recordFailure(deps: IngestDeps, job: IngestJobRow, reason: string): Promise<AdvanceOutcome> {
+  const attempts = job.attempts + 1;
+  if (attempts >= MAX_STEP_ATTEMPTS) {
+    await deps.repo.saveJob(job.id, { step: "failed", attempts, lastError: reason });
+    await deps.repo.saveSource(job.sourceId, { status: "failed" });
+    return { kind: "failed", reason };
+  }
+  await deps.repo.saveJob(job.id, { attempts, lastError: reason });
+  return { kind: "retry", step: job.step, attempts, reason };
+}
+
+/** A hard stop that retrying cannot fix (no file, budget exhausted, a book that produced
+ *  nothing). Goes straight to `failed` — burning four more attempts on it would only
+ *  delay the honest answer. */
+async function failNow(deps: IngestDeps, job: IngestJobRow, reason: string): Promise<AdvanceOutcome> {
+  await deps.repo.saveJob(job.id, { step: "failed", lastError: reason });
+  await deps.repo.saveSource(job.sourceId, { status: "failed" });
+  return { kind: "failed", reason };
+}
+
+// ============================================================================
+// The steps
+// ============================================================================
+
+function runStep(deps: IngestDeps, job: IngestJobRow): Promise<AdvanceOutcome> {
+  switch (job.step) {
+    case "queued":
+      return stepQueued(deps, job);
+    case "extracting_text":
+      return stepExtractingText(deps, job);
+    case "parsing_structure":
+      return stepParsingStructure(deps, job);
+    case "chunking":
+      return stepChunking(deps, job);
+    case "embedding":
+      return stepEmbedding(deps, job);
+    case "extracting_lessons":
+      return stepExtractingLessons(deps, job);
+    case "merging":
+      return stepMerging(deps, job);
+    default:
+      return Promise.resolve({ kind: "done" });
+  }
+}
+
+async function stepQueued(deps: IngestDeps, job: IngestJobRow): Promise<AdvanceOutcome> {
+  const source = await deps.repo.loadSource(job.sourceId);
+  if (!source) return await failNow(deps, job, "Source row no longer exists.");
+  if (!source.storagePath) {
+    // Migration 54 allows a source retained only as its lessons. That is a valid source
+    // and an impossible ingestion; saying so beats retrying a download of nothing.
+    return await failNow(deps, job, "This source has no stored file to ingest.");
+  }
+
+  await deps.repo.saveSource(job.sourceId, { status: "processing" });
+  await deps.repo.saveJob(job.id, {
+    step: "extracting_text",
+    cursor: { nextPage: 1, pageCount: null },
+    attempts: 0,
+    lastError: null,
+  });
+  return { kind: "advanced", step: "extracting_text", moreWork: true, note: null };
+}
+
+async function stepExtractingText(deps: IngestDeps, job: IngestJobRow): Promise<AdvanceOutcome> {
+  const source = await deps.repo.loadSource(job.sourceId);
+  if (!source?.storagePath) return await failNow(deps, job, "Source file is no longer available.");
+
+  const nextPage = num(job.cursor, "nextPage", 1);
+  const bytes = await deps.repo.downloadSource(source.storagePath);
+  const slice = await deps.extractPages(bytes, nextPage, nextPage + TEXT_SLICE_PAGES - 1);
+
+  // Blank pages (plates, dividers, no text layer) are simply not stored:
+  // `source_chunks.text` carries a `btrim(text) <> ''` constraint, and an empty row would
+  // violate it. Their absence is unambiguous because the page NUMBER is the sort key.
+  const pages = slice.pages.filter((p) => p.text.trim().length > 0);
+  if (pages.length > 0) await deps.repo.insertPageTexts(job.userId, job.sourceId, pages);
+
+  if (source.pageCount == null) await deps.repo.saveSource(job.sourceId, { pageCount: slice.pageCount });
+
+  const followingPage = nextPage + TEXT_SLICE_PAGES;
+  if (followingPage > slice.pageCount) {
+    await deps.repo.saveJob(job.id, {
+      step: "parsing_structure",
+      cursor: { nextPage: 1, pendingTitle: null, pendingPage: null, sortOrder: 0 },
+      attempts: 0,
+      lastError: null,
+    });
+    return { kind: "advanced", step: "parsing_structure", moreWork: true, note: null };
+  }
+
+  await deps.repo.saveJob(job.id, {
+    cursor: { nextPage: followingPage, pageCount: slice.pageCount },
+    attempts: 0,
+    lastError: null,
+  });
+  return {
+    kind: "advanced",
+    step: "extracting_text",
+    moreWork: true,
+    note: `pages ${nextPage}-${Math.min(nextPage + TEXT_SLICE_PAGES - 1, slice.pageCount)} of ${slice.pageCount}`,
+  };
+}
+
+/**
+ * Structure detection, windowed.
+ *
+ * A section's END is the page before the NEXT heading, so a heading found in this window
+ * cannot be closed until the following one is seen. The cursor therefore carries one
+ * pending heading across invocations (`pendingTitle`/`pendingPage`) and the final pending
+ * heading is closed at the last page when the walk finishes. That is the whole reason
+ * this step has a cursor at all rather than reading the book in one go.
+ */
+async function stepParsingStructure(deps: IngestDeps, job: IngestJobRow): Promise<AdvanceOutcome> {
+  const source = await deps.repo.loadSource(job.sourceId);
+  const pageCount = source?.pageCount ?? 0;
+  const nextPage = num(job.cursor, "nextPage", 1);
+  const sortOrder = num(job.cursor, "sortOrder", 0);
+  const pendingTitle = typeof job.cursor.pendingTitle === "string" ? job.cursor.pendingTitle : null;
+  const pendingPage = num(job.cursor, "pendingPage", 0);
+
+  const lastPageOfWindow = nextPage + CHUNK_WINDOW_PAGES - 1;
+  const pages = await deps.repo.loadPageTexts(job.sourceId, nextPage, lastPageOfWindow);
+  const headings = detectSections(pages, lastPageOfWindow);
+
+  const toInsert: DetectedSection[] = [];
+  let carriedTitle = pendingTitle;
+  let carriedPage = pendingPage;
+  let order = sortOrder;
+
+  for (const heading of headings) {
+    if (carriedTitle != null) {
+      toInsert.push({
+        title: carriedTitle,
+        pageStart: carriedPage,
+        pageEnd: Math.max(carriedPage, heading.pageStart - 1),
+        sortOrder: order++,
+      });
+    }
+    carriedTitle = heading.title;
+    carriedPage = heading.pageStart;
+  }
+
+  const finished = lastPageOfWindow >= pageCount;
+  if (finished && carriedTitle != null) {
+    toInsert.push({
+      title: carriedTitle,
+      pageStart: carriedPage,
+      pageEnd: Math.max(carriedPage, pageCount),
+      sortOrder: order++,
+    });
+    carriedTitle = null;
+  }
+
+  if (toInsert.length > 0) await deps.repo.insertSections(job.userId, job.sourceId, toInsert);
+
+  if (finished) {
+    await deps.repo.saveJob(job.id, {
+      step: "chunking",
+      cursor: { nextPage: 1, nextSortOrder: 0 },
+      attempts: 0,
+      lastError: null,
+    });
+    return { kind: "advanced", step: "chunking", moreWork: true, note: null };
+  }
+
+  await deps.repo.saveJob(job.id, {
+    cursor: {
+      nextPage: lastPageOfWindow + 1,
+      pendingTitle: carriedTitle,
+      pendingPage: carriedTitle == null ? 0 : carriedPage,
+      sortOrder: order,
+    },
+    attempts: 0,
+    lastError: null,
+  });
+  return { kind: "advanced", step: "parsing_structure", moreWork: true, note: null };
+}
+
+async function stepChunking(deps: IngestDeps, job: IngestJobRow): Promise<AdvanceOutcome> {
+  const source = await deps.repo.loadSource(job.sourceId);
+  const pageCount = source?.pageCount ?? 0;
+  const nextPage = num(job.cursor, "nextPage", 1);
+  const nextSortOrder = num(job.cursor, "nextSortOrder", 0);
+  const lastPageOfWindow = nextPage + CHUNK_WINDOW_PAGES - 1;
+
+  const pages = await deps.repo.loadPageTexts(job.sourceId, nextPage, lastPageOfWindow);
+  const sections = await deps.repo.loadSections(job.sourceId);
+  const sectionShapes: DetectedSection[] = sections.map((s, index) => ({
+    title: "",
+    pageStart: s.pageStart ?? 1,
+    pageEnd: s.pageEnd ?? Number.MAX_SAFE_INTEGER,
+    sortOrder: index,
+  }));
+
+  const chunks = chunkPages(pages, { startSortOrder: nextSortOrder });
+  const rows: NewChunk[] = chunks.map((chunk) => {
+    // A chunk belongs to the section its FIRST page is in. Overlap can carry the tail of
+    // the previous section into a chunk; attributing it to where the chunk starts is the
+    // one rule that stays stable regardless of how the overlap fell.
+    const match = sectionForPage(sectionShapes, chunk.pageStart);
+    return {
+      text: chunk.text,
+      pageStart: chunk.pageStart,
+      pageEnd: chunk.pageEnd,
+      sortOrder: chunk.sortOrder,
+      sectionId: match ? sections[match.sortOrder]!.id : null,
+    };
+  });
+
+  if (rows.length > 0) await deps.repo.insertChunks(job.userId, job.sourceId, rows);
+  // Consumed. Deleting the staging rows here (not at the end of the step machine) keeps
+  // the two forms from coexisting for longer than one window.
+  await deps.repo.deletePageTexts(job.sourceId, nextPage, lastPageOfWindow);
+
+  if (lastPageOfWindow >= pageCount) {
+    await deps.repo.saveJob(job.id, {
+      step: "embedding",
+      cursor: { embedded: 0, skipped: false, skippedReason: null },
+      attempts: 0,
+      lastError: null,
+    });
+    return { kind: "advanced", step: "embedding", moreWork: true, note: null };
+  }
+
+  await deps.repo.saveJob(job.id, {
+    cursor: { nextPage: lastPageOfWindow + 1, nextSortOrder: nextSortOrder + rows.length },
+    attempts: 0,
+    lastError: null,
+  });
+  return { kind: "advanced", step: "chunking", moreWork: true, note: `${rows.length} chunks` };
+}
+
+/**
+ * THE D41 STEP.
+ *
+ * With no VOYAGE_API_KEY the step does not fail, does not retry, and does not silently do
+ * nothing: it records on the job WHY there are no vectors and advances. Ingestion
+ * completes end to end, `source_chunks.embedding` and `lessons.embedding` stay null (which
+ * migration 54's own comment says is the expected state), and the merge pass clusters
+ * lexically instead. Supplying the key and running a backfill is then the entire
+ * activation — no code path first runs on the day the key arrives, because this one runs
+ * every time.
+ */
+async function stepEmbedding(deps: IngestDeps, job: IngestJobRow): Promise<AdvanceOutcome> {
+  const advanceToExtraction = async (skipped: boolean, reason: string | null, embedded: number): Promise<AdvanceOutcome> => {
+    await deps.repo.saveJob(job.id, {
+      step: "extracting_lessons",
+      cursor: { afterChunkId: 0, candidates: 0, dropped: 0, embeddingsSkipped: skipped, embeddingsSkippedReason: reason },
+      attempts: 0,
+      lastError: null,
+    });
+    return {
+      kind: "advanced",
+      step: "extracting_lessons",
+      moreWork: true,
+      note: skipped ? `embeddings skipped: ${reason}` : `${embedded} chunks embedded`,
+    };
+  };
+
+  const alreadyEmbedded = num(job.cursor, "embedded", 0);
+
+  if (deps.embeddings == null) {
+    const result = await embedTexts(null, ["probe"]);
+    const reason = result.kind === "deterministicFallback" ? result.reason : "embeddings_unavailable";
+    return await advanceToExtraction(true, reason, alreadyEmbedded);
+  }
+
+  const chunks = await deps.repo.loadChunksWithoutEmbedding(job.sourceId, EMBED_BATCH_SIZE);
+  if (chunks.length === 0) {
+    return await advanceToExtraction(bool(job.cursor, "skipped", false), null, alreadyEmbedded);
+  }
+
+  const result = await embedTexts(deps.embeddings, chunks.map((c) => c.text), "document");
+
+  if (result.kind === "deterministicFallback") {
+    if (result.keyAbsent) {
+      // A key that vanished mid-run (rotated, revoked). Same treatment as never having
+      // had one: record it, keep going. Retrying cannot make a key appear.
+      return await advanceToExtraction(true, result.reason, alreadyEmbedded);
+    }
+    // A transient provider failure IS retryable, and unlike the absent key it deserves an
+    // attempt — but never at the cost of the whole ingestion, which the attempt ladder
+    // caps at MAX_STEP_ATTEMPTS before the job fails.
+    return await recordFailure(deps, job, `embedding_failed: ${result.reason}`);
+  }
+
+  await deps.repo.saveChunkEmbeddings(
+    chunks.map((chunk, index) => ({ id: chunk.id, embedding: result.vectors[index]! })),
+  );
+
+  await deps.logUsage({
+    userId: job.userId,
+    callType: "lesson_embedding",
+    provider: "voyage",
+    model: deps.embeddings.model,
+    usage: { inputTokens: result.usage.totalTokens, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+    costUsd: computeEmbeddingsCostUsd(deps.embeddings.model, result.usage.totalTokens),
+    latencyMs: result.latencyMs,
+    success: true,
+    contentHash: null,
+  });
+
+  await deps.repo.saveJob(job.id, {
+    cursor: { embedded: alreadyEmbedded + chunks.length, skipped: false, skippedReason: null },
+    attempts: 0,
+    lastError: null,
+    addCostUsd: result.costUsd,
+  });
+  return { kind: "advanced", step: "embedding", moreWork: true, note: `${chunks.length} chunks embedded` };
+}
+
+async function stepExtractingLessons(deps: IngestDeps, job: IngestJobRow): Promise<AdvanceOutcome> {
+  if (deps.gateway == null) {
+    // Not a failure and not an attempt: the server is missing a credential, which no
+    // amount of retrying by this job will fix, and which an operator fixing it should
+    // resume rather than restart. `last_error` says so honestly (D40) instead of the UI
+    // showing a stuck progress bar with no explanation.
+    const reason = "Lesson extraction is not configured on this server (no Anthropic API key).";
+    await deps.repo.saveJob(job.id, { lastError: reason });
+    return { kind: "blocked", step: "extracting_lessons", reason };
+  }
+
+  const afterChunkId = num(job.cursor, "afterChunkId", 0);
+  const candidateTotal = num(job.cursor, "candidates", 0);
+  const droppedTotal = num(job.cursor, "dropped", 0);
+
+  const toMerging = async (note: string): Promise<AdvanceOutcome> => {
+    await deps.repo.saveJob(job.id, {
+      step: "merging",
+      cursor: {
+        candidates: candidateTotal,
+        dropped: droppedTotal,
+        embeddingsSkipped: bool(job.cursor, "embeddingsSkipped", false),
+        embeddingsSkippedReason: job.cursor.embeddingsSkippedReason ?? null,
+      },
+      attempts: 0,
+      lastError: null,
+    });
+    return { kind: "advanced", step: "merging", moreWork: true, note };
+  };
+
+  if (candidateTotal >= MAX_CANDIDATES) {
+    return await toMerging(`candidate cap (${MAX_CANDIDATES}) reached`);
+  }
+
+  const chunks = await deps.repo.loadChunksAfter(job.sourceId, afterChunkId, EXTRACT_CHUNKS_PER_INVOCATION);
+  if (chunks.length === 0) return await toMerging("all chunks processed");
+
+  const budgetCeilingUsd = await deps.repo.loadBudgetCeilingUsd(job.userId);
+  const forModel: ChunkForModel[] = chunks.map((c) => ({
+    id: c.id,
+    text: c.text,
+    pageStart: c.pageStart,
+    pageEnd: c.pageEnd,
+  }));
+
+  const triage = await triageChunks(deps.gateway, {
+    userId: job.userId,
+    budgetCeilingUsd,
+    chunks: forModel.slice(0, TRIAGE_BATCH_SIZE),
+  });
+
+  let costUsd = triage.costUsd;
+  const keep = new Set(triage.keepIds);
+  const rows: NewCandidateLesson[] = [];
+  let dropped = 0;
+
+  for (const chunk of forModel) {
+    if (!keep.has(chunk.id)) continue;
+    const extraction = await extractLessonsFromChunk(deps.gateway, { userId: job.userId, budgetCeilingUsd, chunk });
+
+    if (extraction.kind === "budgetExceeded") {
+      // Not retryable within this month, and continuing would produce a partial library
+      // presented as a complete one.
+      return await failNow(deps, job, "Monthly LLM budget exceeded during lesson extraction.");
+    }
+    if (extraction.kind === "failed") {
+      return await recordFailure(deps, job, `extraction_failed: ${extraction.reason}`);
+    }
+
+    costUsd += extraction.costUsd;
+    dropped += extraction.dropped.length;
+    for (const lesson of extraction.lessons) {
+      rows.push({
+        title: lesson.title,
+        coreClaim: lesson.coreClaim,
+        mechanism: lesson.mechanism,
+        claimToTask: lesson.claimToTask,
+        evidenceStrength: lesson.evidenceStrength,
+        provenanceQuote: lesson.provenanceQuote,
+        pageRef: lesson.pageRef,
+        sectionId: null,
+        embedding: null,
+      });
+    }
+  }
+
+  // Candidate lessons are embedded HERE, at creation, rather than in a pass of their own:
+  // the merge step clusters lessons (not chunks), so this is where the vector it needs is
+  // produced, and the batch is bounded by one invocation's extraction output (tens, not
+  // hundreds). On the D41 path this call returns the named absence, every embedding stays
+  // null, and the merge pass clusters lexically instead.
+  if (rows.length > 0 && deps.embeddings != null) {
+    const embedded = await embedTexts(deps.embeddings, rows.map((row) => `${row.title} ${row.coreClaim}`), "document");
+    if (embedded.kind === "ok") {
+      rows.forEach((row, index) => {
+        row.embedding = embedded.vectors[index] ?? null;
+      });
+      costUsd += embedded.costUsd;
+      await deps.logUsage({
+        userId: job.userId,
+        callType: "lesson_embedding",
+        provider: "voyage",
+        model: deps.embeddings.model,
+        usage: { inputTokens: embedded.usage.totalTokens, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        costUsd: embedded.costUsd,
+        latencyMs: embedded.latencyMs,
+        success: true,
+        contentHash: null,
+      });
+    }
+    // A fallback here is deliberately NOT a retry: the lessons are grounded and worth
+    // storing, and a lesson with a null embedding is exactly the state the merge pass
+    // already knows how to handle.
+  }
+
+  if (rows.length > 0) await deps.repo.insertCandidateLessons(job.userId, job.sourceId, rows);
+
+  const highestId = Math.max(...chunks.map((c) => c.id));
+  await deps.repo.saveJob(job.id, {
+    cursor: {
+      afterChunkId: highestId,
+      candidates: candidateTotal + rows.length,
+      dropped: droppedTotal + dropped,
+      embeddingsSkipped: bool(job.cursor, "embeddingsSkipped", false),
+      embeddingsSkippedReason: job.cursor.embeddingsSkippedReason ?? null,
+    },
+    attempts: 0,
+    lastError: null,
+    addCostUsd: costUsd,
+  });
+
+  return {
+    kind: "advanced",
+    step: "extracting_lessons",
+    moreWork: true,
+    note: `${rows.length} grounded, ${dropped} dropped by the provenance gate${triage.degraded ? `, triage degraded (${triage.reason})` : ""}`,
+  };
+}
+
+async function stepMerging(deps: IngestDeps, job: IngestJobRow): Promise<AdvanceOutcome> {
+  const source = await deps.repo.loadSource(job.sourceId);
+  const candidates = await deps.repo.loadCandidateLessons(job.sourceId);
+
+  if (candidates.length === 0) {
+    // Honest, and specifically not "ready with zero lessons": a book that grounded
+    // nothing is a failed ingestion the user must see, not an empty library they will
+    // assume is a bug in the app.
+    return await failNow(
+      deps,
+      job,
+      "No lesson could be grounded in a verbatim passage from this source — nothing was stored.",
+    );
+  }
+
+  const mergeCandidates: MergeCandidate[] = candidates.map((c) => ({
+    id: c.id,
+    title: c.title,
+    coreClaim: c.coreClaim,
+    pageRef: c.pageRef,
+    embedding: c.embedding,
+  }));
+
+  const plan = buildClusterPlan(mergeCandidates);
+  const budgetCeilingUsd = await deps.repo.loadBudgetCeilingUsd(job.userId);
+
+  const selection = await mergeAndRank(deps.gateway, {
+    userId: job.userId,
+    budgetCeilingUsd,
+    candidates: mergeCandidates,
+    plan,
+    pageCount: source?.pageCount ?? null,
+  });
+
+  if (selection.keepIds.length > 0) await deps.repo.activateLessons(selection.keepIds);
+  if (selection.dropIds.length > 0) await deps.repo.deleteLessons(selection.dropIds);
+
+  await deps.repo.saveSource(job.sourceId, { status: "ready", lessonCount: selection.keepIds.length });
+  await deps.repo.saveJob(job.id, {
+    step: "done",
+    cursor: {
+      lessons: selection.keepIds.length,
+      dropped: selection.dropIds.length,
+      similarityMetric: plan.metric,
+      embeddingsSkipped: bool(job.cursor, "embeddingsSkipped", false),
+      embeddingsSkippedReason: job.cursor.embeddingsSkippedReason ?? null,
+      mergeDegraded: selection.degraded,
+      mergeDegradedReason: selection.reason,
+    },
+    attempts: 0,
+    lastError: null,
+    addCostUsd: selection.costUsd,
+  });
+
+  return { kind: "advanced", step: "done", moreWork: false, note: `${selection.keepIds.length} lessons (${plan.metric})` };
+}

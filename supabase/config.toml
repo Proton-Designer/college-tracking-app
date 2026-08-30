@@ -505,6 +505,14 @@ import_map = "./functions/deno.json"
 verify_jwt = false
 import_map = "./functions/deno.json"
 
+# Drives the ingest_jobs state machine one step per invocation (migration 54 §5).
+# verify_jwt = false because the cron re-drive and the self-continuation carry no user
+# JWT; user gestures are verified by getVerifiedCaller inside the handler, and the cron
+# path checks x-cron-secret before any service-role client exists (canvas-sync's shape).
+[functions.learn-ingest]
+verify_jwt = false
+import_map = "./functions/deno.json"
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
