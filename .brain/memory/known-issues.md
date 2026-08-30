@@ -78,3 +78,16 @@ standing behind it.
 ## Known-flaky
 
 None identified.
+
+### The M.O.M. close is two calls, not a transaction
+`saveMomReview` deactivates the current M.O.M. and then creates the next one in two PostgREST
+calls. The order is deliberate: deactivating first means a wrong sequence is rejected by the partial
+unique index rather than producing two live M.O.M.s, and a failure between the two reports "Closed
+the M.O.M., but couldn't set the next one" rather than a silent success. At three users this is
+fine; if it ever matters more, it wants an RPC.
+
+### Mobile route naming diverges from web for the vision review
+Web nests `/vision/review`; mobile uses `/vision-review`. Expo Router builds routes from files and
+`app/vision.tsx` already owns the `vision` segment, so a sibling `vision/` directory beside it is
+the kind of ambiguity that resolves differently between Metro versions. **Do not "fix" this into
+matching web.**
