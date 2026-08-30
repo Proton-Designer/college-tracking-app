@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { getOwnProfile, getUserLocalToday, loadWeekReviewData } from "@collegeos/api";
-import { addDays, computeWeekReview, startOfWeek } from "@collegeos/core";
+import { getOwnProfile, getUserLocalToday, loadUnanchoredDrift, loadWeekReviewData } from "@collegeos/api";
+import { addDays, computeWeekReview, driftLine, startOfWeek } from "@collegeos/core";
 import { Aurora, PageHeader } from "@/components/ui";
+import { UnanchoredDriftLine } from "@/components/vision/UnanchoredDriftLine";
 import { WeekReview } from "@/components/week/WeekReview";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -59,6 +60,11 @@ export default async function WeekPage() {
   // nothing, so the web and mobile reviews cannot disagree about the same week.
   const review = computeWeekReview(dataResult.data.hourRows, dataResult.data.causes, dataResult.data.dayFacts);
 
+  // D48's drift line, over the same Sunday-anchored week the rest of this page reads. A failed
+  // read drops the panel rather than the page: the week's Hours are still worth reading without
+  // it, and an error banner over a review is worse than a section that is simply absent.
+  const driftResult = await loadUnanchoredDrift(client, user.id, { from: fromDate, to: toDate });
+
   return (
     <main className="mx-auto flex w-full max-w-report flex-1 flex-col gap-8 px-8 py-10">
       <Aurora band={null} />
@@ -67,6 +73,9 @@ export default async function WeekPage() {
         context="Where the Hours went, what broke them, and which days actually closed."
       />
       <WeekReview review={review} fromDate={fromDate} toDate={toDate} />
+      {driftResult.ok ? (
+        <UnanchoredDriftLine report={driftResult.data} line={driftLine(driftResult.data)} />
+      ) : null}
     </main>
   );
 }

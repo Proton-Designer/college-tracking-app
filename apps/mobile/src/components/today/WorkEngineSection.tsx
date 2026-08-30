@@ -36,6 +36,10 @@ const QUICK_LINKS = [
   ["Habits", "/habits"],
   ["Worries", "/worries"],
   ["Goals", "/goals"],
+  // The chain above the War Map (D48). A stack screen, not a sixth tab -- the dock is full and
+  // a sixth destination would be a replacement rather than an addition; the web sidebar unfolds
+  // the same IA and lists Vision under Main. Reached from here, the way Goals is.
+  ["Vision", "/vision"],
   ["Drill", "/drill"],
   ["Baselines", "/baselines"],
 ] as const;

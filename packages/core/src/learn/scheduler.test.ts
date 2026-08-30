@@ -87,7 +87,10 @@ describe('scheduleFromLog', () => {
       GOOD('2026-06-20T10:00:00Z'),
     ]);
     expect(partial.reps).toBe(1);
-    expect(partial.lastReviewedAt).toBe('2026-06-01T10:00:00Z');
+    // Normalised to ISO, not echoed back as written: `lastReviewedAt` is compared against a stored
+    // `card_states.last_review_at` by the D47 oracle, and Postgres spells the same instant with a
+    // `+00:00` offset where a client spells it `Z`.
+    expect(partial.lastReviewedAt).toBe('2026-06-01T10:00:00.000Z');
   });
 });
 

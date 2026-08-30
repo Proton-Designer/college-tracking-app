@@ -209,8 +209,16 @@ Deno.test("advanceIngestJob: the full pipeline reaches done with grounded, activ
 
   const lessons = repo.state.lessons;
   assertEquals(lessons.length > 0, true);
-  assertEquals(lessons.every((l) => l.active), true, "every surviving lesson is active");
-  assertEquals(repo.state.sources.get(10)!.lessonCount, lessons.length, "lesson_count is denormalised, not guessed");
+  // Nothing is deleted by the merge pass any more: survivors are promoted, losers archived.
+  assertEquals(lessons.every((l) => l.status === "active" || l.status === "archived"), true);
+  assertEquals(lessons.some((l) => l.status === "active"), true, "the merge promoted survivors");
+  // ACTIVE lessons, not every row. Archived losers stay in the table (they must — a review
+  // may reference their cards) and counting them would inflate the library list.
+  assertEquals(
+    repo.state.sources.get(10)!.lessonCount,
+    lessons.filter((l) => l.status === "active").length,
+    "lesson_count is denormalised from the active set, not guessed",
+  );
 
   for (const lesson of lessons) {
     assertEquals(lesson.provenanceQuote.trim().length > 0, true);
@@ -422,6 +430,8 @@ Deno.test("redriveStalledJobs: picks up an old heartbeat, advances it ONE step, 
     cursor: {},
     attempts: 0,
     costUsd: 0,
+    progressCurrent: null,
+    progressTotal: null,
     heartbeatAt: new Date("2026-08-30T12:00:00Z"), // fresh
     lastError: null,
   });
@@ -472,3 +482,158 @@ Deno.test("advanceIngestJob: triage keeps the passages it says to and skips the 
     "triage must actually keep the mid-tier model off filtered passages",
   );
 });
+
+// ============================================================================
+// Progressive availability (ULM ADR-010, addendum §1.1)
+// ============================================================================
+
+Deno.test("advanceIngestJob: item-level progress is scoped to the current step and RESET between steps", async () => {
+  // The failure this exists to prevent is the one ULM measured: a stage label sitting
+  // unchanged for thirteen minutes of a healthy run, indistinguishable from a hung job to
+  // the user AND to the operator reading the table.
+  const repo = createMemoryRepo();
+  const deps = makeDeps(repo, {}, 60);
+  const job = () => repo.state.jobs.get(1)!;
+
+  await advanceIngestJob(deps, 1); // queued -> extracting_text
+  assertEquals(job().progressCurrent, 0);
+  assertEquals(job().progressTotal, null, "the page count is unknown until the first slice reads it");
+
+  await advanceIngestJob(deps, 1); // pages 1-25
+  assertEquals(job().progressCurrent, 25);
+  assertEquals(job().progressTotal, 60);
+
+  await advanceIngestJob(deps, 1); // pages 26-50
+  assertEquals(job().progressCurrent, 50);
+
+  await advanceIngestJob(deps, 1); // pages 51-60, then the step moves on
+  assertEquals(job().step, "parsing_structure");
+  assertEquals(job().progressCurrent, 0, "reset, not carried: the next step counts its own work");
+  assertEquals(job().progressTotal, 60);
+});
+
+Deno.test("advanceIngestJob: a finished job clears its progress rather than freezing at N of N", async () => {
+  const repo = createMemoryRepo();
+  const deps = makeDeps(repo, {}, 12);
+  await driveToCompletion(deps);
+
+  assertEquals(repo.state.jobs.get(1)!.step, "done");
+  assertEquals(repo.state.jobs.get(1)!.progressCurrent, null);
+  assertEquals(repo.state.jobs.get(1)!.progressTotal, null);
+});
+
+Deno.test("advanceIngestJob: a failed job clears its progress too", async () => {
+  const repo = createMemoryRepo({ storagePath: null });
+  const deps = makeDeps(repo);
+
+  const outcome = await advanceIngestJob(deps, 1);
+  assertEquals(outcome.kind, "failed");
+  assertEquals(repo.state.jobs.get(1)!.progressCurrent, null);
+  assertEquals(repo.state.jobs.get(1)!.progressTotal, null);
+});
+
+/**
+ * Walks a job to `extracting_lessons` and runs one slice, so candidates exist.
+ *
+ * 150 pages is chosen, not arbitrary: it yields 21 chunks, which is three extraction slices
+ * at EXTRACT_CHUNKS_PER_INVOCATION=8. The progressive-availability latch is evaluated at the
+ * end of every slice, so a book with only one slice could not show the gate opening BETWEEN
+ * two of them, which is the behaviour under test.
+ */
+async function driveToFirstExtractionSlice(repo: MemoryRepo, deps: IngestDeps) {
+  let guard = 0;
+  while (repo.state.jobs.get(1)!.step !== "extracting_lessons" && guard++ < 400) {
+    await advanceIngestJob(deps, 1);
+  }
+  await advanceIngestJob(deps, 1);
+}
+
+Deno.test("progressive availability: the source flips to 'partial' once enough lessons have cards", async () => {
+  // 150 pages -> targetLessonCount = 20 (the floor still binds) -> computePartialThreshold = 10.
+  // Cards are added by hand because nothing in this pipeline generates them yet; the LATCH is
+  // what is under test, and it has to fire on carded lessons rather than on lessons alone.
+  const repo = createMemoryRepo();
+  const deps = makeDeps(repo, { gateway: makeGateway(createRoutingProvider({ lessonsPerChunk: 2 }), []) }, 150);
+  await driveToFirstExtractionSlice(repo, deps);
+
+  const ids = repo.state.lessons.map((l) => l.id);
+  assertEquals(ids.length >= 10, true, "the fixture needs at least ten candidates to test the boundary");
+  assertEquals(repo.state.sources.get(10)!.status, "processing", "lessons alone are not a session");
+
+  // Card up nine lessons: still one short of the threshold.
+  for (const id of ids.slice(0, 9)) repo.addCard(id);
+  await advanceIngestJob(deps, 1);
+  assertEquals(repo.state.sources.get(10)!.status, "processing", "nine carded lessons is below the gate");
+
+  repo.addCard(ids[9]!);
+  const outcome = await advanceIngestJob(deps, 1);
+  assertEquals(repo.state.sources.get(10)!.status, "partial");
+  if (outcome.kind === "advanced") assertStringIncludes(outcome.note ?? "", "source now partial");
+});
+
+Deno.test("progressive availability: a suspended or retired card does not count toward the gate", async () => {
+  const repo = createMemoryRepo();
+  const deps = makeDeps(repo, { gateway: makeGateway(createRoutingProvider({ lessonsPerChunk: 2 }), []) }, 150);
+  await driveToFirstExtractionSlice(repo, deps);
+
+  const ids = repo.state.lessons.map((l) => l.id).slice(0, 10);
+  assertEquals(ids.length, 10);
+  for (const id of ids.slice(0, 8)) repo.addCard(id);
+  repo.addCard(ids[8]!, { suspendedAt: new Date() });
+  repo.addCard(ids[9]!, { active: false });
+
+  await advanceIngestJob(deps, 1);
+  assertEquals(
+    repo.state.sources.get(10)!.status,
+    "processing",
+    "a card nobody can be shown is not a card the offer can be made on",
+  );
+});
+
+Deno.test("merging: losers are ARCHIVED, never deleted, and their cards are suspended", async () => {
+  const repo = createMemoryRepo();
+  // The merge model keeps only the first candidate, so everything else must be archived.
+  const provider = createRoutingProvider({ lessonsPerChunk: 2 });
+  const narrowing: typeof provider = {
+    seen: provider.seen,
+    call(request) {
+      if (request.callType !== "lesson_merge") return provider.call(request);
+      const payload = JSON.parse(request.userContent) as { candidates: Array<{ id: number }> };
+      return Promise.resolve({
+        toolInput: { keep: payload.candidates.slice(0, 1).map((c, i) => ({ id: c.id, rank: i + 1 })) },
+        usage: { inputTokens: 10, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        latencyMs: 1,
+      });
+    },
+  };
+  const deps = makeDeps(repo, { gateway: makeGateway(narrowing, []) }, 12);
+
+  let guard = 0;
+  while (repo.state.jobs.get(1)!.step !== "merging" && guard++ < 100) await advanceIngestJob(deps, 1);
+  const before = repo.state.lessons.length;
+  // Give every candidate a card, so suspension is observable.
+  for (const lesson of repo.state.lessons) repo.addCard(lesson.id);
+
+  await advanceIngestJob(deps, 1);
+
+  assertEquals(repo.state.jobs.get(1)!.step, "done");
+  assertEquals(repo.state.lessons.length, before, "not one lesson row was deleted");
+  const archived = repo.state.lessons.filter((l) => l.status === "archived");
+  const active = repo.state.lessons.filter((l) => l.status === "active");
+  assertEquals(active.length, 1);
+  assertEquals(archived.length, before - 1);
+
+  const archivedIds = new Set(archived.map((l) => l.id));
+  const activeIds = new Set(active.map((l) => l.id));
+  assertEquals(
+    repo.state.cards.filter((c) => archivedIds.has(c.lessonId)).every((c) => c.suspendedAt !== null),
+    true,
+    "every archived lesson's cards stopped being served",
+  );
+  assertEquals(
+    repo.state.cards.filter((c) => activeIds.has(c.lessonId)).every((c) => c.suspendedAt === null),
+    true,
+    "a survivor's cards are untouched",
+  );
+});
+

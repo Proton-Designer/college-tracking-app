@@ -11,6 +11,8 @@ interface DraftItem {
   key: number;
   title: string;
   rank: 1 | 2 | 3 | null;
+  /** The M.O.M. this serves, when the user said so. Null is the default and stays legitimate. */
+  momId: number | null;
 }
 
 export interface NightPlanClientProps {
@@ -18,16 +20,26 @@ export interface NightPlanClientProps {
   /** Titles already planned for tomorrow, so the dump starts from what exists rather than
    *  inviting the user to retype it. */
   existingTitles: string[];
+  /**
+   * The one thing an MIT can be said to serve (D48), or null when no M.O.M. is set — in which
+   * case no picker is rendered at all rather than an empty one.
+   *
+   * **The picker is optional and must stay optional.** On the ordinary night when something
+   * urgent is the honest answer, "nothing above it" is the true answer, and a plan that refused
+   * to save without an anchor would train people to attach a lie. Nothing here defaults to
+   * attached, and nothing warns about leaving it off.
+   */
+  activeMom: { id: number; title: string } | null;
 }
 
 let nextKey = 1;
 
-export function NightPlanClient({ plannedDate, existingTitles }: NightPlanClientProps) {
+export function NightPlanClient({ plannedDate, existingTitles, activeMom }: NightPlanClientProps) {
   const router = useRouter();
   const [items, setItems] = useState<DraftItem[]>(() =>
     existingTitles.length > 0
-      ? existingTitles.map((title) => ({ key: nextKey++, title, rank: null }))
-      : [{ key: nextKey++, title: "", rank: null }],
+      ? existingTitles.map((title) => ({ key: nextKey++, title, rank: null, momId: null }))
+      : [{ key: nextKey++, title: "", rank: null, momId: null }],
   );
   const [draft, setDraft] = useState("");
   const [error, setError] = useState<string | undefined>(undefined);
@@ -39,7 +51,7 @@ export function NightPlanClient({ plannedDate, existingTitles }: NightPlanClient
   function addItem() {
     const title = draft.trim();
     if (title.length === 0) return;
-    setItems((prev) => [...prev, { key: nextKey++, title, rank: null }]);
+    setItems((prev) => [...prev, { key: nextKey++, title, rank: null, momId: null }]);
     setDraft("");
     setSaved(null);
   }
@@ -62,10 +74,16 @@ export function NightPlanClient({ plannedDate, existingTitles }: NightPlanClient
     setSaved(null);
   }
 
+  /** The optional anchor. Unchecking is always available; nothing defaults to attached. */
+  function setAnchor(key: number, momId: number | null) {
+    setItems((prev) => prev.map((item) => (item.key === key ? { ...item, momId } : item)));
+    setSaved(null);
+  }
+
   function handleSave() {
     setError(undefined);
     const payload: NightPlanItem[] = items
-      .map((i) => ({ title: i.title.trim(), rank: i.rank }))
+      .map((i) => ({ title: i.title.trim(), rank: i.rank, momId: i.momId }))
       .filter((i) => i.title.length > 0);
 
     if (payload.length === 0) {
@@ -92,6 +110,12 @@ export function NightPlanClient({ plannedDate, existingTitles }: NightPlanClient
           comes first on purpose — choosing before you have emptied your head just ranks whatever
           happens to be loudest.
         </p>
+        {activeMom != null ? (
+          <p className="text-body-s text-ink-muted">
+            Each item can say what it serves, and none of them has to. Some nights the honest answer
+            is that something urgent came up.
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-end gap-3">
           <div className="min-w-[16rem] flex-1">
             <Input
@@ -135,6 +159,17 @@ export function NightPlanClient({ plannedDate, existingTitles }: NightPlanClient
                     Remove
                   </Button>
                 </div>
+                {activeMom != null ? (
+                  <label className="flex w-full items-center gap-2 text-body-s text-ink-muted">
+                    <input
+                      type="checkbox"
+                      checked={item.momId != null}
+                      onChange={(e) => setAnchor(item.key, e.target.checked ? activeMom.id : null)}
+                      className="size-4 accent-[var(--color-accent)]"
+                    />
+                    Serves “{activeMom.title}”
+                  </label>
+                ) : null}
               </li>
             ))}
           </ul>

@@ -41,11 +41,19 @@ export const TRIAGE_BATCH_SIZE = 8;
  *  1 + TRIAGE_BATCH_SIZE model calls. */
 export const EXTRACT_CHUNKS_PER_INVOCATION = TRIAGE_BATCH_SIZE;
 
-/** Target density from the brief: ~1 lesson per 8–10 pages. 9 is the midpoint; the floor
- *  and cap below are the real guarantees. */
-export const PAGES_PER_LESSON = 9;
-export const LESSON_FLOOR = 20;
-export const LESSON_CAP = 60;
+// The lesson-count targets used to live here as a second copy. They are pure arithmetic over a
+// page count, so law 2 puts them in packages/core (`learn/ingestionTargets.ts`) and this file
+// re-exports them — one definition, one test suite, mirrored into Deno by
+// `npm run build:core-for-deno` like the rest of the domain engine.
+export {
+  LESSON_CAP,
+  LESSON_FLOOR,
+  PAGES_PER_LESSON,
+  PARTIAL_THRESHOLD_CEILING,
+  PARTIAL_THRESHOLD_FLOOR,
+  computePartialThreshold,
+  targetLessonCount,
+} from "../core/index.ts";
 
 /**
  * Near-duplicate threshold for the merge pass's clustering.
@@ -235,11 +243,5 @@ export const MERGE_TOOL_SCHEMA: Record<string, unknown> = {
   additionalProperties: false,
 };
 
-/** ~1 lesson per 8–10 pages, floor 20, cap 60 — computed, never asked of the model
- *  (D9). A source with no known page count gets the floor: the honest minimum, not a
- *  guess scaled from nothing. */
-export function targetLessonCount(pageCount: number | null): number {
-  if (pageCount == null || pageCount <= 0) return LESSON_FLOOR;
-  const scaled = Math.round(pageCount / PAGES_PER_LESSON);
-  return Math.min(LESSON_CAP, Math.max(LESSON_FLOOR, scaled));
-}
+// `targetLessonCount` and `computePartialThreshold` are re-exported at the top of this file from
+// packages/core. See the note there.

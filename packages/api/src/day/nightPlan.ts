@@ -20,6 +20,13 @@ export interface NightPlanItem {
    * one task per rank per day.
    */
   rank: 1 | 2 | 3 | null;
+  /**
+   * What this serves, when the user chose to say so — the optional "what does this serve?"
+   * picker (D48). Null and absent both mean unanchored, and that is the default rather than a
+   * lapse: forcing an answer here would make the plan unusable on the ordinary night when
+   * something urgent is the honest one, and would train people to attach a lie.
+   */
+  momId?: number | null;
 }
 
 /**
@@ -87,6 +94,7 @@ export async function saveNightPlan(
       category,
       planned_date: plannedDate,
       ...(item.rank != null ? { mit_rank: item.rank } : {}),
+      ...(item.momId != null ? { mom_id: item.momId } : {}),
     });
     // Stop at the first failure and report it with what did land, rather than silently
     // writing a partial plan the user believes is complete.

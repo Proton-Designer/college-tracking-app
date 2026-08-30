@@ -52,6 +52,25 @@ export default function ReviewScreen() {
         />
         <WeekLink />
 
+        {/* D48 -- the 90-day ritual is its own screen, linked from here only on the days it is
+            actually due. A permanent link to a quarterly ceremony is how a ceremony becomes
+            furniture; this one appears when the ninety days are up and disappears once it is
+            written. */}
+        {review.status === "ready" && review.data.momReviewDue ? (
+          <Panel>
+            <View style={{ gap: space[3] }}>
+              <Text style={textStyle("label", color.inkMuted)}>THE 90 DAYS ARE UP</Text>
+              <Text style={textStyle("bodyS", color.inkMuted)}>
+                Score the M.O.M. on its own terms, write what happened, and set the next one when you
+                are ready to.
+              </Text>
+              <Button variant="secondary" onPress={() => router.push("/vision-review")}>
+                Open the 90-day review
+              </Button>
+            </View>
+          </Panel>
+        ) : null}
+
         <SurfaceGroup title="Tonight">
           {review.status === "loading" ? <ReviewLoading /> : null}
 

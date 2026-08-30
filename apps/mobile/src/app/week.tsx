@@ -7,9 +7,11 @@ import { Aurora, Panel } from "../components/ui";
 import { WeeklyNarrativePanel } from "../components/week/WeeklyNarrativePanel";
 import { textStyle } from "../design/typography";
 import { loadWeekReview, type WeekReviewState } from "../lib/weekActions";
+import { loadWeekDrift } from "../lib/visionActions";
 import { loadBank } from "../lib/bankActions";
 import type { CourseCalibration } from "@collegeos/core";
 import { getOwnProfile, getUserLocalToday, loadThreeWeekForecast, type ThreeWeekForecastResult } from "@collegeos/api";
+import { driftLine, type UnanchoredReport } from "@collegeos/core";
 import { loadHabits, type HabitState } from "../lib/habitsActions";
 import { getMobileSupabaseClient } from "../lib/supabase/client";
 import { useAuthSession } from "../lib/useAuthSession";
@@ -40,18 +42,23 @@ export default function WeekScreen() {
   const [calibration, setCalibration] = useState<CourseCalibration[]>([]);
   const [courseCodeById, setCourseCodeById] = useState<Record<number, string>>({});
   const [forecast, setForecast] = useState<ThreeWeekForecastResult | null>(null);
+  // D48's drift line. A failed read drops the panel rather than the screen: the week's Hours are
+  // still worth reading without it.
+  const [drift, setDrift] = useState<UnanchoredReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     if (userId == null) return;
     const client = getMobileSupabaseClient();
-    const [review, habitResult, bank, profileResult] = await Promise.all([
+    const [review, habitResult, bank, profileResult, driftResult] = await Promise.all([
       loadWeekReview(userId),
       loadHabits(userId),
       loadBank(userId),
       getOwnProfile(client),
+      loadWeekDrift(userId),
     ]);
+    if (driftResult.ok) setDrift(driftResult.data);
     if (bank.ok) {
       setCalibration(bank.data.calibration);
       setCourseCodeById(bank.data.courseCodeById);
@@ -104,6 +111,30 @@ export default function WeekScreen() {
           <Text style={textStyle("bodyS", color.inkMuted)}>Loading…</Text>
         ) : (
           <>
+            {drift != null ? (
+              <Panel>
+                <Text style={textStyle("label", color.inkMuted)}>
+                  What the week&apos;s MITs connected to
+                </Text>
+                <Text style={[textStyle("body", color.ink), styles.spacedTop]}>
+                  {driftLine(drift) ??
+                    "No MITs were planned this week, so there is nothing to trace yet."}
+                </Text>
+                {drift.items.map((item) => (
+                  <View key={item.id} style={styles.driftRow}>
+                    <Text style={[textStyle("bodyS", color.ink), styles.driftTitle]}>{item.title}</Text>
+                    <Text style={textStyle("label", color.inkMuted)}>{item.date}</Text>
+                  </View>
+                ))}
+                {drift.items.length > 0 ? (
+                  <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+                    Sometimes the honest answer is that the chain is wrong rather than the night. The
+                    chain is where either one gets changed.
+                  </Text>
+                ) : null}
+              </Panel>
+            ) : null}
+
             <Panel>
               <Text style={textStyle("label", color.inkMuted)}>Hours</Text>
               <Text style={[textStyle("displayM", color.ink), styles.spacedTop]}>
@@ -252,6 +283,9 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: color.ground },
   content: { paddingHorizontal: space[5], gap: space[4] },
   spacedTop: { marginTop: space[2] },
+  // The unanchored items under the drift line. No tint and no tone: they are named, not flagged.
+  driftRow: { flexDirection: "row", alignItems: "baseline", gap: space[3], marginTop: space[2] },
+  driftTitle: { flexGrow: 1, flexShrink: 1 },
   barRow: { marginTop: space[3], gap: space[1] },
   barLabelRow: { flexDirection: "row", justifyContent: "space-between" },
   barTrack: {

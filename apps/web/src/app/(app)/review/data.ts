@@ -6,6 +6,7 @@ import {
   getReviewForDate,
   getUserLocalToday,
   listTasksForDate,
+  loadVisionChain,
   type DailyPredictionRow,
   type DailyReview,
   type NightReviewDraft,
@@ -33,6 +34,10 @@ export interface ReviewData {
   /** This morning's completion prediction for today, if one was made. Null is a real
    *  state (check-in was skipped), not a loading gap. */
   prediction: DailyPredictionRow | null;
+  /** True when the active M.O.M.'s ninety days are up and no review has been written for it
+   *  (D48). The link to that ritual appears only then -- a permanent entry point to a quarterly
+   *  ceremony is how a ceremony becomes furniture. */
+  momReviewDue: boolean;
 }
 
 export type ReviewLoadResult = { ok: true; data: ReviewData } | { ok: false; error: string };
@@ -49,11 +54,12 @@ export async function loadReviewData(): Promise<ReviewLoadResult> {
 
   const today = getUserLocalToday(profileResult.data.timezone, new Date());
 
-  const [tasksResult, reviewResult, draftResult, predictionResult] = await Promise.all([
+  const [tasksResult, reviewResult, draftResult, predictionResult, chainResult] = await Promise.all([
     listTasksForDate(client, today),
     getReviewForDate(client, today),
     getNightReviewDraft(client, user.id, today),
     getPredictionForDate(client, user.id, today),
+    loadVisionChain(client, user.id, { today }),
   ]);
   if (!tasksResult.ok) return { ok: false, error: tasksResult.error.message };
   if (!reviewResult.ok) return { ok: false, error: reviewResult.error.message };
@@ -72,6 +78,10 @@ export async function loadReviewData(): Promise<ReviewLoadResult> {
       draft: draftResult.data,
       draftCompletionPct: completionPctFromDraft(draftResult.data),
       prediction: predictionResult.data,
+      // A failed chain read degrades to "not due" rather than to an error: tonight's review must
+      // not be blocked by a quarterly ritual's query, and a missing link is a smaller failure
+      // than a blank page.
+      momReviewDue: chainResult.ok && chainResult.data.reviewDue,
     },
   };
 }

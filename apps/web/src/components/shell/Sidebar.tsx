@@ -14,6 +14,7 @@ import {
   Plus,
   Settings,
   Sun,
+  Telescope,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -66,6 +67,10 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/today", label: "Today", icon: Sun },
       { href: "/learn", label: "Learn", icon: GraduationCap },
       { href: "/self", label: "Self", icon: Compass },
+      // The chain above the War Map (D48). It sits after Self because it answers the same
+      // question one layer further out -- Self is who you are becoming, Vision is what that is
+      // for -- and before the day-to-day surfaces, which is the order the chain is read in.
+      { href: "/vision", label: "Vision", icon: Telescope },
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/week", label: "Week", icon: BarChart3 },
     ],

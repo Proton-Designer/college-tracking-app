@@ -543,6 +543,66 @@ export type Database = {
           },
         ];
       };
+      card_states: {
+        Row: {
+          card_id: number;
+          difficulty: number | null;
+          due_at: string | null;
+          lapses: number;
+          last_rating: Database["public"]["Enums"]["fsrs_rating"] | null;
+          last_review_at: string | null;
+          learning_steps: number;
+          reps: number;
+          stability: number | null;
+          state: Database["public"]["Enums"]["fsrs_card_state"];
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          card_id: number;
+          difficulty?: number | null;
+          due_at?: string | null;
+          lapses?: number;
+          last_rating?: Database["public"]["Enums"]["fsrs_rating"] | null;
+          last_review_at?: string | null;
+          learning_steps?: number;
+          reps?: number;
+          stability?: number | null;
+          state?: Database["public"]["Enums"]["fsrs_card_state"];
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          card_id?: number;
+          difficulty?: number | null;
+          due_at?: string | null;
+          lapses?: number;
+          last_rating?: Database["public"]["Enums"]["fsrs_rating"] | null;
+          last_review_at?: string | null;
+          learning_steps?: number;
+          reps?: number;
+          stability?: number | null;
+          state?: Database["public"]["Enums"]["fsrs_card_state"];
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "card_states_card_id_fkey";
+            columns: ["card_id"];
+            isOneToOne: false;
+            referencedRelation: "lesson_cards";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "card_states_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       cards: {
         Row: {
           active: boolean;
@@ -1431,6 +1491,7 @@ export type Database = {
           created_at: string;
           deadline: string | null;
           id: number;
+          mom_id: number | null;
           number: string | null;
           position: number;
           reason: string | null;
@@ -1443,6 +1504,7 @@ export type Database = {
           created_at?: string;
           deadline?: string | null;
           id?: never;
+          mom_id?: number | null;
           number?: string | null;
           position: number;
           reason?: string | null;
@@ -1455,6 +1517,7 @@ export type Database = {
           created_at?: string;
           deadline?: string | null;
           id?: never;
+          mom_id?: number | null;
           number?: string | null;
           position?: number;
           reason?: string | null;
@@ -1468,6 +1531,13 @@ export type Database = {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "goals_mom_id_fkey";
+            columns: ["mom_id"];
+            isOneToOne: false;
+            referencedRelation: "moms";
             referencedColumns: ["id"];
           },
         ];
@@ -3165,6 +3235,7 @@ export type Database = {
           estimated_minutes: number | null;
           id: number;
           mit_rank: number | null;
+          mom_id: number | null;
           planned_date: string;
           planned_location: string | null;
           planned_start_at: string | null;
@@ -3186,6 +3257,7 @@ export type Database = {
           estimated_minutes?: number | null;
           id?: never;
           mit_rank?: number | null;
+          mom_id?: number | null;
           planned_date: string;
           planned_location?: string | null;
           planned_start_at?: string | null;
@@ -3207,6 +3279,7 @@ export type Database = {
           estimated_minutes?: number | null;
           id?: never;
           mit_rank?: number | null;
+          mom_id?: number | null;
           planned_date?: string;
           planned_location?: string | null;
           planned_start_at?: string | null;
@@ -3231,6 +3304,13 @@ export type Database = {
             columns: ["deliverable_id"];
             isOneToOne: false;
             referencedRelation: "deliverables";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "tasks_mom_id_fkey";
+            columns: ["mom_id"];
+            isOneToOne: false;
+            referencedRelation: "moms";
             referencedColumns: ["id"];
           },
           {
@@ -3715,6 +3795,8 @@ export type Database = {
           ceiling: number | null;
           created_at: string;
           definition: string | null;
+          drift_alerts_enabled: boolean;
+          drift_statement: string | null;
           id: number;
           name: string;
           parent_id: number | null;
@@ -3727,6 +3809,8 @@ export type Database = {
           ceiling?: number | null;
           created_at?: string;
           definition?: string | null;
+          drift_alerts_enabled?: boolean;
+          drift_statement?: string | null;
           id?: never;
           name: string;
           parent_id?: number | null;
@@ -3739,6 +3823,8 @@ export type Database = {
           ceiling?: number | null;
           created_at?: string;
           definition?: string | null;
+          drift_alerts_enabled?: boolean;
+          drift_statement?: string | null;
           id?: never;
           name?: string;
           parent_id?: number | null;
@@ -3931,6 +4017,8 @@ export type Database = {
           heartbeat_at: string;
           id: number;
           last_error: string | null;
+          progress_current: number | null;
+          progress_total: number | null;
           source_id: number;
           step: Database["public"]["Enums"]["ingest_step"];
           updated_at: string;
@@ -3944,6 +4032,8 @@ export type Database = {
           heartbeat_at?: string;
           id?: never;
           last_error?: string | null;
+          progress_current?: number | null;
+          progress_total?: number | null;
           source_id: number;
           step?: Database["public"]["Enums"]["ingest_step"];
           updated_at?: string;
@@ -3957,6 +4047,8 @@ export type Database = {
           heartbeat_at?: string;
           id?: never;
           last_error?: string | null;
+          progress_current?: number | null;
+          progress_total?: number | null;
           source_id?: number;
           step?: Database["public"]["Enums"]["ingest_step"];
           updated_at?: string;
@@ -4040,6 +4132,7 @@ export type Database = {
           prompt: string;
           prompt_type: Database["public"]["Enums"]["lesson_prompt_type"];
           sort_order: number;
+          suspended_at: string | null;
           updated_at: string;
           user_id: string;
         };
@@ -4052,6 +4145,7 @@ export type Database = {
           prompt: string;
           prompt_type: Database["public"]["Enums"]["lesson_prompt_type"];
           sort_order?: number;
+          suspended_at?: string | null;
           updated_at?: string;
           user_id: string;
         };
@@ -4064,6 +4158,7 @@ export type Database = {
           prompt?: string;
           prompt_type?: Database["public"]["Enums"]["lesson_prompt_type"];
           sort_order?: number;
+          suspended_at?: string | null;
           updated_at?: string;
           user_id?: string;
         };
@@ -4140,7 +4235,6 @@ export type Database = {
       };
       lessons: {
         Row: {
-          active: boolean;
           claim_to_task: string | null;
           core_claim: string;
           created_at: string;
@@ -4152,12 +4246,12 @@ export type Database = {
           provenance_quote: string;
           section_id: number | null;
           source_id: number;
+          status: Database["public"]["Enums"]["lesson_status"];
           title: string;
           updated_at: string;
           user_id: string;
         };
         Insert: {
-          active?: boolean;
           claim_to_task?: string | null;
           core_claim: string;
           created_at?: string;
@@ -4169,12 +4263,12 @@ export type Database = {
           provenance_quote: string;
           section_id?: number | null;
           source_id: number;
+          status?: Database["public"]["Enums"]["lesson_status"];
           title: string;
           updated_at?: string;
           user_id: string;
         };
         Update: {
-          active?: boolean;
           claim_to_task?: string | null;
           core_claim?: string;
           created_at?: string;
@@ -4186,6 +4280,7 @@ export type Database = {
           provenance_quote?: string;
           section_id?: number | null;
           source_id?: number;
+          status?: Database["public"]["Enums"]["lesson_status"];
           title?: string;
           updated_at?: string;
           user_id?: string;
@@ -4928,6 +5023,578 @@ export type Database = {
           },
         ];
       };
+      beachheads: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          ends_on: string | null;
+          id: number;
+          starts_on: string | null;
+          target: string | null;
+          title: string;
+          updated_at: string;
+          user_id: string;
+          vision_id: number | null;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          ends_on?: string | null;
+          id?: never;
+          starts_on?: string | null;
+          target?: string | null;
+          title: string;
+          updated_at?: string;
+          user_id: string;
+          vision_id?: number | null;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          ends_on?: string | null;
+          id?: never;
+          starts_on?: string | null;
+          target?: string | null;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+          vision_id?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "beachheads_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "beachheads_vision_id_fkey";
+            columns: ["vision_id"];
+            isOneToOne: false;
+            referencedRelation: "visions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      missions: {
+        Row: {
+          active: boolean;
+          beachhead_id: number | null;
+          created_at: string;
+          ends_on: string | null;
+          id: number;
+          starts_on: string | null;
+          target: string | null;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          active?: boolean;
+          beachhead_id?: number | null;
+          created_at?: string;
+          ends_on?: string | null;
+          id?: never;
+          starts_on?: string | null;
+          target?: string | null;
+          title: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          active?: boolean;
+          beachhead_id?: number | null;
+          created_at?: string;
+          ends_on?: string | null;
+          id?: never;
+          starts_on?: string | null;
+          target?: string | null;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "missions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "missions_beachhead_id_fkey";
+            columns: ["beachhead_id"];
+            isOneToOne: false;
+            referencedRelation: "beachheads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      mom_reviews: {
+        Row: {
+          created_at: string;
+          id: number;
+          local_date: string;
+          mom_id: number;
+          next_mom_id: number | null;
+          outcome: Database["public"]["Enums"]["mom_outcome"];
+          updated_at: string;
+          user_id: string;
+          what_happened: string | null;
+        };
+        Insert: {
+          created_at?: string;
+          id?: never;
+          local_date: string;
+          mom_id: number;
+          next_mom_id?: number | null;
+          outcome: Database["public"]["Enums"]["mom_outcome"];
+          updated_at?: string;
+          user_id: string;
+          what_happened?: string | null;
+        };
+        Update: {
+          created_at?: string;
+          id?: never;
+          local_date?: string;
+          mom_id?: number;
+          next_mom_id?: number | null;
+          outcome?: Database["public"]["Enums"]["mom_outcome"];
+          updated_at?: string;
+          user_id?: string;
+          what_happened?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "mom_reviews_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "mom_reviews_mom_id_fkey";
+            columns: ["mom_id"];
+            isOneToOne: false;
+            referencedRelation: "moms";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "mom_reviews_next_mom_id_fkey";
+            columns: ["next_mom_id"];
+            isOneToOne: false;
+            referencedRelation: "moms";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      moms: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          ends_on: string | null;
+          id: number;
+          mission_id: number | null;
+          starts_on: string | null;
+          target: string | null;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          ends_on?: string | null;
+          id?: never;
+          mission_id?: number | null;
+          starts_on?: string | null;
+          target?: string | null;
+          title: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          ends_on?: string | null;
+          id?: never;
+          mission_id?: number | null;
+          starts_on?: string | null;
+          target?: string | null;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "moms_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "moms_mission_id_fkey";
+            columns: ["mission_id"];
+            isOneToOne: false;
+            referencedRelation: "missions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      visions: {
+        Row: {
+          active: boolean;
+          body: string;
+          created_at: string;
+          id: number;
+          mandate_environmental: string | null;
+          mandate_family: string | null;
+          mandate_financial: string | null;
+          mandate_physical: string | null;
+          mandate_professional: string | null;
+          mandate_relational: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          active?: boolean;
+          body: string;
+          created_at?: string;
+          id?: never;
+          mandate_environmental?: string | null;
+          mandate_family?: string | null;
+          mandate_financial?: string | null;
+          mandate_physical?: string | null;
+          mandate_professional?: string | null;
+          mandate_relational?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          active?: boolean;
+          body?: string;
+          created_at?: string;
+          id?: never;
+          mandate_environmental?: string | null;
+          mandate_family?: string | null;
+          mandate_financial?: string | null;
+          mandate_physical?: string | null;
+          mandate_professional?: string | null;
+          mandate_relational?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "visions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      drift_events: {
+        Row: {
+          created_at: string;
+          dimension_id: number;
+          evidence: Json;
+          id: number;
+          local_date: string;
+          responded_at: string | null;
+          responded_with: Database["public"]["Enums"]["drift_response"] | null;
+          shown_at: string;
+          trigger: Database["public"]["Enums"]["drift_trigger"];
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          dimension_id: number;
+          evidence?: Json;
+          id?: never;
+          local_date: string;
+          responded_at?: string | null;
+          responded_with?: Database["public"]["Enums"]["drift_response"] | null;
+          shown_at?: string;
+          trigger: Database["public"]["Enums"]["drift_trigger"];
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          dimension_id?: number;
+          evidence?: Json;
+          id?: never;
+          local_date?: string;
+          responded_at?: string | null;
+          responded_with?: Database["public"]["Enums"]["drift_response"] | null;
+          shown_at?: string;
+          trigger?: Database["public"]["Enums"]["drift_trigger"];
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "drift_events_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "drift_events_dimension_id_fkey";
+            columns: ["dimension_id"];
+            isOneToOne: false;
+            referencedRelation: "dimensions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      goal_priority_scores: {
+        Row: {
+          compound_benefit: number;
+          created_at: string;
+          goal_id: number;
+          leverage: number;
+          opportunity_cost: number;
+          scored_on: string;
+          updated_at: string;
+          user_id: string;
+          vision_alignment: number;
+        };
+        Insert: {
+          compound_benefit: number;
+          created_at?: string;
+          goal_id: number;
+          leverage: number;
+          opportunity_cost: number;
+          scored_on: string;
+          updated_at?: string;
+          user_id: string;
+          vision_alignment: number;
+        };
+        Update: {
+          compound_benefit?: number;
+          created_at?: string;
+          goal_id?: number;
+          leverage?: number;
+          opportunity_cost?: number;
+          scored_on?: string;
+          updated_at?: string;
+          user_id?: string;
+          vision_alignment?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "goal_priority_scores_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "goal_priority_scores_goal_id_fkey";
+            columns: ["goal_id"];
+            isOneToOne: false;
+            referencedRelation: "goals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      goal_relationships: {
+        Row: {
+          created_at: string;
+          goal_a_id: number;
+          goal_b_id: number;
+          id: number;
+          note: string | null;
+          relationship: Database["public"]["Enums"]["goal_relationship"];
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          goal_a_id: number;
+          goal_b_id: number;
+          id?: never;
+          note?: string | null;
+          relationship: Database["public"]["Enums"]["goal_relationship"];
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          goal_a_id?: number;
+          goal_b_id?: number;
+          id?: never;
+          note?: string | null;
+          relationship?: Database["public"]["Enums"]["goal_relationship"];
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "goal_relationships_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "goal_relationships_goal_a_id_fkey";
+            columns: ["goal_a_id"];
+            isOneToOne: false;
+            referencedRelation: "goals";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "goal_relationships_goal_b_id_fkey";
+            columns: ["goal_b_id"];
+            isOneToOne: false;
+            referencedRelation: "goals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      screen_time_extractions: {
+        Row: {
+          confidence: number | null;
+          confirmed_at: string | null;
+          created_at: string;
+          id: number;
+          item_type: string;
+          label: string | null;
+          minutes: number | null;
+          needs_input: boolean;
+          source_snippet: string | null;
+          status: string;
+          upload_id: number;
+          user_id: string;
+        };
+        Insert: {
+          confidence?: number | null;
+          confirmed_at?: string | null;
+          created_at?: string;
+          id?: never;
+          item_type: string;
+          label?: string | null;
+          minutes?: number | null;
+          needs_input?: boolean;
+          source_snippet?: string | null;
+          status?: string;
+          upload_id: number;
+          user_id: string;
+        };
+        Update: {
+          confidence?: number | null;
+          confirmed_at?: string | null;
+          created_at?: string;
+          id?: never;
+          item_type?: string;
+          label?: string | null;
+          minutes?: number | null;
+          needs_input?: boolean;
+          source_snippet?: string | null;
+          status?: string;
+          upload_id?: number;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "screen_time_extractions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "screen_time_extractions_upload_id_fkey";
+            columns: ["upload_id"];
+            isOneToOne: false;
+            referencedRelation: "screen_time_uploads";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      screen_time_uploads: {
+        Row: {
+          created_at: string;
+          error_message: string | null;
+          id: number;
+          status: string;
+          storage_path: string;
+          updated_at: string;
+          user_id: string;
+          week_start_date: string;
+        };
+        Insert: {
+          created_at?: string;
+          error_message?: string | null;
+          id?: never;
+          status?: string;
+          storage_path: string;
+          updated_at?: string;
+          user_id: string;
+          week_start_date: string;
+        };
+        Update: {
+          created_at?: string;
+          error_message?: string | null;
+          id?: never;
+          status?: string;
+          storage_path?: string;
+          updated_at?: string;
+          user_id?: string;
+          week_start_date?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "screen_time_uploads_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      screen_time_weeks: {
+        Row: {
+          breakdown: Json;
+          confirmed_at: string;
+          created_at: string;
+          daily_average_minutes: number;
+          id: number;
+          user_id: string;
+          week_start_date: string;
+        };
+        Insert: {
+          breakdown?: Json;
+          confirmed_at?: string;
+          created_at?: string;
+          daily_average_minutes: number;
+          id?: never;
+          user_id: string;
+          week_start_date: string;
+        };
+        Update: {
+          breakdown?: Json;
+          confirmed_at?: string;
+          created_at?: string;
+          daily_average_minutes?: number;
+          id?: never;
+          user_id?: string;
+          week_start_date?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "screen_time_weeks_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -4966,9 +5633,31 @@ export type Database = {
         };
         Returns: number;
       };
+      submit_learn_review: {
+        Args: {
+          p_ai_feedback?: string;
+          p_answered_text?: string;
+          p_card_id: number;
+          p_elapsed_ms?: number;
+          p_local_date: string;
+          p_next_state: Json;
+          p_rating: Database["public"]["Enums"]["fsrs_rating"];
+          p_reviewed_at: string;
+          p_session_id?: number;
+        };
+        Returns: Database["public"]["Tables"]["lesson_reviews"]["Row"];
+      };
     };
     Enums: {
-      card_type: "goal" | "motivation" | "thought_habit" | "trait" | "tenx";
+      card_type: "goal" | "motivation" | "thought_habit" | "trait" | "tenx" | "enemy";
+      drift_response: "started_hour" | "crowned_tomorrow" | "dismissed";
+      drift_trigger:
+        | "distracted_hour"
+        | "abandoned_hour"
+        | "dimension_dormant"
+        | "mit_recrowned"
+        | "day_under_baseline";
+      goal_relationship: "competing" | "neutral" | "synergistic";
       evidence_kind:
         | "session"
         | "habit_log"
@@ -4980,6 +5669,7 @@ export type Database = {
         | "milestone"
         | "experiment";
       evidence_strength: "author_anecdote" | "single_study" | "strong_research";
+      fsrs_card_state: "new" | "learning" | "review" | "relearning";
       fsrs_rating: "again" | "hard" | "good" | "easy";
       ingest_step:
         | "queued"
@@ -4992,6 +5682,8 @@ export type Database = {
         | "done"
         | "failed";
       lesson_prompt_type: "free_recall" | "application" | "cloze" | "why";
+      lesson_status: "provisional" | "active" | "archived";
+      mom_outcome: "hit" | "partial" | "missed" | "changed";
       muscle_group:
         | "chest"
         | "back_lats"
@@ -5007,7 +5699,7 @@ export type Database = {
         | "calves"
         | "core";
       source_kind: "pdf" | "epub" | "article" | "video" | "course";
-      source_status: "uploaded" | "processing" | "ready" | "failed";
+      source_status: "uploaded" | "processing" | "partial" | "ready" | "failed";
       work_target_status: "active" | "blocked" | "done" | "dropped";
       commitment_level:
         | "l0_reminder"

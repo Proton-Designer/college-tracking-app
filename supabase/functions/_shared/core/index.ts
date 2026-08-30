@@ -30,6 +30,7 @@ export * from './domains/domains.ts';
 export * from './fitness/fitness.ts';
 export * from './signal/allocation.ts';
 export * from './learn/scheduler.ts';
+export * from './learn/ingestionTargets.ts';
 export * from './self/dimensions.ts';
 export * from './vision/chain.ts';
 export * from './self/drift.ts';

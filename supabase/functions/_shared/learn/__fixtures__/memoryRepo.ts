@@ -38,7 +38,16 @@ interface StoredLesson extends NewCandidateLesson {
   id: number;
   userId: string;
   sourceId: number;
+  status: "provisional" | "active" | "archived";
+}
+
+/** Just enough of `lesson_cards` for the progressive-availability gate to be a real query. */
+interface StoredCard {
+  id: number;
+  userId: string;
+  lessonId: number;
   active: boolean;
+  suspendedAt: Date | null;
 }
 
 interface StoredSection extends NewSection {
@@ -48,11 +57,20 @@ interface StoredSection extends NewSection {
 }
 
 export interface MemoryRepoState {
-  jobs: Map<number, IngestJobRow & { heartbeatAt: Date; lastError: string | null }>;
+  jobs: Map<
+    number,
+    IngestJobRow & {
+      heartbeatAt: Date;
+      lastError: string | null;
+      progressCurrent: number | null;
+      progressTotal: number | null;
+    }
+  >;
   sources: Map<number, SourceRow & { lessonCount: number }>;
   chunks: StoredChunk[];
   sections: StoredSection[];
   lessons: StoredLesson[];
+  cards: StoredCard[];
   files: Map<string, Uint8Array>;
   budgetCeilingUsd: number;
 }
@@ -63,6 +81,14 @@ export interface MemoryRepo extends IngestRepo {
   realChunks(): StoredChunk[];
   /** Staging page rows — negative sort_order. */
   pageRows(): StoredChunk[];
+  /**
+   * Adds a card to a lesson, the way the (not yet built) card-generation step would.
+   *
+   * Migration 60's `lesson_cards_seed_card_state` trigger would also create a `card_states` row
+   * here; the ingestion driver never reads that table, so the fake does not model it. The D47
+   * oracle in packages/api is where card state gets exercised.
+   */
+  addCard(lessonId: number, options?: { active?: boolean; suspendedAt?: Date | null }): number;
 }
 
 export function createMemoryRepo(options: {
@@ -90,6 +116,8 @@ export function createMemoryRepo(options: {
         cursor: {},
         attempts: 0,
         costUsd: 0,
+        progressCurrent: null,
+        progressTotal: null,
         heartbeatAt: new Date("2026-08-30T00:00:00Z"),
         lastError: null,
       },
@@ -101,6 +129,7 @@ export function createMemoryRepo(options: {
     chunks: [],
     sections: [],
     lessons: [],
+    cards: [],
     files: new Map(storagePath ? [[storagePath, options.fileBytes ?? new Uint8Array([1, 2, 3])]] : []),
     budgetCeilingUsd: options.budgetCeilingUsd ?? 20,
   };
@@ -120,10 +149,26 @@ export function createMemoryRepo(options: {
   const realChunks = () => state.chunks.filter((c) => c.sortOrder >= 0);
   const pageRows = () => state.chunks.filter((c) => c.sortOrder < 0);
 
+  let nextCardId = 1;
+
   return {
     state,
     realChunks,
     pageRows,
+
+    addCard(lessonId, options = {}) {
+      const lesson = state.lessons.find((l) => l.id === lessonId);
+      if (!lesson) throw new Error(`no lesson ${lessonId}`);
+      const id = nextCardId++;
+      state.cards.push({
+        id,
+        userId: lesson.userId,
+        lessonId,
+        active: options.active ?? true,
+        suspendedAt: options.suspendedAt ?? null,
+      });
+      return id;
+    },
 
     loadJob(id) {
       const job = state.jobs.get(id);
@@ -151,6 +196,9 @@ export function createMemoryRepo(options: {
       if (patch.attempts !== undefined) job.attempts = patch.attempts;
       if (patch.lastError !== undefined) job.lastError = patch.lastError;
       if (patch.addCostUsd != null) job.costUsd += patch.addCostUsd;
+      // `!== undefined` rather than a truthiness check: null clears, 0 is a real value.
+      if (patch.progressCurrent !== undefined) job.progressCurrent = patch.progressCurrent;
+      if (patch.progressTotal !== undefined) job.progressTotal = patch.progressTotal;
       job.heartbeatAt = new Date(job.heartbeatAt.getTime() + 1000);
       return Promise.resolve();
     },
@@ -258,6 +306,10 @@ export function createMemoryRepo(options: {
       return Promise.resolve(rows);
     },
 
+    countChunks(source) {
+      return Promise.resolve(realChunks().filter((c) => c.sourceId === source).length);
+    },
+
     saveChunkEmbeddings(updates) {
       for (const update of updates) {
         const chunk = state.chunks.find((c) => c.id === update.id);
@@ -274,30 +326,51 @@ export function createMemoryRepo(options: {
         if (row.provenanceQuote == null || row.provenanceQuote.trim().length === 0) {
           throw new Error("lessons_provenance_not_blank violated");
         }
-        state.lessons.push({ ...row, id: nextLessonId++, userId: owner, sourceId: source, active: false });
+        state.lessons.push({ ...row, id: nextLessonId++, userId: owner, sourceId: source, status: "provisional" });
       }
       return Promise.resolve();
     },
 
     loadCandidateLessons(source) {
       const rows: CandidateLessonRow[] = state.lessons
-        .filter((l) => l.sourceId === source && !l.active)
+        .filter((l) => l.sourceId === source && l.status === "provisional")
         .sort((a, b) => a.id - b.id)
         .map((l) => ({ id: l.id, title: l.title, coreClaim: l.coreClaim, pageRef: l.pageRef, embedding: l.embedding }));
       return Promise.resolve(rows);
     },
 
     countCandidateLessons(source) {
-      return Promise.resolve(state.lessons.filter((l) => l.sourceId === source && !l.active).length);
+      return Promise.resolve(
+        state.lessons.filter((l) => l.sourceId === source && l.status === "provisional").length,
+      );
     },
 
-    activateLessons(ids) {
-      for (const lesson of state.lessons) if (ids.includes(lesson.id)) lesson.active = true;
+    countLessonsWithCards(source) {
+      const servable = new Set(
+        state.cards.filter((c) => c.active && c.suspendedAt == null).map((c) => c.lessonId),
+      );
+      return Promise.resolve(
+        state.lessons.filter((l) => l.sourceId === source && l.status !== "archived" && servable.has(l.id))
+          .length,
+      );
+    },
+
+    promoteLessons(ids) {
+      for (const lesson of state.lessons) if (ids.includes(lesson.id)) lesson.status = "active";
       return Promise.resolve();
     },
 
-    deleteLessons(ids) {
-      state.lessons = state.lessons.filter((l) => !ids.includes(l.id));
+    archiveLessons(ids) {
+      // Archived, never removed — and the migration-60 trigger's card suspension is reproduced
+      // here, because a fake that keeps serving a suspended card hides exactly the bug the
+      // trigger exists to prevent.
+      for (const lesson of state.lessons) {
+        if (!ids.includes(lesson.id) || lesson.status === "archived") continue;
+        lesson.status = "archived";
+        for (const card of state.cards) {
+          if (card.lessonId === lesson.id && card.suspendedAt == null) card.suspendedAt = new Date();
+        }
+      }
       return Promise.resolve();
     },
 

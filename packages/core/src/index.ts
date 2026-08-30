@@ -27,6 +27,7 @@ export * from './domains/domains';
 export * from './fitness/fitness';
 export * from './signal/allocation';
 export * from './learn/scheduler';
+export * from './learn/ingestionTargets';
 export * from './self/dimensions';
 export * from './vision/chain';
 export * from './self/drift';

@@ -6,6 +6,7 @@ import {
   getReviewForDate,
   getUserLocalToday,
   listTasksForDate,
+  loadVisionChain,
   type DailyPredictionRow,
   type DailyReview,
   type NightReviewDraft,
@@ -22,6 +23,10 @@ export interface ReviewData {
   draft: NightReviewDraft;
   draftCompletionPct: number;
   prediction: DailyPredictionRow | null;
+  /** True when the active M.O.M.'s ninety days are up and no review has been written for it
+   *  (D48). The link to that ritual appears only then -- a permanent entry point to a quarterly
+   *  ceremony is how a ceremony becomes furniture. */
+  momReviewDue: boolean;
 }
 
 export type ReviewFetchState =
@@ -52,7 +57,8 @@ export function useReviewData() {
         getReviewForDate(client, today),
         getNightReviewDraft(client, userId, today),
         getPredictionForDate(client, userId, today),
-      ]).then(([tasksResult, reviewResult, draftResult, predictionResult]) => {
+        loadVisionChain(client, userId, { today }),
+      ]).then(([tasksResult, reviewResult, draftResult, predictionResult, chainResult]) => {
         if (cancelled) return;
         if (!tasksResult.ok) {
           setFetchState({ status: "error", error: tasksResult.error.message });
@@ -80,6 +86,9 @@ export function useReviewData() {
             draft: draftResult.data,
             draftCompletionPct: completionPctFromDraft(draftResult.data),
             prediction: predictionResult.data,
+            // A failed chain read degrades to "not due" rather than to an error: tonight's
+            // review must not be blocked by a quarterly ritual's query.
+            momReviewDue: chainResult.ok && chainResult.data.reviewDue,
           },
         });
       });

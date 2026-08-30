@@ -13,6 +13,7 @@ import {
   NIGHT_PLAN_CATEGORY_LABEL,
 } from "../lib/nightPlanActions";
 import { loadMilestonesForDump } from "../lib/goalsActions";
+import { loadActiveMom } from "../lib/visionActions";
 import {
   cancelNightPlanReminder,
   ensureNightPlanReminder,
@@ -27,6 +28,12 @@ interface DumpItem {
   id: number;
   title: string;
   rank: 1 | 2 | 3 | null;
+  /**
+   * What this serves, when the user chose to say (D48). Null is the default and stays a complete
+   * answer: on the ordinary night when something urgent is the honest one, "nothing above it" is
+   * true, and a required picker would train people to attach a lie.
+   */
+  momId: number | null;
 }
 
 const MAX_STARRED = 3;
@@ -58,6 +65,16 @@ export default function NightPlanScreen() {
   const [today, setToday] = useState<DayState | null>(null);
   const [reminder, setReminder] = useState<NightPlanReminderState | null>(null);
   const [habitStates, setHabitStates] = useState<HabitState[]>([]);
+  // The one thing an MIT can be said to serve. Null means no picker at all rather than an empty
+  // one, and a failed read degrades the same way -- the plan is still writable without it.
+  const [activeMom, setActiveMom] = useState<{ id: number; title: string } | null>(null);
+
+  useEffect(() => {
+    if (userId == null) return;
+    void loadActiveMom(userId).then((r) => {
+      if (r.ok && r.data != null) setActiveMom({ id: r.data.id, title: r.data.title });
+    });
+  }, [userId]);
 
   useEffect(() => {
     if (userId == null) return;
@@ -85,7 +102,10 @@ export default function NightPlanScreen() {
         if (texts.length === 0) return;
         setItems((prev) => {
           const startId = prev.length + 1;
-          return [...prev, ...texts.map((title, i) => ({ id: startId + i, title, rank: null }))];
+          return [
+            ...prev,
+            ...texts.map((title, i) => ({ id: startId + i, title, rank: null, momId: null })),
+          ];
         });
         setNextId((n) => n + texts.length);
       },
@@ -136,7 +156,7 @@ export default function NightPlanScreen() {
   const addItem = useCallback(() => {
     const title = draft.trim();
     if (title.length === 0) return;
-    setItems((prev) => [...prev, { id: nextId, title, rank: null }]);
+    setItems((prev) => [...prev, { id: nextId, title, rank: null, momId: null }]);
     setNextId((n) => n + 1);
     setDraft("");
   }, [draft, nextId]);
@@ -173,6 +193,11 @@ export default function NightPlanScreen() {
     });
   }, []);
 
+  /** The optional anchor. Untapping is always available; nothing defaults to attached. */
+  const setAnchor = useCallback((id: number, momId: number | null) => {
+    setItems((prev) => prev.map((item) => (item.id === id ? { ...item, momId } : item)));
+  }, []);
+
   const onSave = useCallback(async () => {
     if (userId == null || tomorrow == null) return;
     setBusy(true);
@@ -180,7 +205,7 @@ export default function NightPlanScreen() {
     const result = await saveNightPlanAction(
       userId,
       tomorrow,
-      items.map((i) => ({ title: i.title, rank: i.rank })),
+      items.map((i) => ({ title: i.title, rank: i.rank, momId: i.momId })),
     );
     setBusy(false);
     if (!result.ok) {
@@ -257,27 +282,48 @@ export default function NightPlanScreen() {
                 <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
                   Tap to star. Tap a starred item again to crown it as the MIT.
                 </Text>
+                {activeMom != null ? (
+                  <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
+                    Each item can say what it serves, and none of them has to. Some nights the honest
+                    answer is that something urgent came up.
+                  </Text>
+                ) : null}
                 <View style={styles.list}>
                   {items.map((item) => (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => cycle(item.id)}
-                      accessibilityRole="button"
-                      style={[styles.row, item.rank != null ? styles.rowStarred : null]}
-                    >
-                      <Text style={styles.marker}>
-                        {item.rank === 1 ? "♛" : item.rank != null ? "★" : "○"}
-                      </Text>
-                      <Text style={[textStyle("body", color.ink), styles.rowTitle]}>{item.title}</Text>
+                    <View key={item.id}>
                       <Pressable
-                        onPress={() => setItems((prev) => prev.filter((i) => i.id !== item.id))}
+                        onPress={() => cycle(item.id)}
                         accessibilityRole="button"
-                        accessibilityLabel={`Remove ${item.title}`}
-                        hitSlop={8}
+                        style={[styles.row, item.rank != null ? styles.rowStarred : null]}
                       >
-                        <Text style={textStyle("bodyS", color.inkFaint)}>✕</Text>
+                        <Text style={styles.marker}>
+                          {item.rank === 1 ? "♛" : item.rank != null ? "★" : "○"}
+                        </Text>
+                        <Text style={[textStyle("body", color.ink), styles.rowTitle]}>{item.title}</Text>
+                        <Pressable
+                          onPress={() => setItems((prev) => prev.filter((i) => i.id !== item.id))}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Remove ${item.title}`}
+                          hitSlop={8}
+                        >
+                          <Text style={textStyle("bodyS", color.inkFaint)}>✕</Text>
+                        </Pressable>
                       </Pressable>
-                    </Pressable>
+                      {activeMom != null ? (
+                        <Pressable
+                          onPress={() => setAnchor(item.id, item.momId != null ? null : activeMom.id)}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: item.momId != null }}
+                          accessibilityLabel={`${item.title} serves ${activeMom.title}`}
+                          style={styles.anchorRow}
+                        >
+                          <Text style={styles.marker}>{item.momId != null ? "☑" : "☐"}</Text>
+                          <Text style={[textStyle("bodyS", color.inkMuted), styles.rowTitle]}>
+                            Serves “{activeMom.title}”
+                          </Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
                   ))}
                 </View>
                 <Text style={[textStyle("bodyS", color.inkMuted), styles.spacedTop]}>
@@ -394,6 +440,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: space[3],
   },
   rowStarred: { borderColor: color.accent, backgroundColor: color.accentWash },
+  // The anchor sits under its item, indented past the star marker so it reads as a property of
+  // that row rather than as another item in the dump.
+  anchorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space[3],
+    paddingLeft: space[3],
+    paddingTop: space[2],
+  },
   marker: { fontSize: 18, color: color.ink, width: 22, textAlign: "center" },
   rowTitle: { flex: 1 },
   statsBlock: { marginTop: space[5], gap: space[1] },

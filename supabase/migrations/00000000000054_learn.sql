@@ -11,6 +11,21 @@
 -- Naming: every table is neutral (`sources`, not `books` and not `ulm_*`). Sources are already more
 -- than books, and D43 keeps product names out of identifiers so the cutover rename stays a config
 -- diff rather than a code hunt.
+--
+-- EDITED IN PLACE for the ULM port (docs/IHSAN_ADDENDUM.md §1.3, which rules "migration, not
+-- replacement -- our 54 is applied nowhere, so it is edited in place rather than superseded").
+-- Two changes live here rather than in migration 60, and both for the same reason: they are
+-- ENUM changes, and `alter type ... add value` cannot be used in the same transaction as a
+-- statement referencing the new value. ULM needed two migrations to add two enum values for
+-- exactly that reason; declaring them at creation costs nothing and keeps migration 60 a single
+-- readable transaction.
+--
+--   * `source_status` gains 'partial'.
+--   * `lessons.active` (boolean) becomes `lessons.status` (`lesson_status` enum).
+--
+-- Everything else from the port -- `lesson_cards.suspended_at`, the archive trigger,
+-- `ingest_jobs` item-level progress, `card_states`, `submit_learn_review` -- is additive and
+-- lives in migration 60 where it can be read as one change.
 
 -- ============================================================================
 -- 1. Sources and their structure
@@ -21,7 +36,14 @@
 -- pattern migration 42 used for questions.origin = 'missed'.
 create type public.source_kind as enum ('pdf', 'epub', 'article', 'video', 'course');
 
-create type public.source_status as enum ('uploaded', 'processing', 'ready', 'failed');
+-- `partial` is ULM's ADR-010 (ported per the addendum §1.1): a source becomes usable BEFORE
+-- ingestion finishes, the moment enough of its lessons have cards to draw a real first session
+-- from. It sits between 'processing' and 'ready' in meaning, not in the enum's sort order --
+-- nothing orders on this type, and adding it here rather than by a later `alter type ... add
+-- value` is only possible because migration 54 is applied nowhere yet (see the file header note
+-- on migration 60). Postgres forbids using a value added by `alter type` in the same transaction
+-- that adds it, which is why ULM needed two migrations for this one word and we need none.
+create type public.source_status as enum ('uploaded', 'processing', 'partial', 'ready', 'failed');
 
 create table public.sources (
   id bigint generated always as identity primary key,
@@ -120,6 +142,23 @@ create policy source_chunks_all_own on public.source_chunks
 
 create type public.evidence_strength as enum ('author_anecdote', 'single_study', 'strong_research');
 
+-- The lesson lifecycle, ported from ULM's ADR-010 and replacing the boolean `active` this
+-- migration originally carried.
+--
+--   provisional -- written as its chunk clears the provenance gate, before the whole-source merge
+--                  has run. Readable, and the only status a lesson has while its source is still
+--                  ingesting.
+--   active      -- promoted by the merge pass. The set a session draws from.
+--   archived    -- lost a dedup contest, or was retired by the user.
+--
+-- **Losers are ARCHIVED, NEVER DELETED**, and that is the whole point of the enum. A review of a
+-- card whose lesson later loses a merge contest has to stay referentially intact -- `lesson_reviews`
+-- is append-only and is the sole source of every FSRS state in the app, so deleting a lesson would
+-- cascade a scheduling history nothing else records into nothing. The boolean could not express
+-- this: `active = false` meant BOTH "candidate, not yet judged" and "judged and rejected", so the
+-- ingestion pipeline had to delete losers to keep the two apart.
+create type public.lesson_status as enum ('provisional', 'active', 'archived');
+
 create table public.lessons (
   id bigint generated always as identity primary key,
   user_id uuid not null references public.profiles (id) on delete cascade,
@@ -141,8 +180,10 @@ create table public.lessons (
   provenance_quote text not null,
   page_ref integer,
   embedding extensions.vector(1024),
-  -- A user may retire a lesson without deleting it; the review log referencing it must stay valid.
-  active boolean not null default true,
+  -- A user may retire a lesson without deleting it, and the merge pass may archive one; the review
+  -- log referencing either must stay valid. See `lesson_status` above for why this is an enum and
+  -- not the boolean it started as.
+  status public.lesson_status not null default 'provisional',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint lessons_title_not_blank check (btrim(title) <> ''),
@@ -150,7 +191,7 @@ create table public.lessons (
   constraint lessons_provenance_not_blank check (btrim(provenance_quote) <> '')
 );
 
-create index lessons_user_active_idx on public.lessons (user_id, active);
+create index lessons_user_status_idx on public.lessons (user_id, status);
 create index lessons_source_idx on public.lessons (source_id);
 create index lessons_embedding_idx
   on public.lessons
@@ -167,6 +208,12 @@ create policy lessons_all_own on public.lessons
   for all to authenticated
   using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
+
+comment on column public.lessons.status is
+  'provisional -> active -> archived (ULM ADR-010). Losers of a merge dedup contest are ARCHIVED, '
+  'never deleted: `lesson_reviews` is append-only and is the sole source of every FSRS state in '
+  'the app, so a deleted lesson would cascade away a scheduling history nothing else records. '
+  'Migration 60 suspends an archived lesson''s cards by trigger.';
 
 comment on column public.lessons.provenance_quote is
   'The verbatim passage this lesson came from. NOT NULL is the hallucination firewall: no '

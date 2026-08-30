@@ -87,6 +87,25 @@ export default async function ReviewPage() {
         }
       />
 
+      {/* D48 — the 90-day ritual is its own surface, and it is linked from here only on the days
+          it is actually due. A permanent link to a quarterly ceremony is how a ceremony becomes
+          furniture; this one appears when the ninety days are up and disappears once it is
+          written. */}
+      {reviewResult.ok && reviewResult.data.momReviewDue ? (
+        <Panel className="flex w-full max-w-report flex-col items-start gap-2">
+          <p className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">
+            The 90 days are up
+          </p>
+          <p className="text-body text-ink-muted">
+            Score the M.O.M. on its own terms, write what happened, and set the next one when you are
+            ready to.
+          </p>
+          <Link href="/vision/review" className="font-mono text-body-s text-accent underline underline-offset-2">
+            Open the 90-day review →
+          </Link>
+        </Panel>
+      ) : null}
+
       <SurfaceGroup title="Tonight">
         <div className="flex w-full max-w-report flex-col gap-6">
           {!reviewResult.ok ? (

@@ -51,7 +51,7 @@ export async function startSessionAction(): Promise<LearnActionResult<{ sessionI
 
   // The due count is captured BEFORE any review lands, because it is one half of D29's comeback
   // test and it stops existing the moment the session starts clearing the queue.
-  const due = await countDue(ctx.caller.client, ctx.caller.userId, ctx.desiredRetention);
+  const due = await countDue(ctx.caller.client, ctx.caller.userId);
   if (!due.ok) return { ok: false, error: due.error.message };
 
   const session = await startLearnSession(ctx.caller.client, ctx.caller.userId, ctx.today);
@@ -74,6 +74,9 @@ export async function recordReviewAction(input: {
     cardId: input.cardId,
     rating: input.rating,
     localDate: ctx.today,
+    // The retention the schedule is computed AT, and stored with it. Changing the setting no
+    // longer rewrites the due dates of reviews already taken.
+    desiredRetention: ctx.desiredRetention,
     ...(input.sessionId != null ? { sessionId: input.sessionId } : {}),
     ...(input.elapsedMs != null ? { elapsedMs: input.elapsedMs } : {}),
     // Stored because the generation effect depends on the attempt having existed. Treated as the
@@ -104,7 +107,6 @@ export async function completeSessionAction(input: {
     cardsReviewed: input.cardsReviewed,
     newLessonsIntroduced: input.newLessonsIntroduced,
     dueBeforeSession: input.dueBeforeSession,
-    desiredRetention: ctx.desiredRetention,
   });
   if (!result.ok) return { ok: false, error: result.error.message };
 

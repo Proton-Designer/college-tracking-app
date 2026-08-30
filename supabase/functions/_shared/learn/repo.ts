@@ -108,6 +108,13 @@ export interface JobPatch {
   /** Added to the existing `cost_usd`, never overwriting it — the column accumulates
    *  spend across every invocation of a job. */
   addCostUsd?: number;
+  /** Migration 60's item-level progress, scoped to the CURRENT step's own unit of work and
+   *  reset at every step transition. Explicit `null` clears them, which is what a terminal
+   *  step does — 'done' and 'failed' have no denominator, and leaving the last step's
+   *  numbers behind would show a finished job frozen at "43 of 51". `undefined` leaves
+   *  them alone, like every other field here. */
+  progressCurrent?: number | null;
+  progressTotal?: number | null;
 }
 
 export interface IngestRepo {
@@ -146,13 +153,31 @@ export interface IngestRepo {
   loadChunksWithoutEmbedding(sourceId: number, limit: number): Promise<ChunkRow[]>;
   saveChunkEmbeddings(updates: Array<{ id: number; embedding: number[] }>): Promise<void>;
 
-  /** Candidates land as `lessons` rows with `active = false`. See ingest.ts's header for
-   *  why that, and not a new staging table. */
+  /** Real chunks for one source (never the page-text staging rows). The denominator for the
+   *  embedding and extraction steps' item-level progress. */
+  countChunks(sourceId: number): Promise<number>;
+
+  /** Candidates land as `lessons` rows with `status = 'provisional'` — readable immediately,
+   *  judged later. See ingest.ts's header for why that, and not a new staging table. */
   insertCandidateLessons(userId: string, sourceId: number, rows: NewCandidateLesson[]): Promise<void>;
   loadCandidateLessons(sourceId: number): Promise<CandidateLessonRow[]>;
   countCandidateLessons(sourceId: number): Promise<number>;
-  activateLessons(ids: number[]): Promise<void>;
-  deleteLessons(ids: number[]): Promise<void>;
+  /**
+   * How many of this source's lessons have at least one servable card.
+   *
+   * The progressive-availability gate (ULM ADR-010): a source becomes `partial` when this
+   * reaches `computePartialThreshold(...)`. Counts LESSONS, not cards, deliberately — the
+   * question the status answers is "is there a real queue to draw from", and ten cards on
+   * two lessons is not a session.
+   */
+  countLessonsWithCards(sourceId: number): Promise<number>;
+  /** Merge survivors: 'provisional' -> 'active'. */
+  promoteLessons(ids: number[]): Promise<void>;
+  /**
+   * Merge losers: 'provisional' -> 'archived'. NEVER deleted — migration 54's `lesson_status`
+   * comment has the full reasoning, and migration 60's trigger suspends their cards.
+   */
+  archiveLessons(ids: number[]): Promise<void>;
 
   /** `profiles.llm_monthly_budget_usd` — the gateway's ceiling for this user. */
   loadBudgetCeilingUsd(userId: string): Promise<number>;

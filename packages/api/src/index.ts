@@ -101,6 +101,14 @@ export type {
   FocusSessionContext,
 } from "./day/focusSessions";
 export {
+  findConfrontation,
+  recordShown,
+  recordResponse,
+  setDriftStatement,
+  setDriftAlertsEnabled,
+} from "./data/drift";
+export type { DriftEventRow, DriftContext } from "./data/drift";
+export {
   loadSelf,
   createDimension,
   updateDimension,
@@ -110,6 +118,39 @@ export {
 } from "./data/self";
 export type { DimensionRow, DimensionRouteRow, SelfView, CreateDimensionInput } from "./data/self";
 export {
+  getActiveVision,
+  saveVision,
+  retireVision,
+  saveBeachhead,
+  saveMission,
+  saveMom,
+  getActiveMom,
+  setTaskAnchor,
+  setGoalAnchor,
+  loadUnanchoredDrift,
+  saveMomReview,
+  loadVisionChain,
+  VISION_MANDATES,
+  VISION_MANDATE_LABELS,
+  DEFAULT_DRIFT_WINDOW_DAYS,
+} from "./data/vision";
+export type {
+  VisionRow,
+  BeachheadRow,
+  MissionRow,
+  MomRow,
+  MomReviewRow,
+  MomOutcome,
+  VisionMandate,
+  SaveVisionInput,
+  SaveChainNodeInput,
+  SaveMomReviewInput,
+  SaveMomReviewResult,
+  ChainGoal,
+  MomHistoryEntry,
+  VisionChainView,
+} from "./data/vision";
+export {
   loadDailySession,
   recordReview,
   startLearnSession,
@@ -118,6 +159,7 @@ export {
   loadLibrary,
   listLessonsForSource,
   createSource,
+  scheduleFrom,
 } from "./data/learn";
 export type {
   SourceRow,
@@ -126,6 +168,7 @@ export type {
   LessonReviewRow,
   LearnSessionRow,
   IngestJobRow,
+  CardStateRow,
   LearnCard,
   DailySessionView,
   SessionCompletion,

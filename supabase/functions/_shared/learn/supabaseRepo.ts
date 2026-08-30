@@ -98,6 +98,10 @@ export function createSupabaseIngestRepo(client: AnySupabaseClient): IngestRepo 
       if (patch.cursor !== undefined) update.cursor = patch.cursor;
       if (patch.attempts !== undefined) update.attempts = patch.attempts;
       if (patch.lastError !== undefined) update.last_error = patch.lastError;
+      // `!== undefined`, not a truthiness check: `null` is the meaningful value that CLEARS
+      // these at a terminal step, and 0 is a legitimate "none done yet".
+      if (patch.progressCurrent !== undefined) update.progress_current = patch.progressCurrent;
+      if (patch.progressTotal !== undefined) update.progress_total = patch.progressTotal;
 
       if (patch.addCostUsd != null && patch.addCostUsd > 0) {
         // Read-then-add rather than an atomic increment: PostgREST cannot express
@@ -257,6 +261,16 @@ export function createSupabaseIngestRepo(client: AnySupabaseClient): IngestRepo 
       return (data ?? []).map((row: any) => ({ id: row.id, text: row.text, pageStart: row.page_start, pageEnd: row.page_end } satisfies ChunkRow));
     },
 
+    async countChunks(sourceId) {
+      const { count, error } = await client
+        .from("source_chunks")
+        .select("id", { count: "exact", head: true })
+        .eq("source_id", sourceId)
+        .gte("sort_order", 0);
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    },
+
     async saveChunkEmbeddings(updates) {
       // One statement per row: PostgREST's bulk upsert would need every non-null column
       // restated, and restating `text` to write a vector is how a chunk's text gets
@@ -288,8 +302,9 @@ export function createSupabaseIngestRepo(client: AnySupabaseClient): IngestRepo 
           page_ref: row.pageRef,
           // pgvector takes the JSON-array text form over PostgREST. Null on the D41 path.
           embedding: row.embedding ? JSON.stringify(row.embedding) : null,
-          // A CANDIDATE. `merging` activates the survivors and deletes the rest.
-          active: false,
+          // A CANDIDATE, and readable as one from this moment (ULM ADR-010). `merging`
+          // promotes the survivors to 'active' and archives the rest — never deletes.
+          status: "provisional",
         })),
       );
       if (error) throw new Error(error.message);
@@ -300,7 +315,7 @@ export function createSupabaseIngestRepo(client: AnySupabaseClient): IngestRepo 
         .from("lessons")
         .select("id, title, core_claim, page_ref, embedding")
         .eq("source_id", sourceId)
-        .eq("active", false)
+        .eq("status", "provisional")
         .order("id", { ascending: true });
       if (error) throw new Error(error.message);
       // deno-lint-ignore no-explicit-any
@@ -318,20 +333,37 @@ export function createSupabaseIngestRepo(client: AnySupabaseClient): IngestRepo 
         .from("lessons")
         .select("id", { count: "exact", head: true })
         .eq("source_id", sourceId)
-        .eq("active", false);
+        .eq("status", "provisional");
       if (error) throw new Error(error.message);
       return count ?? 0;
     },
 
-    async activateLessons(ids) {
+    async countLessonsWithCards(sourceId) {
+      // `lesson_cards!inner` on a head+count query is a semi-join: PostgREST counts LESSON rows
+      // that have at least one matching card, not cards. Counting cards here would let two
+      // lessons with five cards each satisfy a ten-lesson gate.
+      const { count, error } = await client
+        .from("lessons")
+        .select("id, lesson_cards!inner(id)", { count: "exact", head: true })
+        .eq("source_id", sourceId)
+        .neq("status", "archived")
+        .eq("lesson_cards.active", true)
+        .is("lesson_cards.suspended_at", null);
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    },
+
+    async promoteLessons(ids) {
       if (ids.length === 0) return;
-      const { error } = await client.from("lessons").update({ active: true }).in("id", ids);
+      const { error } = await client.from("lessons").update({ status: "active" }).in("id", ids);
       if (error) throw new Error(error.message);
     },
 
-    async deleteLessons(ids) {
+    async archiveLessons(ids) {
       if (ids.length === 0) return;
-      const { error } = await client.from("lessons").delete().in("id", ids);
+      // UPDATE, not DELETE. A review of a card belonging to a lesson that loses a dedup contest
+      // has to stay referentially intact; migration 60's trigger suspends the cards.
+      const { error } = await client.from("lessons").update({ status: "archived" }).in("id", ids);
       if (error) throw new Error(error.message);
     },
 

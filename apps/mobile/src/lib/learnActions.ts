@@ -59,7 +59,7 @@ export async function beginSession(
 
   // Captured before anything is reviewed: it is one half of D29's comeback test, and it stops
   // existing the moment the queue starts clearing.
-  const due = await countDue(ctx.client, userId, ctx.desiredRetention);
+  const due = await countDue(ctx.client, userId);
   if (!due.ok) return { ok: false, error: due.error.message };
 
   const session = await startLearnSession(ctx.client, userId, ctx.today);
@@ -85,6 +85,7 @@ export async function submitReview(
     cardId: input.cardId,
     rating: input.rating,
     localDate: ctx.today,
+    desiredRetention: ctx.desiredRetention,
     ...(input.sessionId != null ? { sessionId: input.sessionId } : {}),
     ...(input.elapsedMs != null ? { elapsedMs: input.elapsedMs } : {}),
     ...(input.answeredText != null && input.answeredText.trim().length > 0
@@ -113,7 +114,6 @@ export async function finishSession(
     cardsReviewed: input.cardsReviewed,
     newLessonsIntroduced: input.newLessonsIntroduced,
     dueBeforeSession: input.dueBeforeSession,
-    desiredRetention: ctx.desiredRetention,
   });
   if (!result.ok) return { ok: false, error: result.error.message };
 
@@ -131,7 +131,7 @@ export async function loadSources(userId: string): Promise<LearnResult<SourceLib
   const ctx = await context(userId);
   if (!ctx.ok) return ctx;
 
-  const result = await loadLibrary(ctx.client, userId, ctx.desiredRetention);
+  const result = await loadLibrary(ctx.client, userId);
   if (!result.ok) return { ok: false, error: result.error.message };
   return { ok: true, data: result.data };
 }

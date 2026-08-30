@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { getOwnProfile, loadLibrary } from "@collegeos/api";
+import { loadLibrary } from "@collegeos/api";
 import { EmptyState, PageHeader, Panel } from "@/components/ui";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -37,9 +37,9 @@ export default async function LibraryPage() {
     );
   }
 
-  const profile = await getOwnProfile(client);
-  const retention = profile.ok ? Number(profile.data.desired_retention) : 0.9;
-  const library = await loadLibrary(client, user.id, retention);
+  // Retention is no longer a read-path parameter: every card's schedule was computed with the
+  // retention in force at the moment of the review and is stored alongside it (D47).
+  const library = await loadLibrary(client, user.id);
 
   if (!library.ok) {
     return (

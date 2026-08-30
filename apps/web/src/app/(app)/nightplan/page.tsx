@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   buildWindowsForDay,
+  getActiveMom,
   getOwnProfile,
   getUserLocalToday,
   listHoursForDate,
@@ -56,6 +57,17 @@ export default async function NightPlanPage() {
   // empty dump rather than an error page — the plan is still writable without it.
   const existingResult = await listTasksForDate(client, plannedDate);
   const existingTitles = existingResult.ok ? existingResult.data.map((t) => t.title) : [];
+
+  // The optional "what does this serve?" picker (D48). It offers exactly one thing — the active
+  // M.O.M. — and no M.O.M. means no picker at all rather than an empty dropdown. Anchoring stays
+  // optional on the nights it exists: an MIT that answers to nothing is a supported answer, and a
+  // required picker here would train people to attach a lie. A failed read degrades to no picker
+  // rather than to an error page; the plan is still writable without it.
+  const momResult = await getActiveMom(client, user.id);
+  const activeMom =
+    momResult.ok && momResult.data != null
+      ? { id: momResult.data.id, title: momResult.data.title }
+      : null;
 
   // D33's boundary, assembled here and nowhere else: the ONLY thing allowed to pre-fill a window
   // is a source that already carries its own account of the time. A completed Hour has a
@@ -114,7 +126,7 @@ export default async function NightPlanPage() {
           timeZone={profile.timezone}
         />
       ) : null}
-      <NightPlanClient plannedDate={plannedDate} existingTitles={existingTitles} />
+      <NightPlanClient plannedDate={plannedDate} existingTitles={existingTitles} activeMom={activeMom} />
     </main>
   );
 }

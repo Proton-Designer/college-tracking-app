@@ -10,7 +10,13 @@
  * variability IS the mechanism, not a flourish.
  */
 
-export type CardType = 'goal' | 'motivation' | 'thought_habit' | 'trait' | 'tenx';
+/**
+ * `enemy` joins the set with D50: the End-of-Hour rotation can occasionally show what you are
+ * running FROM alongside what you are running toward. It is an ordinary card type — same weighting,
+ * same rotation, no special handling — because a card that always appeared would stop being read,
+ * which is the exact failure the rotation exists to prevent.
+ */
+export type CardType = 'goal' | 'motivation' | 'thought_habit' | 'trait' | 'tenx' | 'enemy';
 
 export interface RotationCard {
   id: number;

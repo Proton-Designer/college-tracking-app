@@ -6,13 +6,27 @@
  * stability, difficulty and intervals. What lives here is everything the library does not decide:
  * where state comes from, what a session contains, and what happens after a lapse.
  *
- * **State is derived by replaying the log, never stored.** This is migration 42's rule, restated
- * for a second scheduler: `lesson_reviews` is append-only and is the sole source of truth, so a
- * card's stability and due date are a pure function of its review history. Derived state cannot
- * drift from its log, needs no cron whose silent failure would freeze every due date, and is
- * testable as a function rather than an accumulated number nothing can check. It is also what makes
- * D32's eventual Question Bank migration lossless — there is no stored state on either side to
- * convert.
+ * **The log is the system of record; the stored state is a cache of it, and this file supplies
+ * both halves.** `lesson_reviews` stays append-only and remains the sole source of truth, so a
+ * card's stability and due date are still a pure function of its review history. What changed with
+ * D47 is that the *read* path no longer replays that history: migration 60's `card_states` holds
+ * the answer, written transactionally with the review that produced it.
+ *
+ * Two functions, and the relationship between them is the whole design:
+ *
+ * - `nextSchedule` advances ONE stored state by ONE review. This is the write path — what
+ *   `submit_learn_review` stores.
+ * - `scheduleFromLog` replays an entire history from nothing. This is the ORACLE — the
+ *   independently-arrived-at answer that a test folds `nextSchedule` against, so a divergence
+ *   between the stored state and the log it came from fails a test rather than quietly serving a
+ *   wrong due date for months.
+ *
+ * That is ULM's own independently-written-oracle technique (the one that verified 61 days of
+ * streak logic against SQL sharing no code with it), applied to scheduling. It has already earned
+ * its place: it is what found that `learning_steps` has to be stored (see `CardSchedule`).
+ *
+ * D32's eventual Question Bank migration stays lossless, one step longer: replay the `attempts`
+ * log through this same wrapper and write the resulting `card_states`.
  *
  * `ts-fsrs` is the first runtime dependency `packages/core` has ever taken. That is deliberate and
  * narrow: the alternative is hand-rolling a scheduler the brief forbids hand-rolling. It is
@@ -45,6 +59,18 @@ export interface CardSchedule {
   difficulty: number | null;
   reps: number;
   lapses: number;
+  /**
+   * Position in FSRS-5's learning/relearning step ladder.
+   *
+   * Carried explicitly because it is NOT recoverable from the other fields, and dropping it is a
+   * real bug rather than a tidiness question: ts-fsrs uses it to pick the next interval while a
+   * card is inside the learning or relearning phase, so a state rebuilt without it lands in a
+   * different `state` and `lapses` than a replay of the identical log produces. Measured on a
+   * ten-review sequence at six review spacings — every spacing diverged without it, every one
+   * matched with it. It is the reason `card_states.learning_steps` exists in migration 60 and does
+   * not exist in the ULM table this was ported from.
+   */
+  learningSteps: number;
   lastReviewedAt: string | null;
 }
 
@@ -62,8 +88,101 @@ const STATE_MAP: Record<number, CardState> = {
   [State.Relearning]: 'relearning',
 };
 
+const STATE_TO_FSRS: Record<CardState, State> = {
+  new: State.New,
+  learning: State.Learning,
+  review: State.Review,
+  relearning: State.Relearning,
+};
+
 function scheduler(desiredRetention: number) {
   return fsrs(generatorParameters({ request_retention: desiredRetention, enable_fuzz: false }));
+}
+
+const RATING_ORDER: LessonRating[] = ['again', 'hard', 'good', 'easy'];
+
+/** True when `value` is one of FSRS's four grades — the guard a stored `last_rating` needs. */
+export function isLessonRating(value: unknown): value is LessonRating {
+  return typeof value === 'string' && (RATING_ORDER as string[]).includes(value);
+}
+
+/** The state of a card nobody has reviewed. Nulls, never zeros: a new card has no measurement. */
+export function emptySchedule(cardId: number): CardSchedule {
+  return {
+    cardId,
+    state: 'new',
+    dueAt: null,
+    stability: null,
+    difficulty: null,
+    reps: 0,
+    lapses: 0,
+    learningSteps: 0,
+    lastReviewedAt: null,
+  };
+}
+
+function toCard(schedule: CardSchedule): Card {
+  // `createEmptyCard(new Date(0))` supplies the fields FSRS recomputes anyway (elapsed_days and
+  // scheduled_days are both derived from `last_review` and `now` inside the scheduler's own
+  // `init`), so only the fields that genuinely carry state forward are restored here. Anything
+  // added to that list must also be added to `card_states` — that is exactly the mistake
+  // `learningSteps` records.
+  const card = createEmptyCard(new Date(0));
+  if (schedule.lastReviewedAt === null) return card;
+
+  card.due = new Date(schedule.dueAt ?? schedule.lastReviewedAt);
+  card.stability = schedule.stability ?? card.stability;
+  card.difficulty = schedule.difficulty ?? card.difficulty;
+  card.reps = schedule.reps;
+  card.lapses = schedule.lapses;
+  card.learning_steps = schedule.learningSteps;
+  card.last_review = new Date(schedule.lastReviewedAt);
+  card.state = STATE_TO_FSRS[schedule.state];
+  return card;
+}
+
+function fromCard(cardId: number, card: Card, reviewedAt: string): CardSchedule {
+  return {
+    cardId,
+    state: STATE_MAP[card.state] ?? 'review',
+    dueAt: card.due.toISOString(),
+    stability: card.stability,
+    difficulty: card.difficulty,
+    reps: card.reps,
+    lapses: card.lapses,
+    learningSteps: card.learning_steps,
+    lastReviewedAt: reviewedAt,
+  };
+}
+
+/**
+ * Advances one stored state by one review. The write path — what migration 60's
+ * `submit_learn_review` is handed and validates.
+ *
+ * Throws when the review is not strictly after the previous one, rather than sorting or ignoring
+ * it. A review timestamped before the state it is being applied to is not a scheduling question,
+ * it is a corrupt log, and ts-fsrs itself rejects the negative elapsed time a few frames later
+ * with a message that says nothing about why. The RPC enforces the same ordering (LR011), so a
+ * client that gets here has already been told.
+ */
+export function nextSchedule(
+  previous: CardSchedule,
+  review: ReviewRecord,
+  desiredRetention: number = DEFAULT_DESIRED_RETENTION,
+): CardSchedule {
+  const at = new Date(review.reviewedAt);
+  if (Number.isNaN(at.getTime())) {
+    throw new Error(`nextSchedule: unparseable reviewedAt "${review.reviewedAt}"`);
+  }
+  if (previous.lastReviewedAt !== null && at.getTime() <= Date.parse(previous.lastReviewedAt)) {
+    throw new Error(
+      `nextSchedule: review at ${review.reviewedAt} is not after the previous review at ${previous.lastReviewedAt}`,
+    );
+  }
+
+  const engine = scheduler(desiredRetention);
+  const next = engine.next(toCard(previous), at, RATING_MAP[review.rating]).card;
+  return fromCard(previous.cardId, next, at.toISOString());
 }
 
 /**
@@ -95,20 +214,14 @@ export function scheduleFromLog(
     const at = new Date(review.reviewedAt);
     if (Number.isNaN(at.getTime())) break;
     card = engine.next(card, at, RATING_MAP[review.rating]).card;
-    lastReviewedAt = review.reviewedAt;
+    // Normalised to ISO rather than kept as written. Postgres hands back `+00:00` offsets and a
+    // client writes `Z`; comparing a replay against a stored state must compare instants, not two
+    // spellings of one.
+    lastReviewedAt = at.toISOString();
   }
 
-  const neverReviewed = lastReviewedAt === null;
-  return {
-    cardId,
-    state: neverReviewed ? 'new' : (STATE_MAP[card.state] ?? 'review'),
-    dueAt: neverReviewed ? null : card.due.toISOString(),
-    stability: neverReviewed ? null : card.stability,
-    difficulty: neverReviewed ? null : card.difficulty,
-    reps: card.reps,
-    lapses: card.lapses,
-    lastReviewedAt,
-  };
+  if (lastReviewedAt === null) return emptySchedule(cardId);
+  return fromCard(cardId, card, lastReviewedAt);
 }
 
 /**

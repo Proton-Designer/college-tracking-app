@@ -20,12 +20,25 @@
 // no reader is looking at.
 //
 // WHERE CANDIDATE LESSONS LIVE, and why. `extracting_lessons` writes candidates straight
-// into `lessons` with `active = false`; `merging` activates the survivors and deletes the
-// rest. That puts every candidate under the NOT NULL `provenance_quote` constraint at the
-// moment it is written — the schema-level firewall applies to candidates too, not only to
-// the final set — which a separate jsonb staging blob would have bypassed entirely. The
-// cost is that `active` carries a second meaning during ingestion; it is bounded by the
-// step (only ever inside a 'processing' source) and by `merging` deleting every loser.
+// into `lessons` with `status = 'provisional'`; `merging` promotes the survivors to
+// 'active' and ARCHIVES the rest. That puts every candidate under the NOT NULL
+// `provenance_quote` constraint at the moment it is written — the schema-level firewall
+// applies to candidates too, not only to the final set — which a separate jsonb staging
+// blob would have bypassed entirely.
+//
+// This used to be `active = false`, and the boolean was carrying two incompatible
+// meanings: "candidate, not yet judged" and "judged and rejected". The only way to keep
+// them apart was to DELETE the losers, which is exactly the thing ULM's ADR-010 says must
+// never happen — a review of a card whose lesson later loses a dedup contest has to stay
+// referentially intact. Migration 54's `lesson_status` enum separates the two, so nothing
+// here deletes any more.
+//
+// PROGRESSIVE AVAILABILITY (ULM ADR-010, addendum §1.1). Provisional lessons are readable
+// the moment their chunk clears the provenance gate, and the source flips to 'partial' as
+// soon as `computePartialThreshold` of its lessons have servable cards — usable before
+// ingestion finishes, rather than all-or-nothing at the end. Every step also writes
+// `progress_current`/`progress_total` scoped to its own unit of work, because a stage
+// label alone cannot tell a long step from a hung one.
 //
 // D9 throughout: the model triages, extracts and ranks. Deterministic code decides page
 // ranges, chunk boundaries, section structure, similarity clusters, the lesson count, the
@@ -50,6 +63,8 @@ import {
   MAX_STEP_ATTEMPTS,
   TEXT_SLICE_PAGES,
   TRIAGE_BATCH_SIZE,
+  computePartialThreshold,
+  targetLessonCount,
 } from "./types.ts";
 
 export interface IngestDeps {
@@ -131,13 +146,51 @@ export async function redriveStalledJobs(
 }
 
 // ============================================================================
+// Progressive availability
+// ============================================================================
+
+/**
+ * Flips a still-ingesting source to 'partial' once enough of its lessons have servable
+ * cards — ULM ADR-010, the single best idea in that repo: it DISSOLVES the wait instead of
+ * optimising it.
+ *
+ * Called after every extraction slice, and it is a one-way latch: a source that has already
+ * reached 'partial' (or 'ready', or 'failed') is left alone. Re-evaluating a source out of
+ * 'partial' would take a "start learning now" button away from someone mid-session because
+ * a later chunk happened to produce nothing.
+ *
+ * The threshold SCALES with the source (see `computePartialThreshold`). A fixed one is why
+ * ULM's own short books, including its onboarding sample, could never reach this state.
+ *
+ * Note what has to be true for this to ever fire: some lesson must have a card. Nothing in
+ * this pipeline generates cards yet — see the note in `stepMerging`.
+ */
+async function maybeMarkPartial(deps: IngestDeps, job: IngestJobRow): Promise<boolean> {
+  const source = await deps.repo.loadSource(job.sourceId);
+  if (source?.status !== "processing") return false;
+
+  const threshold = computePartialThreshold(targetLessonCount(source.pageCount));
+  const carded = await deps.repo.countLessonsWithCards(job.sourceId);
+  if (carded < threshold) return false;
+
+  await deps.repo.saveSource(job.sourceId, { status: "partial" });
+  return true;
+}
+
+// ============================================================================
 // Failure ladder
 // ============================================================================
 
 async function recordFailure(deps: IngestDeps, job: IngestJobRow, reason: string): Promise<AdvanceOutcome> {
   const attempts = job.attempts + 1;
   if (attempts >= MAX_STEP_ATTEMPTS) {
-    await deps.repo.saveJob(job.id, { step: "failed", attempts, lastError: reason });
+    await deps.repo.saveJob(job.id, {
+      step: "failed",
+      attempts,
+      lastError: reason,
+      progressCurrent: null,
+      progressTotal: null,
+    });
     await deps.repo.saveSource(job.sourceId, { status: "failed" });
     return { kind: "failed", reason };
   }
@@ -149,7 +202,14 @@ async function recordFailure(deps: IngestDeps, job: IngestJobRow, reason: string
  *  nothing). Goes straight to `failed` — burning four more attempts on it would only
  *  delay the honest answer. */
 async function failNow(deps: IngestDeps, job: IngestJobRow, reason: string): Promise<AdvanceOutcome> {
-  await deps.repo.saveJob(job.id, { step: "failed", lastError: reason });
+  // Progress cleared with the step: 'failed' has no denominator, and leaving the last
+  // step's counters behind would show a dead job frozen mid-count.
+  await deps.repo.saveJob(job.id, {
+    step: "failed",
+    lastError: reason,
+    progressCurrent: null,
+    progressTotal: null,
+  });
   await deps.repo.saveSource(job.sourceId, { status: "failed" });
   return { kind: "failed", reason };
 }
@@ -194,6 +254,11 @@ async function stepQueued(deps: IngestDeps, job: IngestJobRow): Promise<AdvanceO
     cursor: { nextPage: 1, pageCount: null },
     attempts: 0,
     lastError: null,
+    // Pages are the unit here, and the denominator is unknown until the first slice reads
+    // the document. Null rather than a placeholder: an invented total is the lie a progress
+    // bar tells when it reaches 90% and waits.
+    progressCurrent: 0,
+    progressTotal: null,
   });
   return { kind: "advanced", step: "extracting_text", moreWork: true, note: null };
 }
@@ -221,6 +286,10 @@ async function stepExtractingText(deps: IngestDeps, job: IngestJobRow): Promise<
       cursor: { nextPage: 1, pendingTitle: null, pendingPage: null, sortOrder: 0 },
       attempts: 0,
       lastError: null,
+      // Reset, not carried: each step counts its OWN unit of work. Structure parsing walks
+      // the same pages again, from the top.
+      progressCurrent: 0,
+      progressTotal: slice.pageCount,
     });
     return { kind: "advanced", step: "parsing_structure", moreWork: true, note: null };
   }
@@ -229,6 +298,8 @@ async function stepExtractingText(deps: IngestDeps, job: IngestJobRow): Promise<
     cursor: { nextPage: followingPage, pageCount: slice.pageCount },
     attempts: 0,
     lastError: null,
+    progressCurrent: Math.min(nextPage + TEXT_SLICE_PAGES - 1, slice.pageCount),
+    progressTotal: slice.pageCount,
   });
   return {
     kind: "advanced",
@@ -296,6 +367,8 @@ async function stepParsingStructure(deps: IngestDeps, job: IngestJobRow): Promis
       cursor: { nextPage: 1, nextSortOrder: 0 },
       attempts: 0,
       lastError: null,
+      progressCurrent: 0,
+      progressTotal: pageCount,
     });
     return { kind: "advanced", step: "chunking", moreWork: true, note: null };
   }
@@ -309,6 +382,8 @@ async function stepParsingStructure(deps: IngestDeps, job: IngestJobRow): Promis
     },
     attempts: 0,
     lastError: null,
+    progressCurrent: Math.min(lastPageOfWindow, pageCount),
+    progressTotal: pageCount,
   });
   return { kind: "advanced", step: "parsing_structure", moreWork: true, note: null };
 }
@@ -355,6 +430,10 @@ async function stepChunking(deps: IngestDeps, job: IngestJobRow): Promise<Advanc
       cursor: { embedded: 0, skipped: false, skippedReason: null },
       attempts: 0,
       lastError: null,
+      progressCurrent: 0,
+      // Chunks, now — the unit changes with the step, which is the whole reason these
+      // counters are reset at every transition rather than accumulated.
+      progressTotal: await deps.repo.countChunks(job.sourceId),
     });
     return { kind: "advanced", step: "embedding", moreWork: true, note: null };
   }
@@ -363,6 +442,8 @@ async function stepChunking(deps: IngestDeps, job: IngestJobRow): Promise<Advanc
     cursor: { nextPage: lastPageOfWindow + 1, nextSortOrder: nextSortOrder + rows.length },
     attempts: 0,
     lastError: null,
+    progressCurrent: Math.min(lastPageOfWindow, pageCount),
+    progressTotal: pageCount,
   });
   return { kind: "advanced", step: "chunking", moreWork: true, note: `${rows.length} chunks` };
 }
@@ -382,9 +463,11 @@ async function stepEmbedding(deps: IngestDeps, job: IngestJobRow): Promise<Advan
   const advanceToExtraction = async (skipped: boolean, reason: string | null, embedded: number): Promise<AdvanceOutcome> => {
     await deps.repo.saveJob(job.id, {
       step: "extracting_lessons",
-      cursor: { afterChunkId: 0, candidates: 0, dropped: 0, embeddingsSkipped: skipped, embeddingsSkippedReason: reason },
+      cursor: { afterChunkId: 0, processed: 0, candidates: 0, dropped: 0, embeddingsSkipped: skipped, embeddingsSkippedReason: reason },
       attempts: 0,
       lastError: null,
+      progressCurrent: 0,
+      progressTotal: await deps.repo.countChunks(job.sourceId),
     });
     return {
       kind: "advanced",
@@ -442,6 +525,8 @@ async function stepEmbedding(deps: IngestDeps, job: IngestJobRow): Promise<Advan
     attempts: 0,
     lastError: null,
     addCostUsd: result.costUsd,
+    progressCurrent: alreadyEmbedded + chunks.length,
+    progressTotal: await deps.repo.countChunks(job.sourceId),
   });
   return { kind: "advanced", step: "embedding", moreWork: true, note: `${chunks.length} chunks embedded` };
 }
@@ -472,6 +557,11 @@ async function stepExtractingLessons(deps: IngestDeps, job: IngestJobRow): Promi
       },
       attempts: 0,
       lastError: null,
+      // Candidates are the unit for merging. It is a single non-resumable pass, so the
+      // counter starts at 0 and reaches the total in one move — which is still worth
+      // writing, because it says which denominator the step is working against.
+      progressCurrent: 0,
+      progressTotal: candidateTotal,
     });
     return { kind: "advanced", step: "merging", moreWork: true, note };
   };
@@ -564,9 +654,14 @@ async function stepExtractingLessons(deps: IngestDeps, job: IngestJobRow): Promi
   if (rows.length > 0) await deps.repo.insertCandidateLessons(job.userId, job.sourceId, rows);
 
   const highestId = Math.max(...chunks.map((c) => c.id));
+  // Counted in the cursor rather than re-queried: chunk ids are not dense (the staging page
+  // rows consumed the same identity sequence), so "id <= highestId" is not a count of chunks
+  // processed. What this slice actually finished is what this slice actually loaded.
+  const processedChunks = num(job.cursor, "processed", 0) + chunks.length;
   await deps.repo.saveJob(job.id, {
     cursor: {
       afterChunkId: highestId,
+      processed: processedChunks,
       candidates: candidateTotal + rows.length,
       dropped: droppedTotal + dropped,
       embeddingsSkipped: bool(job.cursor, "embeddingsSkipped", false),
@@ -575,13 +670,21 @@ async function stepExtractingLessons(deps: IngestDeps, job: IngestJobRow): Promi
     attempts: 0,
     lastError: null,
     addCostUsd: costUsd,
+    progressCurrent: processedChunks,
+    progressTotal: await deps.repo.countChunks(job.sourceId),
   });
+
+  // The progressive-availability latch, evaluated after every slice rather than once at the
+  // end — that is the entire mechanism. Deliberately AFTER the checkpoint above: the slice's
+  // work is durable before the source is advertised as usable, so a crash here costs an
+  // announcement, never a chunk.
+  const nowPartial = await maybeMarkPartial(deps, job);
 
   return {
     kind: "advanced",
     step: "extracting_lessons",
     moreWork: true,
-    note: `${rows.length} grounded, ${dropped} dropped by the provenance gate${triage.degraded ? `, triage degraded (${triage.reason})` : ""}`,
+    note: `${rows.length} grounded, ${dropped} dropped by the provenance gate${triage.degraded ? `, triage degraded (${triage.reason})` : ""}${nowPartial ? ", source now partial" : ""}`,
   };
 }
 
@@ -619,12 +722,20 @@ async function stepMerging(deps: IngestDeps, job: IngestJobRow): Promise<Advance
     pageCount: source?.pageCount ?? null,
   });
 
-  if (selection.keepIds.length > 0) await deps.repo.activateLessons(selection.keepIds);
-  if (selection.dropIds.length > 0) await deps.repo.deleteLessons(selection.dropIds);
+  // PROMOTE the survivors, ARCHIVE the losers. Never delete: a loser's cards may already
+  // have been reviewed while the source sat at 'partial', and `lesson_reviews` is the sole
+  // source of every FSRS state in the app. Migration 60's trigger suspends an archived
+  // lesson's cards, so nothing keeps serving them — the rows just stay reachable.
+  if (selection.keepIds.length > 0) await deps.repo.promoteLessons(selection.keepIds);
+  if (selection.dropIds.length > 0) await deps.repo.archiveLessons(selection.dropIds);
 
   await deps.repo.saveSource(job.sourceId, { status: "ready", lessonCount: selection.keepIds.length });
   await deps.repo.saveJob(job.id, {
     step: "done",
+    // Progress cleared: 'done' has no unit of work left to count, and 400-of-400 frozen on a
+    // finished job reads as a stall to anyone who does not know the step machine.
+    progressCurrent: null,
+    progressTotal: null,
     cursor: {
       lessons: selection.keepIds.length,
       dropped: selection.dropIds.length,
