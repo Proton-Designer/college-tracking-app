@@ -633,3 +633,148 @@ constant exists so that day is a one-line change rather than a search.
 
 Flagged by the engineer who built the lens rather than worked around it, which is why it is a
 ruling instead of an undocumented `ilike` somewhere.
+
+## D45 — Anthropic through our gateway; the heuristic path survives only where it is honest (2026-08-30)
+ULM's precedence is Ollama → Anthropic → Heuristic, correct for a machine with no API key. Ours
+inverts it and drops a rung.
+
+**Ollama is dropped from the shipped path.** It is why his ingestion takes ~58 minutes for 300
+pages, and decisively it means ingestion only works while a worker runs on somebody's laptop. Three
+people use this app. His `LlmProvider` interface stays, so a local provider is a config change
+rather than a rewrite — which is what ADR-004 built it for.
+
+**Anthropic calls go through `callLlm`, never through his `AnthropicProvider` directly.** D9 is not
+negotiable: no call site talks to a provider, because that is what makes the budget gate and schema
+validation unbypassable. His provider becomes an adapter onto our gateway, not a second path to the
+network.
+
+**The heuristic provider is kept but scoped, and this is the part worth arguing.** Our
+deterministic-first pattern says every AI feature has a no-API fallback that is the floor, not an
+apology. His ADR-009 says extraction must NEVER silently degrade to the heuristic, because it
+measured 3/10 on a real book — it did *selection* where the product requires *transformation*,
+`core_claim` came out byte-identical to the provenance quote, and card prompts contained their own
+answers, which is fatal when retrieval practice is the entire thesis.
+
+Both rules are right. They collide because "deterministic-first" was never about having *an* output;
+it is about having one we can stand behind. So: triage, merge clustering and cloze cards keep a
+heuristic floor. Lesson extraction and free-recall/application card generation **refuse** without a
+key, with an actionable message. Refusing beats shipping lessons nobody can stand behind — the same
+logic as the provenance firewall, and the same logic our budget-block already follows when it
+degrades only where degrading is meaningful.
+
+**Do not undo without understanding:** re-enabling a heuristic extraction fallback would make the
+app quietly produce 3/10 decks that no user can distinguish from good ones. The failure is
+invisible at the point it happens and only shows up as "this app taught me nothing" months later.
+
+## D46 — Edge Functions stay for ingestion; the worker is a documented escape hatch (2026-08-30)
+ADR-002 rejected Edge Functions on an empirical finding, and empirical findings outrank arguments.
+But the finding is about LOCAL MODELS, and it dissolves when the models are remote.
+
+Supabase's limit is on CPU time, not wall-clock. His pipeline is CPU-bound because it runs
+transformers.js embeddings in-process and a local 7B model — both burn real CPU inside the function.
+Ours does neither: embeddings are a Voyage HTTP call, extraction is an Anthropic HTTP call, and
+awaiting a socket is not CPU time. What remains genuinely CPU-heavy is PDF text extraction, which
+our pipeline already slices at 25 pages per invocation with a checkpointed cursor.
+
+Keeping Edge Functions keeps D2 — one backend for two clients, one place for the key. A Node worker
+means a second deployment target, a second secret store, a second thing that can be down, and
+somebody remembering to keep it running.
+
+**The falsifier, stated so this can be disproven rather than defended:** if extracting a real
+300-page PDF exceeds the CPU budget at 25 pages per invocation, halve the slice; if it still fails
+at ~5 pages, the design needs a worker and this ruling is wrong.
+
+**Where a worker would run:** Fly.io or Railway — one always-on container with the service-role key
+and ANTHROPIC_API_KEY, polling `ingest_jobs` with the same lease-and-heartbeat protocol already in
+the schema. His `apps/worker` ports there nearly unchanged, which is the real reason to keep his
+job-lease shape even while running on Edge.
+
+## D47 — Store `card_states`, and keep replay as the oracle that proves it (2026-08-30)
+His ADR-005 persists FSRS state in a single transactional RPC alongside the review insert, so log
+and state can never disagree. We derived state by replaying the log (migration 42's rule, D32).
+
+**His wins on the read path.** Our `countDue` replays every card's full history on every call, with
+a 2,000-review limit that would SILENTLY TRUNCATE rather than fail — a real defect at any scale past
+a few months, and the kind that reports a plausible wrong number instead of erroring.
+
+**Ours wins on integrity, and we keep that.** `scheduleFromLog` stays in `packages/core` as an
+ORACLE, and a test proves stored `card_states` match a replay of the same log. That is his own
+independently-written-oracle technique — the one that verified 61 days of streak logic against SQL
+sharing no code with it — applied to scheduling.
+
+**Consequence for D32:** the Question Bank's eventual FSRS migration is no longer "neither side
+stores state". It becomes: replay the `attempts` log through the same wrapper and write the
+resulting `card_states`. Still lossless, one step longer.
+
+## D48 — The vision chain, with drift named rather than punished (2026-08-30)
+Ihsan has nothing above the War Map. Adding, top down: 10-Year Vision → 3-Year Beachhead → 1-Year
+Mission → 90-Day M.O.M. → monthly milestones (exists) → Night Plan MIT (exists).
+
+Each layer links upward by NULLABLE FK. Nullable is the ruling, not laziness: forcing every MIT to
+justify itself upward would make the Night Plan unusable on the ordinary night when something
+urgent is the honest answer, and would train people to attach a lie.
+
+**Drift is a fact, not a verdict.** An MIT tracing to nothing is `unanchored` — surfaced as a count
+with its items nameable, never as a failure. Sometimes the honest answer is that the chain is wrong
+rather than the night.
+
+The 90-day review scores the M.O.M. as hit / partial / missed / **changed**. `changed` is
+first-class: a beachhead that turned out to be the wrong beachhead is information, not failure.
+
+## D49 — Goal Ecology is pairs, and unmarked is not neutral (2026-08-30)
+Each pair of active goals is marked competing / neutral / synergistic. Competing pairs surface on
+the War Map and in the 90-day review, because they are what quietly kills systems and nothing in
+Ihsan notices them today.
+
+**Unmarked pairs stay unmarked, never "neutral".** Neutral is a judgement the user made; unmarked is
+a question not yet asked. Collapsing them would inflate how examined someone's goals are — the same
+real-zero-is-not-absent rule the rest of the engine follows.
+
+The Priority Matrix (vision alignment · leverage · compound benefit · opportunity cost) is an
+OPTIONAL gate on what enters the War Map. Optional because a required scoring ritual on every goal
+is friction that gets skipped, and a skipped ritual teaches people to ignore the app.
+
+## D50 — Per-dimension Hell: trigger-based confrontation, never a score (2026-08-30)
+Each Desired Self dimension gains a second written field: who I become in ten years if this keeps
+being neglected — first person, present tense, the user's own words.
+
+**What it is not:** no heaven/hell slider, no global scale. That would be the grand total D34
+refuses wearing a darker coat, and a guilt mechanic besides.
+
+**What it is:** defined drift triggers, all from data we already have (distraction count on an Hour,
+an abandoned Hour with no deliverable, a dimension with no acts in N days, an MIT crowned three
+nights running and never done, a day closed under baseline) surface THE USER'S OWN TEXT for that
+dimension.
+
+Four rules, each load-bearing:
+1. **The app never judges — it quotes the user back to themselves.** No generated language, no
+   adjectives, no "you said you wanted X but". The screen shows what they wrote and nothing else.
+2. **Rate-limited hard** — at most once a day, default rarer. Rarity is what gives it teeth; a daily
+   confrontation is a notification people learn to dismiss.
+3. **Every confrontation is immediately followed by a door** — start an Hour now, or crown it for
+   tomorrow. Confrontation then path back, never confrontation alone.
+4. **It can be turned off per dimension, permanently, in one tap.** A mechanic this sharp that
+   cannot be declined is not a tool.
+
+`Enemy` joins `card_type` so the End-of-Hour rotation occasionally shows what you are running from.
+
+**Do not undo without understanding:** the source module's engine is shame. Every one of these four
+rules is what converts the borrowed structure into something that can sit in an app whose copy never
+shames. Removing any one of them turns a mirror back into a lecture.
+
+## D51 — Weekly screen time by screenshot; a missed week is a gap (2026-08-30)
+iOS does not expose Screen Time to third-party apps, so this is deliberate self-report — and better
+for it, because uploading forces you to look.
+
+Sunday review gains a step: upload the weekly screenshot → the SAME AI-parse → staged → confirm
+pipeline as syllabus and announcements. The no-guessing rule applies in full: an unclear value
+becomes a field the user fills, never an invented number. Confirmed numbers become a weekly series
+alongside Hours and Signal:Noise, and a Focus-dimension drift input.
+
+**A missed week is a gap, not a broken streak** — the series has a hole and every chart renders it
+as one.
+
+**Accountability sharing is flagged, not built.** Three people use this app and screen time is the
+one number people actually feel shame about. C9's single-owner RLS holds; nothing here is designed
+toward sharing, and if it is ever built it needs its own ruling and its own opt-in, not a flag on
+this table.
