@@ -29,6 +29,7 @@ export * from './signal/allocation';
 export * from './learn/scheduler';
 export * from './self/dimensions';
 export * from './self/drift';
+export * from './goals/ecology';
 export * from './hours/hours';
 export * from './habits/habitScore';
 export * from './cards/rotation';

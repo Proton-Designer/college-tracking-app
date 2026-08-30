@@ -32,6 +32,7 @@ export * from './signal/allocation.ts';
 export * from './learn/scheduler.ts';
 export * from './self/dimensions.ts';
 export * from './self/drift.ts';
+export * from './goals/ecology.ts';
 export * from './hours/hours.ts';
 export * from './habits/habitScore.ts';
 export * from './cards/rotation.ts';
