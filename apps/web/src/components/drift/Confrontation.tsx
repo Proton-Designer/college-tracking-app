@@ -33,11 +33,9 @@ import { respondToDriftAction } from "@/app/(app)/today/driftActions";
 export function Confrontation({
   offer,
   eventId,
-  onClose,
 }: {
   offer: ConfrontationOffer;
   eventId: number;
-  onClose: () => void;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -50,10 +48,8 @@ export function Confrontation({
       await respondToDriftAction({ eventId, response });
       if (response === "dismissed") {
         setDismissed(true);
-        onClose();
         return;
       }
-      onClose();
       router.push(response === "started_hour" ? "/hour" : "/nightplan");
     });
   }

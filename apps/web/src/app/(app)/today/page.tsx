@@ -20,6 +20,7 @@ import { UnplannedGate } from "@/components/today/UnplannedGate";
 import { WorkEngineSection } from "@/components/today/WorkEngineSection";
 import { WorkloadBand } from "@/components/today/WorkloadBand";
 import { loadTodayData } from "./data";
+import { DriftSlot } from "@/components/drift/DriftSlot";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
 /** Panel earned by a rule, not a hunch: Top 3 and Deadline radar are lists of rows, the same
@@ -240,6 +241,12 @@ export default async function TodayPage({
       <TodayHeader today={dayView.today} health={dayView.todayHealth} sleepBaselineHours={dayView.profile.sleep_baseline_hours} />
 
       {morningBrief != null ? <p className="max-w-report text-body-s text-ink-muted">{morningBrief}</p> : null}
+
+      {/* D50. Renders nothing on the overwhelming majority of days -- every gate in
+          `selectConfrontation` is a reason to stay quiet, and rarity is the mechanism rather than
+          a side effect. Placed after the header and before the day's work so the two doors it
+          offers lead somewhere the user is already looking. */}
+      <DriftSlot today={dayView.today} />
 
       {/* A full max-w-app ribbon for a genuinely empty day (nothing scheduled at all) is a very
           wide box with two empty lanes -- doesn't earn that much of the fold. Constrains to the
