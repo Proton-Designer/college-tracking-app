@@ -1,0 +1,21 @@
+-- pgvector, for the Learn pillar's chunk and lesson embeddings.
+--
+-- Enabled here, one phase ahead of the tables that use it, for the same reason migration 1
+-- groups extensions: an extension that a later migration silently depends on is a
+-- migration that fails on a fresh project for a reason nobody can see from the failing
+-- file. This one is separable and cheap, so it lands on its own.
+--
+-- The ULM brief makes embeddings on chunks and lessons non-negotiable from day one -- they
+-- power near-duplicate clustering in the merge pass now, and journal/library
+-- cross-referencing and the contradiction detector later, at near-zero cost today.
+--
+-- D41 is the reason enabling this does not block on a credential: Anthropic ships no
+-- embeddings API, so the vectors come from a second vendor whose key does not exist yet.
+-- The extension, the columns and the indexes are all real regardless; rows simply carry a
+-- NULL embedding until the key is supplied and the backfill runs, and the merge pass
+-- degrades to lexical similarity in the meantime. Nothing about this file waits.
+--
+-- On hosted Supabase this may instead need enabling via Dashboard -> Database ->
+-- Extensions if this migration lacks permission there, exactly as migration 1 notes for
+-- pgtap. docs/SUPABASE_SETUP.md carries the cloud step.
+create extension if not exists vector with schema extensions;
