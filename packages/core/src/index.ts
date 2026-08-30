@@ -26,6 +26,7 @@ export * from './deen/prayerStatus';
 export * from './domains/domains';
 export * from './fitness/fitness';
 export * from './signal/allocation';
+export * from './learn/scheduler';
 export * from './hours/hours';
 export * from './habits/habitScore';
 export * from './cards/rotation';

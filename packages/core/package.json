@@ -20,5 +20,8 @@
     "@vitest/coverage-v8": "^2.1.9",
     "typescript": "^5.7.3",
     "vitest": "^2.1.9"
+  },
+  "dependencies": {
+    "ts-fsrs": "^5.4.1"
   }
 }
