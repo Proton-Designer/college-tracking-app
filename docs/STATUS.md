@@ -18,8 +18,12 @@ CollegeOS, LifeOS and ULM merged into one app, plus a new pillar:
 ```
 Today   do the day          Learn   acquire and retain
 Life    the terrain         Self    who this is for
-Review  what happened
+Review  what happened       Vision  the chain above the War Map
 ```
+
+The learning pillar is a **port** of Ayman's ULM (github.com/Proton-Designer/ULM), not a
+rebuild — `docs/ULM_ADRS.md` carries his eleven ADRs with our overrides noted, and
+`docs/IHSAN_ADDENDUM.md` §1 is the reconciliation.
 
 Five life domains — Deen · Business · School · Fitness · Work — each a lens over shared
 primitives rather than a silo.
@@ -29,14 +33,14 @@ primitives rather than a silo.
 ## Measured state
 
 ```
-59 migrations (47-59 NOT yet applied to any database) · 96 tables · 0 without RLS
-21 edge functions · web: 27 route groups · mobile: 3 tabs + 26 screens
+65 migrations (47-65 NOT yet applied to any database) · 108 tables · 0 without RLS
+23 edge functions · web: 32 route groups · mobile: 5 tabs + 28 screens
 ```
 
 | Suite | Result | When |
 |---|---|---|
-| `npm run verify` | **PASS (exit 0)** — 4 guards, typecheck ×5, lint, **628 tests** (core 598 · api 30) | 2026-08-30 |
-| Deno (`deno test -A`) | **PASS — 259** (was 133 before the merge) | 2026-08-30 |
+| `npm run verify` | **PASS (exit 0)** — 4 guards, typecheck ×5, lint, **727 tests** (core 687 · api 40) | 2026-08-30 |
+| Deno (`deno test -A`) | **PASS — 323**, twice consecutively per D14 (was 133 before the merge) | 2026-08-30 |
 | `next build` | clean, every route | 2026-08-30 |
 | RLS audit, migrations 51–58 | every new table: enable + force + owner-scoped policy (34 policies) | 2026-08-30 |
 | pgTAP · E2E · api integration · live DB | **NOT RUN** — needs Docker / credentials | — |
