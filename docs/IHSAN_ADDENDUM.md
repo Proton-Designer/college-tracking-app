@@ -54,10 +54,12 @@ pages, and — decisively — it means ingestion only works while a worker runs 
 Three people use this app. The `LlmProvider` interface stays, so a local provider is a config
 change rather than a rewrite; that is exactly what ADR-004 built it for.
 
-**Anthropic calls go through `callLlm`, not through his `AnthropicProvider` directly.** D9 is not
-negotiable: no call site talks to a provider, because that is what makes the budget gate and the
-schema validation unbypassable. His provider becomes an *adapter* onto our gateway rather than a
-second path to the network.
+**Anthropic calls go through `callLlm`.** Worth stating precisely, because the repo does not contain
+what its own docs imply: `AnthropicProvider` is **documented but never written** — grep finds it only
+in comments. The dormant slot is the *interface*, not an implementation. So we write the adapter
+ourselves, against his `LlmProvider` signature, and route it through our gateway. D9 is not
+negotiable: no call site talks to a provider, because that is what makes the budget gate and schema
+validation unbypassable.
 
 **The heuristic provider: kept, but scoped — and this is the part worth arguing.** Our
 deterministic-first pattern says every AI feature has a no-API fallback that is *the floor, not an
@@ -131,6 +133,7 @@ write the resulting `card_states`. Still lossless, one step longer.
 | **Design tokens** | **Ours wins, no contest.** His is "The Reading Room" — warm paper `#FBF9F5`, light-only, deliberately banning dark mode. The merge directive already ruled LifeOS's dark system is the base. His *contrast test that fails the build* is the thing to take, and it ports directly onto our tokens. |
 | **Navigation** | His Today/Library/Settings folds into our Learn tab: his Today → our `/learn` session, his Library → `/learn/library`, his Settings → the Learn section of our Settings. No new tabs. |
 | **Auth / user model** | Ours. Both are `profiles` 1:1 with `auth.users`; his `user_settings` (daily_new_limit, notification_time, desired_retention, session_length_target, ai_grading_enabled) **merges into our `profiles`** — we already added the first three there. `session_length_target` and `ai_grading_enabled` come across. |
+| **Streaks** | His `complete_session` carries 271 lines of PL/pgSQL implementing streaks, freezes and six priority-ordered "effortful win" probes. **The streak half does not port** (D23/D29). The *effortful-win* idea does, and lands on our comeback moment: a recovered card, a comeback after a gap, a book crossing a retention threshold. Write-once columns so a crossed threshold fires once rather than every session thereafter — his fix for "you crossed 80%!" repeating forever. |
 | **`.brain` vs our docs** | We already have `.brain/memory/decisions.md`. Adopt his three *additional* files — `lessons.md`, `known-issues.md`, `active-work.md` — because our repo has no home for "what failed" or "deliberate constraints that look like bugs", and that second heading is worth the whole convention. His ADRs are carried into `docs/ULM_ADRS.md` verbatim, credited, with our overriding rulings noted inline. |
 
 ### 1.4 His bugs, checked against our code immediately
