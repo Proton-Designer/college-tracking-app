@@ -261,3 +261,104 @@ Run each of these once; any change from pre-merge behaviour is a regression, not
 | ⛔ In-app lecture recording | Failed the Expo Go probe previously | Import still works. |
 | ⛔ pgTAP | Needs Docker | §10.4 |
 | ⛔ E2E (28 specs) + api integration (101) | Local-stack-only by design; have not run since the original handoff | First Docker session owes all of them. |
+
+---
+
+## 12. The vision chain (D48)
+
+1. With no vision written, `/vision` explains what the layer is for and offers to start one. No
+   fabricated countdown, no "0 days remaining".
+2. Write a 10-Year Vision → 3-Year Beachhead → 1-Year Mission → 90-Day M.O.M. Each layer links to
+   the one above, and the chain renders as one unbroken line.
+3. **The nullable-FK ruling**: crown an MIT with no link to anything. It saves. It is not blocked,
+   not warned about, not marked in red — the Night Plan stays usable on the ordinary night when
+   something urgent is the honest answer.
+4. Review shows unanchored MITs as **a count with its items nameable** — "3 of your last 10 MITs
+   weren't connected to anything above them". Confirm the copy contains no verdict and no warning
+   colour. Sometimes the chain is wrong, not the night.
+5. When a M.O.M.'s 90 days elapse, the review ritual becomes available from Review. Score it —
+   confirm **`changed` is offered as a first-class outcome** alongside hit/partial/missed, and reads
+   as information rather than failure.
+6. Set the next M.O.M. from inside the review; the chain updates without re-entering the layers
+   above.
+
+---
+
+## 13. Goal Ecology (D49)
+
+1. With two active goals, the pair appears **unmarked** — not "neutral". Confirm the wording and
+   that the examined share reads 0 of 1 rather than implying it was considered.
+2. Mark a pair competing with a note. It surfaces on the War Map and in the 90-day review.
+3. **Nothing tells you to drop a goal.** Confirm there is no "eliminate" action, no ranking, and no
+   suggestion — the app surfaces the tension and the trade-off stays yours.
+4. Score a goal on the Priority Matrix. Confirm it is **optional** — an unscored goal shows no
+   composite rather than a zero, and the list does not reorder itself by score.
+5. A high opportunity-cost score lowers the composite; the other three raise it.
+
+---
+
+## 14. Drift confrontation (D50) — the most delicate surface in the app
+
+Validate the **refusals first**; they are the feature.
+
+1. With no drift statement written for a dimension, trigger every condition you can (a distracted
+   Hour, an abandoned Hour). **Nothing fires.** The statement is the opt-in.
+2. Write a drift statement. Trigger a condition. The confrontation appears and shows **your own
+   words, verbatim** — confirm nothing has been rewritten, summarised, or wrapped in the app's
+   language, and that no adjective about you appears anywhere on the screen.
+3. It names the fact behind it — "that Hour ended with 9 distractions" — and the fact is **checkable
+   against your own record**.
+4. **Both doors are present**: start an Hour now, or crown it for tomorrow. Confirm there is no path
+   that shows the confrontation without them.
+5. Dismiss it. Confirm dismissal is neutral — no follow-up, no counter, no "you dismissed this 3
+   times".
+6. **The rate limit**: trigger another condition the next day. Nothing fires. Confirm the gap is at
+   least three days.
+7. Turn alerts off for that dimension. Trigger again. Nothing fires, permanently, in one tap.
+8. **The refusals that protect beginners**: a dimension with a statement but *no acts ever* must not
+   fire dormancy. A day with a **zero baseline** must not fire under-baseline — a rest day you
+   defined is not drift.
+9. Add an **Enemy** card. Confirm it appears in the End-of-Hour rotation alongside the other types.
+
+---
+
+## 15. Weekly screen time (D51)
+
+1. Sunday review offers the upload step when the week is outstanding. It is an **invitation**, not a
+   nag — confirm no badge, no counter, no escalation for weeks you skipped.
+2. Upload a real Screen Time screenshot. It parses → stages → **you confirm**. Nothing reaches the
+   series without that confirmation (D10).
+3. **The no-guessing rule**: find or create a value the parse cannot read. It must appear as an
+   **empty field for you to fill**, never as an invented number. Confirm you cannot confirm the
+   upload while one is unresolved.
+4. Confirmed numbers join a weekly series beside Hours and Signal:Noise.
+5. **Skip a week deliberately.** The series shows a **hole** — not a zero, not a broken streak, no
+   message about consistency. Then upload the following week: the delta compares the two most
+   recent **reported** weeks, never across the gap.
+6. The Focus drift input needs **four reported weeks** before it can fire, and fires only against
+   your own baseline. A consistently high but stable number produces nothing — there is no external
+   norm anywhere in this feature.
+
+---
+
+## 16. The ULM port (D45, D46, D47)
+
+1. **Progressive availability**: upload a source and start a session **before ingestion finishes**.
+   Confirm the source reads `partial`, "start learning" is real (there are actual cards behind it),
+   and the copy does not claim a lesson count it does not yet have.
+2. A lesson that loses the merge dedup is **archived, not deleted** — and if you had already
+   reviewed one of its cards, that review still exists and the card is suspended rather than gone.
+3. **The write-time gates**: confirm `ingest_jobs` records what each gate dropped. A run with no
+   embeddings key must show `unknown` counts for the semantic gates rather than passes — "could not
+   check" must never hide inside "passed".
+4. **D45's refusal**: with `ANTHROPIC_API_KEY` unset, ingestion **fails with an actionable message**
+   rather than producing a deck. Confirm the message names what to do.
+5. **D46's falsifier**: watch a real 300-page PDF through `extracting_text`. If a 25-page slice
+   exceeds the CPU budget, halve it; if ~5 pages still fails, the design needs a worker and D46 is
+   wrong. **Record the actual timing** — this is the measurement the ruling was made without.
+6. **D47's oracle**: run the test that folds stored `card_states` against a replay of the same log.
+   A divergence here is the single most important failure in Learn, because it would serve wrong due
+   dates silently for months.
+7. Confirm `lesson_reviews` still rejects UPDATE and DELETE for both an ordinary caller and
+   `service_role`, **independently** — they are two different mechanisms (missing RLS policies vs a
+   trigger) and testing one proves nothing about the other.

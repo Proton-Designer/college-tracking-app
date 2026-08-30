@@ -21,11 +21,11 @@ touched a database.
 | # | Do | Why / notes |
 |---|---|---|
 | 0.1 | `supabase migration list` | Confirm the last **remote** migration is `46`. Migration **47** (LLM budget upper clamp) was written before this build and is still unapplied — see `docs/PENDING_DB_CHANGES.md`. |
-| 0.2 | `supabase db push` | Applies **47 through 56**: the budget clamp, session type + domain, profile life settings, pgvector, Deen, Fitness, Work + weekly goals, Learn, embeddings usage, Desired Self. |
+| 0.2 | `supabase db push` | Applies **47 through 64**: the budget clamp, session type + domain, profile life settings, pgvector, Deen, Fitness, Work + weekly goals, Learn, embeddings usage, Desired Self, allocation check-ins, global distractions, the sources bucket + ingest cron, progressive availability + `card_states`, the vision chain, drift confrontation, Goal Ecology, and screen time. |
 | 0.3 | **`npm run db:types:cloud`** | ⚠️ **Required, not optional.** `packages/api/src/database.types.ts` was **hand-extended** during this build because `db:types` needs a live database. Every field was cross-checked against its migration by hand, but a real regeneration is the only thing that proves it. Do this before trusting a type. |
 | 0.4 | `npm run verify` | Must exit 0 against the regenerated types. A mismatch here is a hand-transcription error, and this is where it surfaces. |
 | 0.5 | Verify pgvector | Migration 50 enables it. On hosted Supabase this may instead need Dashboard → Database → Extensions, exactly as migration 1 notes for pgtap. |
-| 0.6 | **[Ayman]** First Docker session: `npm run db:reset && npm run db:test` | pgTAP over all 56 migrations. The RLS record for everything since migration 34 is live anon probes plus psql role-simulation — both passed, both weaker than pgTAP. This is the oldest debt in the repo. |
+| 0.6 | **[Ayman]** First Docker session: `npm run db:reset && npm run db:test` | pgTAP over all 64 migrations. The RLS record for everything since migration 34 is live anon probes plus psql role-simulation — both passed, both weaker than pgTAP. This is the oldest debt in the repo. |
 
 ---
 
@@ -46,6 +46,10 @@ No credentials needed. These are the settings that turn honest empty states into
 | 1.8 | Self | Create your **dimensions** and write each one's definition | Not seeded. The suggested five (Physique · Deen · Work/Craft · Focus · Traits) are offered as one-tap adds; nothing is inserted for you. |
 | 1.9 | Self → Routing | Confirm the **routing map** — which acts feed which dimension | Until a route exists, an act is simply unrouted; nothing invents a destination for it. |
 | 1.10 | Self | Optionally set a **ceiling** on Focus and Physique | Overshoot cannot fire without one (D35). Leave the rest unset. |
+| 1.11 | Self → each dimension | Optionally write the **drift statement** — who you become in ten years if this keeps being neglected, first person, present tense | D50. Nothing fires for a dimension without one: **the statement itself is the opt-in.** The app never writes, rewrites or summarises this text; a confrontation quotes it verbatim and adds nothing. Rate-limited to once every three days, always followed by a door, and switchable off per dimension in one tap. |
+| 1.12 | Vision | Write the **10-Year Vision**, then the 3-Year Beachhead, 1-Year Mission and 90-Day M.O.M. | D48. Each links upward by a nullable FK — an MIT that traces to nothing is reported as unanchored, never as a failure. Write the vision first; the layers below only mean something under one. |
+| 1.13 | Goals | Mark the **relationships** between your active goal pairs — competing / neutral / synergistic | D49. An unmarked pair stays unmarked rather than defaulting to neutral, so the "examined" share tells you the truth about how much you have actually considered. |
+| 1.14 | Cards | Add an **Enemy** card or two | The End-of-Hour rotation can now show what you are running from beside what you are running toward. |
 
 ---
 
@@ -102,6 +106,7 @@ Note: Sonnet's price step on 2026-09-01 is already encoded in `_shared/llm/costs
 | 5.1 | Your **own books** for Learn | The pipeline was tested against a public-domain PDF, deliberately — none of your library was used. |
 | 5.2 | Cards, goals, habits, worries | Nothing was seeded. Every empty state explains what it is for. |
 | 5.3 | A first **lecture import** | Deepgram key is already set; the first live transcription has still never run (`VALIDATION_PLAN` §11). |
+| 5.4 | Your **weekly Screen Time screenshot**, each Sunday | D51. Settings → Screen Time on iOS, screenshot the week, upload it in the Sunday review. It parses → stages → **you confirm**; anything unreadable becomes a field you fill, never an invented number. A missed week is a gap in the series, not a broken streak. |
 
 ---
 
@@ -135,7 +140,7 @@ Set in the cloud project; no values live in this repo.
 
 | Credential | State |
 |---|---|
-| `ANTHROPIC_API_KEY` | Set, live-verified end to end. Do not re-set. |
+| `ANTHROPIC_API_KEY` | Set, live-verified end to end. Do not re-set. **Now load-bearing for Learn**: D45 rules that lesson extraction refuses rather than degrading without it, because the keyless path measured 3/10 on a real book. Triage, merge clustering and cloze cards keep a deterministic floor. |
 | `DEEPGRAM_API_KEY` | Set. First live transcription still pending. |
 | `CRON_SHARED_SECRET` | Set; edge secret and Vault value match. |
 | Vault: `edge_functions_base_url`, `edge_functions_anon_key` | Set. The three cron jobs are registered and active. |
