@@ -102,6 +102,7 @@ export type {
 } from "./day/focusSessions";
 export {
   startHour,
+  startSession,
   startDay,
   setSleepIntent,
   getDay,
@@ -113,7 +114,7 @@ export {
 } from "./day/hours";
 export { listWall, loadWeekReviewData } from "./day/hours";
 export type { WeekReviewData } from "./day/hours";
-export type { StartHourInput, DistractionRow, DistractionCause, DayRow, WallTile, WallPage, WallCursor } from "./day/hours";
+export type { StartHourInput, StartSessionInput, DistractionRow, DistractionCause, DayRow, WallTile, WallPage, WallCursor } from "./day/hours";
 export { getRoutineItems, setRoutineItem } from "./data/routines";
 export type { RoutineRow, RoutineType, RoutineItemState } from "./data/routines";
 export { listCards, createCard, updateCard, listRotationCards } from "./data/cards";
@@ -131,6 +132,40 @@ export {
   MAX_ACTIVE_HABITS,
 } from "./data/habits";
 export type { HabitRow, HabitLogRow, CreateHabitInput, UpdateHabitInput } from "./data/habits";
+export {
+  listPrayersInRange,
+  listSunnahLogsInRange,
+  listAdhkarLogsInRange,
+  listQuranSessionsInRange,
+  listReflectionEntriesInRange,
+  setPrayerStatus,
+  clearPrayerStatus,
+  toggleSunnahSlot,
+  toggleAdhkarPeriod,
+  logQuranSession,
+  deleteQuranSession,
+  setReflectionIntensity,
+  updatePrayerSettings,
+  loadDeenOverview,
+  QADA_WINDOW_DAYS,
+  CONSISTENCY_WINDOW_DAYS,
+} from "./data/deen";
+export type {
+  PrayerLogRow,
+  SunnahLogRow,
+  AdhkarLogRow,
+  QuranSessionRow,
+  ReflectionEntryRow,
+  SunnahSlot,
+  AdhkarPeriod,
+  ReflectionIntensity,
+  LogQuranSessionInput,
+  PrayerSettingsInput,
+  DeenLocation,
+  DeenQadaState,
+  DeenQuranWeek,
+  DeenOverview,
+} from "./data/deen";
 export {
   listGoalsWithMilestones,
   createGoal,

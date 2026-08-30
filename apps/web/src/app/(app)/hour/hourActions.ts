@@ -1,5 +1,6 @@
 "use server";
 
+import type { LifeDomain } from "@collegeos/core";
 import { revalidatePath } from "next/cache";
 import {
   abandonFocusSession,
@@ -37,6 +38,14 @@ export async function startHourAction(input: {
   deliverable: string;
   category?: string;
   plannedDurationMin?: number;
+  /**
+   * Which life domain this Hour serves (D27). Defaults to `school` -- the domain every Hour in
+   * this app implicitly served before the merge -- so an existing surface that has not yet grown
+   * a domain picker keeps working and keeps writing an honest value rather than an untagged row.
+   */
+  domain?: LifeDomain;
+  /** Deep Work or Deep Study. Both count toward the day; the distinction is LifeOS's and real. */
+  sessionType?: "deep_work" | "deep_study" | "exam_prep";
 }): Promise<HourActionResult<TaskSessionRow>> {
   const caller = await requireUser();
   if (!caller.ok) return caller;
@@ -53,6 +62,8 @@ export async function startHourAction(input: {
   const result = await startHour(caller.client, caller.userId, {
     deliverable,
     localDate,
+    domain: input.domain ?? "school",
+    ...(input.sessionType != null ? { sessionType: input.sessionType } : {}),
     ...(input.category != null && input.category.length > 0 ? { category: input.category } : {}),
     ...(input.plannedDurationMin != null ? { plannedDurationMin: input.plannedDurationMin } : {}),
   });

@@ -1,5 +1,6 @@
-import type { LocalDate } from '@collegeos/core';
+import type { LocalDate, LifeDomain, SessionType } from '@collegeos/core';
 import type { CompletedHour, DayFacts } from '@collegeos/core';
+import { countsTowardHours } from '@collegeos/core';
 import type { TypedSupabaseClient } from '../client/types';
 import type { Database } from '../database.types';
 import { dataErr, dataOk, type DataResult } from '../data/types';
@@ -27,6 +28,17 @@ export type DayRow = Database['public']['Tables']['days']['Row'];
 export interface StartHourInput {
   /** The one specific thing this Hour produces. Required -- see the guard below. */
   deliverable: string;
+  /**
+   * D27's merge of Hour, Lock-In and the Learn session into one primitive. Defaults to
+   * `deep_work`, which is what every Hour was before the merge.
+   */
+  sessionType?: SessionType;
+  /**
+   * Which of the five life domains this Hour serves. REQUIRED by the directive's merge rule 3.1,
+   * and required here rather than defaulted so a caller cannot quietly accumulate untagged
+   * sessions -- the column's NOT NULL default exists for the backfill, not for new writes.
+   */
+  domain: LifeDomain;
   /** BLUEPRINT 5.3's execution template, when the session's type warrants one. */
   mode?: 'retrieval' | 'interleave' | 'draft' | 'recite' | 'compose' | 'cards';
   /** School / MyHomeBase / Content / ... open-ended by design. */
@@ -43,6 +55,9 @@ export interface StartHourInput {
 
 const DEFAULT_HOUR_MINUTES = 60;
 
+/** A Learn session is 5-10 minutes by design; Anti-Worry runs to the Hour. */
+const DEFAULT_SESSION_MINUTES = 10;
+
 /**
  * Arms the timer. The Hour's index within the day is assigned here rather than by the
  * client, so two devices cannot both think they are starting Hour 2.
@@ -51,6 +66,14 @@ const DEFAULT_HOUR_MINUTES = 60;
  * blueprint's "no plan made last night" failure mode by design: the friction is five
  * seconds of typing, not a lecture, and an Hour with no stated deliverable is exactly the
  * unfalsifiable "I did work" record the whole Work Form System exists to prevent.
+ *
+ * **D28 lives here on the write side.** `hour_index` is what makes a row count toward Day Won,
+ * the per-weekday baselines, Delta and Efficiency, and only the deep session types may carry one.
+ * A Learn or Anti-Worry session is a real session in the same table -- it appears on the Wall and
+ * in Signal coverage -- but it must never inflate a number the user calibrated their baselines
+ * against. `startSession` below is the entry point for those; this function refuses them outright
+ * rather than silently writing a row the database constraint would reject anyway, so the caller
+ * gets a sentence instead of a constraint violation.
  */
 export async function startHour(
   client: TypedSupabaseClient,
@@ -61,6 +84,15 @@ export async function startHour(
   const deliverable = input.deliverable.trim();
   if (deliverable.length === 0) {
     return dataErr({ code: 'validation', message: 'An Hour needs a one-line deliverable before it can start.' });
+  }
+
+  const sessionType: SessionType = input.sessionType ?? 'deep_work';
+  if (!countsTowardHours(sessionType)) {
+    return dataErr({
+      code: 'validation',
+      message:
+        'Only deep sessions count as Hours. Start a Learn or Anti-Worry session instead -- it still lands on the Wall and in your day\'s coverage.',
+    });
   }
 
   // One active session per user is enforced by a partial unique index (migration 12), so
@@ -102,9 +134,84 @@ export async function startHour(
       actual_start: nowIso,
       planned_duration_min: input.plannedDurationMin ?? DEFAULT_HOUR_MINUTES,
       status: 'active',
+      session_type: sessionType,
+      domain: input.domain,
       ...(input.category != null ? { category: input.category } : {}),
       ...(input.mode != null ? { mode: input.mode } : {}),
       ...(input.location != null ? { location: input.location } : {}),
+    })
+    .select('*')
+    .single();
+  if (error) return dataErr(mapDataError(error));
+  return dataOk(data);
+}
+
+/**
+ * Starts a session that is NOT an Hour: a Learn review block, a Monday Anti-Worry session, or
+ * anything else that belongs in the same table but must not count toward the day's depth.
+ *
+ * This is the other half of D28. One session table (D27) does not mean one metric: these rows sit
+ * beside Hours, glow their domain on the Wall, and account for their span in Signal coverage --
+ * and they carry no `hour_index`, so Day Won, the baselines, Delta and Efficiency never see them.
+ * The database constraint from migration 48 enforces the same rule from underneath, so the two
+ * cannot disagree.
+ *
+ * A deliverable is optional here, and that is deliberate rather than lax. The contract exists
+ * because an Hour with no stated output is an unfalsifiable "I did work" record; a Learn session's
+ * output is already defined by the queue it clears, and demanding a typed deliverable before a
+ * five-minute retention session would be friction with nothing behind it.
+ */
+export interface StartSessionInput {
+  sessionType: SessionType;
+  domain: LifeDomain;
+  localDate: LocalDate;
+  deliverable?: string;
+  plannedDurationMin?: number;
+}
+
+export async function startSession(
+  client: TypedSupabaseClient,
+  userId: string,
+  input: StartSessionInput,
+  now: Date = new Date(),
+): Promise<DataResult<TaskSessionRow>> {
+  if (countsTowardHours(input.sessionType)) {
+    return dataErr({
+      code: 'validation',
+      message: 'Deep sessions are Hours -- start one with startHour so it counts toward the day.',
+    });
+  }
+
+  const { data: existing, error: existingError } = await client
+    .from('task_sessions')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .maybeSingle();
+  if (existingError) return dataErr(mapDataError(existingError));
+  if (existing) {
+    return dataErr({
+      code: 'conflict',
+      message: 'Something is already running. End it before starting another session.',
+    });
+  }
+
+  const nowIso = now.toISOString();
+  const { data, error } = await client
+    .from('task_sessions')
+    .insert({
+      user_id: userId,
+      task_id: null,
+      // No hour_index, deliberately -- see D28 above.
+      planned_start: nowIso,
+      actual_start: nowIso,
+      planned_duration_min: input.plannedDurationMin ?? DEFAULT_SESSION_MINUTES,
+      status: 'active',
+      session_type: input.sessionType,
+      domain: input.domain,
+      ...(input.deliverable != null && input.deliverable.trim().length > 0
+        ? { deliverable: input.deliverable.trim() }
+        : {}),
     })
     .select('*')
     .single();

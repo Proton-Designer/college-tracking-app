@@ -31,7 +31,14 @@ export interface StartHourResult extends HourActionResult {
  */
 export async function startHourAction(
   userId: string,
-  input: { deliverable: string; category: string | null; mode?: import("./modes").HourMode },
+  input: {
+    deliverable: string;
+    category: string | null;
+    mode?: import("./modes").HourMode;
+    /** D27. Defaults to `school`, the domain every pre-merge Hour implicitly served. */
+    domain?: import("@collegeos/core").LifeDomain;
+    sessionType?: "deep_work" | "deep_study" | "exam_prep";
+  },
 ): Promise<StartHourResult> {
   const client = getMobileSupabaseClient();
   const profileResult = await getOwnProfile(client);
@@ -41,6 +48,8 @@ export async function startHourAction(
   const result = await startHour(client, userId, {
     deliverable: input.deliverable,
     localDate,
+    domain: input.domain ?? "school",
+    ...(input.sessionType != null ? { sessionType: input.sessionType } : {}),
     ...(input.category != null ? { category: input.category } : {}),
     ...(input.mode != null ? { mode: input.mode } : {}),
   });
