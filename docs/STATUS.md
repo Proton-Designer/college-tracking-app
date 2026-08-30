@@ -1,44 +1,59 @@
-# CollegeOS — Project Status
+# Ihsan — Project Status
 
-**Last updated: 2026-08-26 (final build-out + handover).** Numbers executed, not recalled.
+**Last updated: 2026-08-30 (the merge build).** Numbers executed, not recalled.
 
-> **`docs/HANDOVER.md` is the current single source** — feature map, every decision,
-> the debt ledger, credential inventory, and the sequenced remaining work. `HANDOFF.md`
-> remains the deep reference (machine setup, recurring failure patterns).
-> `docs/VALIDATION_PLAN.md` is the one consolidated on-device test pass, not yet run.
+> **Start here:** `docs/IHSAN_BUILD_REPORT.md` — what was built, what was left, what bit.
+> Then `docs/CONNECTION_CHECKLIST.md` (everything to plug in, in order) and
+> `docs/VALIDATION_PLAN_IHSAN.md` (how to test it).
+>
+> The reasoning behind the merge is `docs/IHSAN_RECONCILIATION.md`; the rulings are
+> `.brain/memory/decisions.md` D27–D43. `HANDOFF.md` remains the deep machine-setup reference.
+
+---
+
+## What this is now
+
+CollegeOS, LifeOS and ULM merged into one app, plus a new pillar:
+
+```
+Today   do the day          Learn   acquire and retain
+Life    the terrain         Self    who this is for
+Review  what happened
+```
+
+Five life domains — Deen · Business · School · Fitness · Work — each a lens over shared
+primitives rather than a silo.
 
 ---
 
 ## Measured state
 
 ```
-46 migrations (all applied to the cloud project) · 63 tables · 0 without RLS
-16 edge functions deployed · cron layer registered and ACTIVE (first time in cloud)
-web: 19 routes · mobile: 22+ routes
+59 migrations (47-59 NOT yet applied to any database) · 96 tables · 0 without RLS
+17 edge functions · web: 28 routes · mobile: 3 tabs + 26 screens
 ```
 
 | Suite | Result | When |
 |---|---|---|
-| `npm run verify` | **PASS (exit 0)** — 4 guards, typecheck ×5, lint, **480 tests** (core 448 · api 30 · mobile 2) | 2026-08-26 |
-| Deno (`deno test -A`, offline) | **PASS — 133** | 2026-08-26 |
-| `next build` | clean | 2026-08-26 |
-| RLS, tables since migration 34 | anon probes + psql role-simulation, both pass | 2026-08-26 |
-| pgTAP · E2E · api integration · Deno live-DB | **NOT RUN since 2026-08-23** — local-stack-only; first Docker session owes them | — |
+| `npm run verify` | **PASS (exit 0)** — 4 guards, typecheck ×5, lint, **628 tests** (core 598 · api 30) | 2026-08-30 |
+| Deno (`deno test -A`) | **PASS — 259** (was 133 before the merge) | 2026-08-30 |
+| `next build` | clean, every route | 2026-08-30 |
+| RLS audit, migrations 51–58 | every new table: enable + force + owner-scoped policy (34 policies) | 2026-08-30 |
+| pgTAP · E2E · api integration · live DB | **NOT RUN** — needs Docker / credentials | — |
 
-## The headline
+---
 
-Everything buildable is built. The loop, the Work Engine (D24 merged surface), S3
-Question Bank + drill, Tier 5 (exam curves, load forecast, practice benchmarks),
-Canvas conversion (announcements poll + staged grades — token verified, in-app connect
-is Kareem's 2-minute step), lecture capture (import → Deepgram → transcripts → question
-drafting), voice capture Phase 1, and the small-debt closures (Wall paging with an
-honest count, weekly narrative surface, morning brief on web, per-course announcement
-history).
+## Blocked on a person, not on code
 
-## Blocked (on a person, not on code)
-
-- **git push** — no GitHub auth on this machine; the laptop holds the only copy.
-- Canvas in-app connect + first lecture import (Kareem, ~10 min) → then the
-  consolidated validation pass.
-- SDK 57 timing (check the phone's Expo Go), TestFlight/EAS + L1–L3 cutover order,
-  Whoop registration — all sequenced in HANDOVER §6.
+1. **Apply migrations 47–59** and **regenerate `database.types.ts`** (`db:types:cloud`).
+   ⚠️ That file was hand-written for 33 tables during this build; the regeneration is the only
+   thing that proves it. Connection checklist §0.
+2. **Settings, per user** — prayer location and method, baselines, signal domains, Learn limits.
+   Until then every affected surface shows an honest empty state rather than a number.
+3. **Canvas connect** (still owed from the previous handover, ~10 minutes).
+4. **`VOYAGE_API_KEY`** — the one new credential. Learn works without it; embeddings stay null and
+   the merge pass falls back to lexical similarity (D41).
+5. **Raise the LLM ceiling $5 → $25** at first ingestion, then validate cost on three real books
+   before optimising anything.
+6. **Ayman's list**: L1–L3, the Ihsan domain, WHOOP, pgTAP, App Store Connect, TestFlight.
+   The bundle id is still deliberately unset and is permanent at first submission (D43).
