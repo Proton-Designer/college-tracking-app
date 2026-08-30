@@ -22,6 +22,7 @@ export * from './backplan/buildBackplan';
 
 export * from './bounceback/bounceBack';
 export * from './deen/prayerTimes';
+export * from './deen/prayerStatus';
 export * from './domains/domains';
 export * from './hours/hours';
 export * from './habits/habitScore';

@@ -33,6 +33,38 @@ export type Database = {
   };
   public: {
     Tables: {
+      adhkar_logs: {
+        Row: {
+          created_at: string;
+          id: number;
+          local_date: string;
+          period: Database["public"]["Enums"]["adhkar_period"];
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: never;
+          local_date: string;
+          period: Database["public"]["Enums"]["adhkar_period"];
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: never;
+          local_date?: string;
+          period?: Database["public"]["Enums"]["adhkar_period"];
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "adhkar_logs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       agent_reports: {
         Row: {
           created_at: string;
@@ -2429,6 +2461,47 @@ export type Database = {
           },
         ];
       };
+      prayers: {
+        Row: {
+          created_at: string;
+          id: number;
+          local_date: string;
+          logged_at: string;
+          prayer_name: Database["public"]["Enums"]["prayer_name"];
+          status: Database["public"]["Enums"]["prayer_status"];
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: never;
+          local_date: string;
+          logged_at?: string;
+          prayer_name: Database["public"]["Enums"]["prayer_name"];
+          status: Database["public"]["Enums"]["prayer_status"];
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: never;
+          local_date?: string;
+          logged_at?: string;
+          prayer_name?: Database["public"]["Enums"]["prayer_name"];
+          status?: Database["public"]["Enums"]["prayer_status"];
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "prayers_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       profiles: {
         Row: {
           asr_madhab: string;
@@ -2501,6 +2574,50 @@ export type Database = {
         };
         Relationships: [];
       };
+      quran_sessions: {
+        Row: {
+          created_at: string;
+          id: number;
+          juz: number | null;
+          local_date: string;
+          notes: string | null;
+          pages_read: number | null;
+          surah: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: never;
+          juz?: number | null;
+          local_date: string;
+          notes?: string | null;
+          pages_read?: number | null;
+          surah?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: never;
+          juz?: number | null;
+          local_date?: string;
+          notes?: string | null;
+          pages_read?: number | null;
+          surah?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "quran_sessions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       questions: {
         Row: {
           active: boolean;
@@ -2554,6 +2671,38 @@ export type Database = {
           },
           {
             foreignKeyName: "questions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      reflection_entries: {
+        Row: {
+          created_at: string;
+          id: number;
+          intensity: Database["public"]["Enums"]["reflection_intensity"];
+          local_date: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: never;
+          intensity: Database["public"]["Enums"]["reflection_intensity"];
+          local_date: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: never;
+          intensity?: Database["public"]["Enums"]["reflection_intensity"];
+          local_date?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reflection_entries_user_id_fkey";
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
@@ -2759,6 +2908,41 @@ export type Database = {
           },
         ];
       };
+      sunnah_logs: {
+        Row: {
+          created_at: string;
+          id: number;
+          local_date: string;
+          prayer_name: Database["public"]["Enums"]["prayer_name"];
+          slot: Database["public"]["Enums"]["sunnah_slot"];
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: never;
+          local_date: string;
+          prayer_name: Database["public"]["Enums"]["prayer_name"];
+          slot: Database["public"]["Enums"]["sunnah_slot"];
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: never;
+          local_date?: string;
+          prayer_name?: Database["public"]["Enums"]["prayer_name"];
+          slot?: Database["public"]["Enums"]["sunnah_slot"];
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sunnah_logs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       syllabus_extractions: {
         Row: {
           confirmed_at: string | null;
@@ -2879,6 +3063,7 @@ export type Database = {
           phone_usage_min: number | null;
           planned_duration_min: number;
           planned_start: string;
+          sunnah_slot: "before" | "after";
           session_type: Database["public"]["Enums"]["session_type"];
           status: string;
           subjective_focus: number | null;
@@ -3409,9 +3594,14 @@ export type Database = {
         | "avoided_task"
         | "higher_priority_appeared"
         | "other";
+      adhkar_period: "morning" | "evening";
       insight_confidence_level: "high" | "medium" | "testing";
       life_domain: "deen" | "business" | "school" | "fitness" | "work";
+      prayer_name: "fajr" | "dhuhr" | "asr" | "maghrib" | "isha";
+      prayer_status: "on_time" | "qada" | "missed";
+      reflection_intensity: "light" | "moderate" | "heavy";
       risk_band: "low" | "moderate" | "high" | "critical";
+      sunnah_slot: "before" | "after";
       session_type: "deep_work" | "deep_study" | "learn" | "anti_worry" | "exam_prep";
     };
     CompositeTypes: {

@@ -25,6 +25,7 @@ export * from './backplan/buildBackplan.ts';
 
 export * from './bounceback/bounceBack.ts';
 export * from './deen/prayerTimes.ts';
+export * from './deen/prayerStatus.ts';
 export * from './domains/domains.ts';
 export * from './hours/hours.ts';
 export * from './habits/habitScore.ts';
