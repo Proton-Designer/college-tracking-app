@@ -4,7 +4,6 @@ import {
   emptySchedule,
   nextSchedule,
   retrievability,
-  scheduleFromLog,
   sourceStrength,
   type CardSchedule,
   type CardState,
@@ -113,7 +112,9 @@ export interface DailySessionView {
 export async function loadDailySession(
   client: TypedSupabaseClient,
   userId: string,
-  input: { today: LocalDate; newLimit: number; desiredRetention: number },
+  // No `desiredRetention` here any more: it is an input to a review, not to a read. Every card's
+  // due date was computed with the retention in force when it was reviewed, and is stored.
+  input: { today: LocalDate; newLimit: number },
   now: Date = new Date(),
 ): Promise<DataResult<DailySessionView>> {
   const { data: sources, error: sourcesError } = await client

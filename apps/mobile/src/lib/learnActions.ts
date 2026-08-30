@@ -45,7 +45,6 @@ export async function loadLearn(userId: string): Promise<LearnResult<DailySessio
   const result = await loadDailySession(ctx.client, userId, {
     today: ctx.today,
     newLimit: ctx.newLimit,
-    desiredRetention: ctx.desiredRetention,
   });
   if (!result.ok) return { ok: false, error: result.error.message };
   return { ok: true, data: result.data };

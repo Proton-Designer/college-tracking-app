@@ -425,6 +425,25 @@ describe('the RPC refuses states that cannot be right', () => {
   });
 });
 
+describe('the LR SQLSTATE class survives the mapper', () => {
+  it('maps LR003 to not_found and every other LR code to validation, by code and never by text', async () => {
+    // The port's whole point. If this ever has to read `error.message`, the coupling migration 60
+    // was written to avoid has come back.
+    const db = freshDb(new Date('2026-03-01T09:00:00.000Z'));
+    const client = fakeClient(db, USER);
+
+    // LR006: a due date in the past. Forced by putting the server clock far ahead of the review.
+    db.now = new Date('2027-01-01T00:00:00.000Z');
+    const result = await recordReview(
+      client,
+      USER,
+      { cardId: 1, rating: 'good', localDate: '2026-03-01', desiredRetention: 0.9 },
+      new Date('2026-03-01T09:00:00.000Z'),
+    );
+    expect(result).toEqual({ ok: false, error: { code: 'validation', message: expect.any(String) } });
+  });
+});
+
 describe('countDue', () => {
   it('counts stored due rows and never a new card', async () => {
     const db = freshDb(new Date('2026-03-01T09:00:00.000Z'));

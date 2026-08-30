@@ -46,7 +46,6 @@ export default async function LearnPage() {
   const session = await loadDailySession(client, user.id, {
     today,
     newLimit: profile.data.daily_new_lesson_limit,
-    desiredRetention: Number(profile.data.desired_retention),
   });
 
   if (!session.ok) {

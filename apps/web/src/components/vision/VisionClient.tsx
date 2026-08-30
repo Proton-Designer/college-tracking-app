@@ -10,7 +10,7 @@ import {
   type VisionChainView,
   type VisionMandate,
 } from "@collegeos/api";
-import { CHAIN_LAYER_LABELS, type ChainLayer } from "@collegeos/core";
+import { CHAIN_LAYERS_UPWARD, CHAIN_LAYER_LABELS, type ChainLayer } from "@collegeos/core";
 import { Badge, Button, DatePicker, EmptyState, Input, Panel, Textarea } from "@/components/ui";
 import { cn } from "@/components/ui/cn";
 import {
@@ -109,12 +109,11 @@ export function VisionClient({ view }: VisionClientProps) {
   // The chain resolves bottom-up, so a layer's link is "real" exactly when the resolver reached
   // the layer above it before it stopped. `firstMissing` names where it stopped.
   const brokeAt = view.firstMissing;
-  const UPWARD: ChainLayer[] = ["mom", "mission", "beachhead", "vision"];
   function linkedUpFrom(layer: ChainLayer): boolean {
     if (brokeAt == null) return true;
     // The link out of `layer` is real exactly when the layer above it was reached before the
-    // resolver stopped.
-    return UPWARD.indexOf(layer) + 1 < UPWARD.indexOf(brokeAt);
+    // resolver stopped. The order is core's own, not a second copy of it here.
+    return CHAIN_LAYERS_UPWARD.indexOf(layer) + 1 < CHAIN_LAYERS_UPWARD.indexOf(brokeAt);
   }
 
   function run(action: () => Promise<{ ok: boolean; error?: string }>, fallback: string) {
@@ -251,6 +250,7 @@ export function VisionClient({ view }: VisionClientProps) {
 
       <GoalsUnder
         goals={view.goals}
+        unanchoredGoals={view.unanchoredGoals}
         momId={view.mom?.id ?? null}
         momTitle={view.mom?.title ?? null}
         pending={isPending}
@@ -539,12 +539,15 @@ function ChainNodeLayer(props: {
 
 function GoalsUnder({
   goals,
+  unanchoredGoals,
   momId,
   momTitle,
   pending,
   onSet,
 }: {
   goals: ChainGoal[];
+  /** A count, from core, stated beside the goals it counts. Never a score and never a warning. */
+  unanchoredGoals: number;
   momId: number | null;
   momTitle: string | null;
   pending: boolean;
@@ -585,6 +588,12 @@ function GoalsUnder({
           ))}
         </ul>
       )}
+      {goals.length > 0 && unanchoredGoals > 0 ? (
+        <p className="text-body-s text-ink-muted">
+          {unanchoredGoals} of {goals.length} {goals.length === 1 ? "goal" : "goals"}{" "}
+          {unanchoredGoals === 1 ? "isn't" : "aren't"} connected to a M.O.M.
+        </p>
+      ) : null}
       {momId == null && goals.length > 0 ? (
         <p className="text-body-s text-ink-muted">
           Set a M.O.M. above and these can be linked to it. Until then they stand on their own,

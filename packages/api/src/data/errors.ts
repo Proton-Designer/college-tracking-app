@@ -21,6 +21,18 @@ export function mapDataError(error: PostgrestError): DataError {
     if (error.message.includes(REST_TIMEOUT_SENTINEL_READ)) return { code: 'timeout_read', message: messageFor('timeout_read') };
   }
 
+  // Class `LR` is migration 60's private SQLSTATE class for `submit_learn_review`. Handled by CODE,
+  // like everything else here — and that is the whole reason the migration raises codes at all.
+  // ULM's equivalent RPC raises bare messages that its client string-matches to decide whether a
+  // queued offline review is permanently dead or worth retrying; both files there carry mirror
+  // comments calling that coupling fragile, and rewording an error message would silently
+  // reclassify a failure. LR003 is the one that is genuinely a missing row; every other LR code is
+  // a client that proposed a state the schema refused, which is a validation failure.
+  if (typeof error.code === 'string' && /^LR\d{3}$/.test(error.code)) {
+    const code: DataErrorCode = error.code === 'LR003' ? 'not_found' : 'validation';
+    return { code, message: messageFor(code) };
+  }
+
   const code: DataErrorCode = (() => {
     switch (error.code) {
       case 'PGRST116': // .single()/.maybeSingle() found no matching row

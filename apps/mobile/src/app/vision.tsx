@@ -4,7 +4,7 @@ import {
   type VisionChainView,
   type VisionMandate,
 } from "@collegeos/api";
-import { CHAIN_LAYER_LABELS, type ChainLayer } from "@collegeos/core";
+import { CHAIN_LAYERS_UPWARD, CHAIN_LAYER_LABELS, type ChainLayer } from "@collegeos/core";
 import { color, radius, space } from "@collegeos/design/native";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
@@ -42,10 +42,8 @@ import {
  * each item is offered without the app implying which way to walk through it.
  */
 
-/** Top down — the order the chain is read in. */
-const LAYERS: ChainLayer[] = ["vision", "beachhead", "mission", "mom"];
-/** Bottom up — the order the resolver walks, which is what `firstMissing` is expressed in. */
-const UPWARD: ChainLayer[] = ["mom", "mission", "beachhead", "vision"];
+/** Top down — the order the chain is read in. Core's own order, reversed, never a second copy. */
+const LAYERS: ChainLayer[] = [...CHAIN_LAYERS_UPWARD].reverse();
 
 const OUTCOME_WORDS: Record<string, string> = {
   hit: "Hit",
@@ -137,7 +135,7 @@ export default function VisionScreen() {
   // resolver stopped. `firstMissing` names where it stopped.
   function linkedUpFrom(layer: ChainLayer): boolean {
     if (view?.firstMissing == null) return true;
-    return UPWARD.indexOf(layer) + 1 < UPWARD.indexOf(view.firstMissing);
+    return CHAIN_LAYERS_UPWARD.indexOf(layer) + 1 < CHAIN_LAYERS_UPWARD.indexOf(view.firstMissing);
   }
 
   return (
@@ -332,6 +330,13 @@ export default function VisionScreen() {
                     </View>
                   ))
                 )}
+                {view.goals.length > 0 && view.unanchoredGoals > 0 ? (
+                  <Text style={textStyle("bodyS", color.inkMuted)}>
+                    {view.unanchoredGoals} of {view.goals.length}{" "}
+                    {view.goals.length === 1 ? "goal" : "goals"}{" "}
+                    {view.unanchoredGoals === 1 ? "isn't" : "aren't"} connected to a M.O.M.
+                  </Text>
+                ) : null}
                 {view.mom == null && view.goals.length > 0 ? (
                   <Text style={textStyle("bodyS", color.inkMuted)}>
                     Set a M.O.M. above and these can be linked to it. Until then they stand on their

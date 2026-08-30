@@ -10,6 +10,7 @@ import {
   type ChainSource,
   type LocalDate,
   type MomCountdown,
+  unanchoredCount,
   type UnanchoredReport,
   type WindowItem,
 } from '@collegeos/core';
@@ -70,7 +71,7 @@ const MANDATE_COLUMNS: Readonly<Record<VisionMandate, keyof VisionRow>> = {
 };
 
 /** How far back the drift window reaches by default — one week, the Sunday review's own span. */
-export const DEFAULT_DRIFT_WINDOW_DAYS = 7;
+const DEFAULT_DRIFT_WINDOW_DAYS = 7;
 
 // ============================================================================
 // The 10-Year Vision
@@ -82,6 +83,8 @@ export interface SaveVisionInput {
   mandates?: Partial<Record<VisionMandate, string | null>>;
 }
 
+// @barrel-internal -- read by saveVision and loadChainSource inside this module; every surface
+// reads the vision through loadVisionChain instead, so there is no second way to fetch it.
 export async function getActiveVision(
   client: TypedSupabaseClient,
   userId: string,
@@ -100,8 +103,10 @@ export async function getActiveVision(
  * Writes the active vision — creating the first one, or editing the one that exists.
  *
  * In place rather than append-per-edit: a person refines this wording many times, and a new row
- * per comma would bury the one rewrite that mattered. Deciding the whole statement was wrong is a
- * different act — `retireVision` — and that one keeps the old ten years readable.
+ * per comma would bury the one rewrite that mattered. Rewriting the statement entirely is the same
+ * act as far as this function is concerned — the `active` flag and its partial unique index exist
+ * so a retire-and-rewrite path can be added later without a migration, and until that path has a
+ * surface to read the retired statement on, there is no writer for it.
  */
 export async function saveVision(
   client: TypedSupabaseClient,
@@ -139,29 +144,6 @@ export async function saveVision(
   const { data, error } = await client
     .from('visions')
     .insert({ user_id: userId, body, ...mandatePatch })
-    .select('*')
-    .single();
-  if (error) return dataErr(mapDataError(error));
-  return dataOk(data);
-}
-
-/**
- * Retires the active vision. The row stays; only `active` clears.
- *
- * Beachheads written under it keep pointing at it, so they resolve as reaching a beachhead and no
- * further — which is the truth. `resolveChain` refuses to attach them to the new statement, and
- * that gap is the prompt to re-anchor them deliberately.
- */
-export async function retireVision(
-  client: TypedSupabaseClient,
-  userId: string,
-  visionId: number,
-): Promise<DataResult<VisionRow>> {
-  const { data, error } = await client
-    .from('visions')
-    .update({ active: false })
-    .eq('id', visionId)
-    .eq('user_id', userId)
     .select('*')
     .single();
   if (error) return dataErr(mapDataError(error));
@@ -568,7 +550,7 @@ export async function saveMomReview(
 
 export interface ChainGoal {
   goal: GoalRow;
-  /** Whether this goal names a M.O.M. at all. Not a judgement — a fact the surface can act on. */
+  /** Whether this goal reaches a M.O.M. at all. Not a judgement — a fact the surface can act on. */
   anchored: boolean;
 }
 
@@ -594,6 +576,8 @@ export interface VisionChainView {
   /** The review already written for the active M.O.M., if any. */
   activeMomReview: MomReviewRow | null;
   goals: ChainGoal[];
+  /** How many active goals reach no M.O.M. A count, stated beside the goals themselves. */
+  unanchoredGoals: number;
   drift: UnanchoredReport;
   /** The one sentence, composed in core so both platforms word it identically. */
   driftLine: string | null;
@@ -661,7 +645,8 @@ export async function loadVisionChain(
   };
   const resolved = resolveChain(activeSource, { momId: mom?.id ?? null });
 
-  const [driftResult, reviewsResult, historyResult] = await Promise.all([
+  const [fullSource, driftResult, reviewsResult, historyResult] = await Promise.all([
+    loadChainSource(client, userId),
     loadUnanchoredDrift(client, userId, { from: driftFrom, to: input.today }),
     client.from('mom_reviews').select('*').eq('user_id', userId).order('local_date', { ascending: false }),
     client
@@ -671,6 +656,7 @@ export async function loadVisionChain(
       .eq('active', false)
       .order('ends_on', { ascending: false, nullsFirst: false }),
   ]);
+  if (!fullSource.ok) return fullSource;
   if (!driftResult.ok) return driftResult;
   if (reviewsResult.error) return dataErr(mapDataError(reviewsResult.error));
   if (historyResult.error) return dataErr(mapDataError(historyResult.error));
@@ -690,7 +676,22 @@ export async function loadVisionChain(
     firstMissing: resolved.firstMissing,
     reviewDue: isMomReviewDue(momNode, input.today, activeMomReview != null),
     activeMomReview,
-    goals: (goalQuery.data ?? []).map((goal) => ({ goal, anchored: goal.mom_id != null })),
+    // Resolved through core rather than read off `mom_id`, so "anchored" means the same thing for
+    // a goal as it does for an MIT — including the case where a goal points at a M.O.M. that is no
+    // longer in the active line.
+    goals: (goalQuery.data ?? []).map((goal) => ({
+      goal,
+      anchored: resolveChain(fullSource.data, { momId: goal.mom_id }).anchored,
+    })),
+    unanchoredGoals: unanchoredCount(
+      (goalQuery.data ?? []).map((goal) => ({
+        id: goal.id,
+        title: goal.title,
+        date: input.today,
+        momId: goal.mom_id,
+      })),
+      fullSource.data,
+    ),
     drift: driftResult.data,
     driftLine: composeDriftLine(driftResult.data),
     history: (historyResult.data ?? []).map((m) => ({ mom: m, review: reviewByMom.get(m.id) ?? null })),
