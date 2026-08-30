@@ -101,6 +101,15 @@ export type {
   FocusSessionContext,
 } from "./day/focusSessions";
 export {
+  loadSelf,
+  createDimension,
+  updateDimension,
+  setRoute,
+  removeRoute,
+  listRoutes,
+} from "./data/self";
+export type { DimensionRow, DimensionRouteRow, SelfView, CreateDimensionInput } from "./data/self";
+export {
   loadDailySession,
   recordReview,
   startLearnSession,
@@ -399,3 +408,97 @@ export { exportOwnAccount, deleteOwnAccount } from "./data/accountManagement";
 export type { AccountExport, AccountExportFile, DeleteOwnAccountResult } from "./data/accountManagement";
 export { updateKillHabit } from "./data/killHabits";
 export type { UpdateKillHabitInput } from "./data/killHabits";
+
+// ---------------------------------------------------------------------------
+// Life domains -- Fitness, Work, the weekly-goal cadence, the Business lens and
+// the Life hub. Exported here because D20 is why: working, tested code with no
+// path from '@collegeos/api' is unreachable to both apps.
+// ---------------------------------------------------------------------------
+export {
+  listExercises,
+  listWorkoutSessionsInRange,
+  listBodyMetricsInRange,
+  createExercise,
+  setExerciseActive,
+  createWorkoutPlan,
+  activateWorkoutPlan,
+  createPlanSession,
+  addPlanSessionExercise,
+  logSet,
+  deleteSet,
+  setWorkoutConfirmed,
+  logBodyMetrics,
+  setCycleAnchor,
+  loadFitnessOverview,
+} from "./data/fitness";
+export type {
+  ExerciseRow,
+  WorkoutPlanRow,
+  PlanSessionRow,
+  PlanSessionExerciseRow,
+  WorkoutSessionRow,
+  SessionSetRow,
+  BodyMetricRow,
+  MuscleGroupValue,
+  CreateExerciseInput,
+  CreateWorkoutPlanInput,
+  CreatePlanSessionInput,
+  AddPlanSessionExerciseInput,
+  LogSetInput,
+  LogBodyMetricsInput,
+  PlanSessionWithExercises,
+  LoggedSet,
+  TodayWorkout,
+  FitnessOverview,
+} from "./data/fitness";
+
+export {
+  WORK_PIPELINE_LANES,
+  listWorkTargets,
+  listWorkShifts,
+  createWorkTarget,
+  updateWorkTargetStatus,
+  createWorkTargetTask,
+  updateWorkTargetTaskStatus,
+  createWorkShift,
+  deleteWorkShift,
+  loadWorkOverview,
+} from "./data/work";
+export type {
+  WorkTargetRow,
+  WorkTargetTaskRow,
+  WorkShiftRow,
+  WorkTargetStatus,
+  CreateWorkTargetInput,
+  CreateWorkTargetTaskInput,
+  UpdateWorkTargetTaskStatusInput,
+  CreateWorkShiftInput,
+  WorkTargetWithTasks,
+  ShiftOnDay,
+  ShiftDay,
+  WorkOverview,
+} from "./data/work";
+
+export {
+  BUSINESS_TASK_CATEGORY,
+  listWeeklyGoals,
+  upsertWeeklyGoal,
+  setWeeklyGoalCompleted,
+  loadBusinessLens,
+} from "./data/weeklyGoals";
+export type {
+  WeeklyGoalRow,
+  UpsertWeeklyGoalInput,
+  BusinessHoursToday,
+  BusinessLens,
+} from "./data/weeklyGoals";
+
+export { loadLifeHub } from "./data/life";
+export type {
+  LifeHub,
+  DeenHubStatus,
+  BusinessHubStatus,
+  SchoolHubStatus,
+  FitnessHubStatus,
+  WorkHubStatus,
+} from "./data/life";

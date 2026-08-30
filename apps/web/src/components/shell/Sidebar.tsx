@@ -5,6 +5,7 @@ import {
   BookOpen,
   CalendarDays,
   ClipboardCheck,
+  Compass,
   GraduationCap,
   Moon,
   Plus,
@@ -61,6 +62,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/today", label: "Today", icon: Sun },
       { href: "/learn", label: "Learn", icon: GraduationCap },
+      { href: "/self", label: "Self", icon: Compass },
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/week", label: "Week", icon: BarChart3 },
     ],
