@@ -101,6 +101,17 @@ export type {
   FocusSessionContext,
 } from "./day/focusSessions";
 export {
+  buildWindowsForDay,
+  loadDaySignal,
+  saveAllocation,
+} from "./data/signal";
+export type {
+  AllocationCheckinRow,
+  CheckinAllocationRow,
+  DaySignalView,
+  SaveAllocationInput,
+} from "./data/signal";
+export {
   startHour,
   startSession,
   startDay,
