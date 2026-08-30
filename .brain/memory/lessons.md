@@ -66,6 +66,31 @@ and the bug only appeared on the NEXT session — structurally outside what test
 can observe. **When you add a reset to one branch of an advance/finish, retry/give-up or
 page/last-page pair, grep for the sibling.**
 
+### An oracle earns its keep by disagreeing with the thing it checks
+D47 kept `scheduleFromLog` as an oracle folded against the stored-state write path. It found two
+real defects **in ULM's design**, before our migration was written — neither would have surfaced
+until a due date was quietly wrong months later:
+
+- **`card_states` has to store `learning_steps`.** ULM's does not. ts-fsrs 5.x uses it to pick the
+  next interval inside the learning/relearning phase, so a state rebuilt without it lands in a
+  different `state` AND a different `lapses` than a replay of the identical log. Measured across a
+  ten-review sequence at six spacings: **every spacing diverged**, and every one matched once the
+  column existed. Both repos pin `ts-fsrs@^5.4.1`, so this is not a version difference.
+- **Deriving `lapses` in SQL disagrees with the library.** ULM computes `prev.lapses + 1 when
+  rating = 1`; ts-fsrs counts a lapse only for Again in the *review* state, never inside learning.
+  Deriving it drifts the stored count from any replay for exactly the cards a struggling user
+  generates most. Ours **validates rather than derives**: unchanged, or one higher and only on
+  `again`.
+
+The technique generalises: **fold the write path over a log and assert it equals an independent
+replay of the same log — at every prefix, not just the end.** A divergence that cancels out by the
+last review passes an end-state comparison and is still a bug. It also forced `p_reviewed_at` to be
+a parameter rather than the server's `now()`, because otherwise the oracle measures clock skew
+between client and server instead of the scheduler.
+
+What an oracle cannot prove: that a TypeScript transcription of SQL matches the SQL actually
+deployed. Only pgTAP closes that, and it needs Docker.
+
 ---
 
 ## Specific incidents in this repo
