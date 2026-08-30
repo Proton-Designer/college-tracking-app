@@ -22,6 +22,11 @@ of them is reachable, typed, and building on both platforms.
 | **P3** — one session, two metrics | `startHour`/`startSession` split, the Signal:Noise engine, allocation check-in schema, the unaccounted-time question in the Night Plan, global distraction capture. |
 | **P4** — Learn | Schema, FSRS scheduler, ingestion pipeline with the provenance firewall, embeddings provider with a working absent-key path, session and library surfaces. |
 | **P5** — Desired Self | Schema, the evidence-derived standing engine, routing map, surfaces on both platforms. |
+| **P6** — the ULM port | ULM's ten write-time invariant gates with calibration intact; progressive availability; `card_states` + a transactional RPC with our replay kept as the oracle; two live bugs his gap list exposed in our code; his ADRs and `.brain` conventions carried across. |
+| **P7** — the vision chain | 10-Year Vision → 3-Year Beachhead → 1-Year Mission → 90-Day M.O.M., nullable-linked down to the Night Plan MIT, plus the 90-day review ritual. |
+| **P8** — Goal Ecology | Pair relationships (competing/neutral/synergistic) with unmarked kept distinct from neutral, and the optional Priority Matrix. |
+| **P9** — per-dimension Hell | The second written field, five drift triggers over data we already had, a hard rate limit, and a confrontation that quotes the user back to themselves and always carries both doors. |
+| **P10** — screen time | Screenshot upload through the existing parse → stage → confirm pipeline, a weekly series where a missed week is a hole, and a Focus drift input measured only against the user's own baseline. |
 
 Navigation ended where the plan said it would: **Today · Learn · Life · Self · Review** on a phone,
 the same architecture unfolded in the web sidebar with the five domains listed directly. Every tab
@@ -53,6 +58,14 @@ quote. So the pipeline verifies the quote is present in the actual chunk text, n
 sides for the typographic differences between a PDF text layer and a model's retyping, and stores
 **the chunk's own substring** rather than the model's rendition. The model chooses where to point;
 it never authors what the citation says.
+
+**Where our own pattern lost, and should have.** Deterministic-first says every AI feature has a
+no-API floor. ULM's ADR-009 says lesson extraction must never degrade to its keyless path, because
+that path measured 3/10 on a real book — selection where the product requires transformation, with
+`core_claim` coming out byte-identical to the provenance quote. Both rules are right, and they
+collide because deterministic-first was never about having *an* output; it is about having one we
+can stand behind. D45 splits it: triage, merge clustering and cloze cards keep a floor, and
+extraction refuses. That is the same logic the provenance firewall already follows.
 
 **Two owner amendments went in verbatim.** The Learn comeback is a visible moment fired from the
 server's own count of what is still due, not a property of the schema (D29). And auto-accounting
@@ -97,6 +110,13 @@ showing 5:00 AM, an empty Self explains what a dimension is for rather than show
 Nothing anywhere is seeded, including LifeOS's three starter workout plans, which encode one
 person's targets and would have presented themselves as yours.
 
+**Deliberately not ported from ULM**: his Ollama provider and local HuggingFace embeddings (D45,
+D41 — both require a worker on someone's laptop); his light "Reading Room" design system (the merge
+directive already ruled LifeOS's dark system is the base, though his build-failing contrast test is
+worth taking); and the streak half of his `complete_session` (D23/D29 — the effortful-win idea
+lands on our comeback moment instead, including his write-once milestone columns so a crossed
+threshold fires once rather than every session after).
+
 **Deferred with reasons recorded**: EPUB and other source types beyond PDF (the pipeline branches on
 `source_kind`; only PDF has an extractor); Teach-Back mode; the Question Bank's FSRS migration
 (D32 — it can happen any quiet week, losslessly, because neither scheduler stores state); AI grading
@@ -118,5 +138,18 @@ batch path would need is written up in the ingestion notes).
   fatal here: replaying one log would produce a different answer on every render, quietly destroying
   the derive-don't-store design.
 - **Two engineers writing the same generated file collide silently.** Duplicate table definitions
-  appeared in `database.types.ts` and only typecheck caught them. D22's commit-by-pathspec is what
-  kept the two workstreams separable while it was resolved.
+  appeared in `database.types.ts`, and later duplicate barrel exports within seconds of each other;
+  only typecheck caught either. D22's commit-by-pathspec is what kept the workstreams separable.
+- **A ported gate applied to the wrong shape breaks everything at once, which is the good case.**
+  `passesCardTextSanity` requires terminal punctuation — correct for a card prompt, wrong for a
+  lesson title, which is an imperative headline. Every fixture caught it immediately.
+- **Fixtures can lie about what a model returns.** Porting the invariant gates turned six pipeline
+  tests red because the fixtures echoed a slice of the chunk back as the `core_claim` — precisely
+  the selection-not-transformation failure the gate exists to catch. The gates were right; every
+  prior green on those tests had been measuring nothing.
+- **A retryable error on unstorable data is a poison pill.** A NUL byte in extracted PDF text is
+  rejected by Postgres outright and the resulting plain `Error` has no structured code, so a
+  retrying pipeline retries forever against text that can never be stored. One byte kills a whole
+  book, permanently. Found in ULM's gap list; our pipeline had it too.
+- **A call with no timeout plus a progress-independent heartbeat is an immortal job.** Two
+  individually-correct decisions combining into harm — the shape to look for, not the instance.
