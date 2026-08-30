@@ -2,13 +2,14 @@ import { Tabs } from "expo-router";
 import { Island } from "../../components/shell/Island";
 
 /**
- * Mobile bottom tabs: Today · Life · Review. Calendar is a segment inside Courses, not a
- * separate tab. Settings lives in the Today header, not here.
+ * Mobile bottom tabs: Today · Learn · Life · Self · Review — the merged app's IA, complete.
+ * Calendar is a segment inside Courses, not a separate tab. Settings lives in the Today header,
+ * not here.
  *
- * **Where this is going.** The merged app's IA is five tabs — Today · Learn · Life · Self ·
- * Review. Each joins this navigator on the day its destination becomes real (Learn in Phase 4,
- * Self in Phase 5), because a tab that opens a "coming soon" screen is scaffolding wearing an
- * empty state's clothes rather than an honest one (D40).
+ * **Every tab arrived only when its destination was real.** That was the rule throughout: a tab
+ * opening a "coming soon" screen is scaffolding wearing an empty state's clothes rather than an
+ * honest one (D40). Life joined when its fifth domain shipped, Learn when the daily session ran
+ * against real lessons, Self when a dimension could show the acts behind its number.
  *
  * **Life arrived when its last domain did.** The rule is that a tab joins the dock when its
  * destination is real, and Life's destination is five real domain surfaces: Deen, Business,
@@ -37,7 +38,9 @@ export default function TabsLayout() {
       {/* D24: the Work Engine merged into Today as its base; the separate Hours tab is
           retired. Today is the default open, so the merged surface is the default. */}
       <Tabs.Screen name="today" options={{ title: "Today" }} />
+      <Tabs.Screen name="learn" options={{ title: "Learn" }} />
       <Tabs.Screen name="life" options={{ title: "Life" }} />
+      <Tabs.Screen name="self" options={{ title: "Self" }} />
       <Tabs.Screen name="review" options={{ title: "Review" }} />
     </Tabs>
   );

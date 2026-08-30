@@ -4,8 +4,11 @@ import {
   BarChart3,
   BookOpen,
   CalendarDays,
+  Briefcase,
   ClipboardCheck,
+  Clock,
   Compass,
+  Dumbbell,
   GraduationCap,
   Moon,
   Plus,
@@ -68,15 +71,20 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
-    // Life is the group the merged IA puts the five domains in. It opens with the two that
-    // are real -- Deen, and School, which is the Courses surface under the name the merged IA
-    // gives it (the destination is unchanged; only the label moved into its domain). Business,
-    // Fitness and Work join on the day their destinations exist, not before: a nav item leading
-    // to a "coming soon" page is scaffolding wearing an empty state's clothes (D40).
+    // The five domains, all real. Each is a lens over shared primitives rather than a silo
+    // (directive rule 3.4), which is why School is the Courses surface under the name the merged
+    // IA gives it -- the destination is unchanged; only the label moved into its domain.
+    //
+    // No /life entry: the sidebar already unfolds the domains, so a hub link here would be a
+    // second way to reach what is directly above it. Mobile keeps the hub, because a dock cannot
+    // show five domains and five pillars at once.
     title: "Life",
     items: [
       { href: "/deen", label: "Deen", icon: Moon, tint: "--color-domain-deen" },
+      { href: "/business", label: "Business", icon: Briefcase, tint: "--color-domain-business" },
       { href: "/courses", label: "School", icon: BookOpen, tint: "--color-domain-school" },
+      { href: "/fitness", label: "Fitness", icon: Dumbbell, tint: "--color-domain-fitness" },
+      { href: "/work", label: "Work", icon: Clock, tint: "--color-domain-work" },
     ],
   },
   {

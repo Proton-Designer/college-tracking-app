@@ -1,14 +1,12 @@
 import type { DailySessionView, LearnCard } from "@collegeos/api";
 import type { LessonRating } from "@collegeos/core";
 import { color, domainColor, radius, space } from "@collegeos/design/native";
-import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, EmptyState, NavLink, Panel, Textarea } from "../components/ui";
-import { textStyle } from "../design/typography";
-import { beginSession, finishSession, loadLearn, submitReview } from "../lib/learnActions";
-import { useAuthSession } from "../lib/useAuthSession";
+import { Button, EmptyState, Panel, TabScreenScrollView, Textarea } from "../../components/ui";
+import { textStyle } from "../../design/typography";
+import { beginSession, finishSession, loadLearn, submitReview } from "../../lib/learnActions";
+import { useAuthSession } from "../../lib/useAuthSession";
 
 /**
  * Learn, mobile. Mirrors apps/web/src/components/learn/LearnClient.tsx rule for rule; both call
@@ -38,8 +36,6 @@ const RATINGS: { rating: LessonRating; label: string }[] = [
 ];
 
 export default function LearnScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { session } = useAuthSession();
   const userId = session?.user.id ?? null;
 
@@ -331,21 +327,14 @@ export default function LearnScreen() {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.screen,
-        { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[10] },
-      ]}
-    >
-      <NavLink label="Today" onPress={() => router.replace("/(tabs)/today")} />
+    <TabScreenScrollView>
       <Text style={[textStyle("displayM", color.ink), styles.gapTop]}>Learn</Text>
       <View style={styles.gapTop}>{content()}</View>
-    </ScrollView>
+    </TabScreenScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { paddingHorizontal: space[5], gap: space[3] },
   stack: { gap: space[4] },
   row: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: space[4] },
   gapTop: { marginTop: space[4] },

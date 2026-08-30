@@ -611,3 +611,25 @@ bundle ID / EAS slug must **never be chosen under the old name** — the first `
 slug and the first submission binds the bundle ID. Discipline that keeps the cutover a config diff
 rather than a code hunt: every new table, bucket, component and function is named neutrally
 (`sources`, not `ulm_*`; no product name inside an identifier).
+
+## D44 — `tasks` keeps free-text category; the Business lens owns one constant (2026-08-30)
+`task_sessions` carries a real `life_domain` (D27) and `tasks` does not — it has only the
+free-text `category` it has always had. So Business's lens over tasks is
+`category ilike 'business'`, behind one exported constant (`BUSINESS_TASK_CATEGORY`), and the
+rule is stated on screen so an empty lens reads as a rule rather than as a bug.
+
+**Why not add `tasks.domain` now.** The asymmetry is real but it is not an accident. A *session*
+must declare what it served — that is what makes one session table readable by five surfaces, and
+why D27 made the column NOT NULL. A *task* is a thing to do, and the academic ones (the
+overwhelming majority, created by syllabus confirm, Canvas sync and announcement parsing) have no
+domain to declare beyond "school", which the course link already says better. Adding a required
+column would force every one of those write paths to answer a question they have no new information
+about; adding a nullable one would create a second, quieter source of truth beside `category` and
+guarantee the two disagree.
+
+**What would change the ruling:** a second domain wanting its own task lens. At that point the
+lens predicate is duplicated, and duplication — not the asymmetry — is the actual problem. The
+constant exists so that day is a one-line change rather than a search.
+
+Flagged by the engineer who built the lens rather than worked around it, which is why it is a
+ruling instead of an undocumented `ilike` somewhere.

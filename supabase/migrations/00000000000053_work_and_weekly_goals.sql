@@ -126,7 +126,8 @@ create policy work_shifts_all_own on public.work_shifts
 create table public.weekly_goals (
   id bigint generated always as identity primary key,
   user_id uuid not null references public.profiles (id) on delete cascade,
-  -- Monday of the week, matching packages/core's startOfWeek.
+  -- The week's first day, from packages/core's startOfWeek -- which returns the SUNDAY on or
+  -- before the date, matching Deen's Qur'an week and every Sun-Sat strip in the app.
   week_start_date date not null,
   domain public.life_domain not null,
   headline text not null,

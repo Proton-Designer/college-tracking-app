@@ -1,6 +1,6 @@
 "use client";
 
-import { BookOpen, CalendarDays, ClipboardCheck, Settings, Sun } from "lucide-react";
+import { ClipboardCheck, Compass, GraduationCap, Sun, Target } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
@@ -13,15 +13,22 @@ interface NavItem {
 }
 
 /**
+ * The same five pillars mobile's dock carries, because a narrow browser has a phone's worth of
+ * room and should get a phone's information architecture -- not the pre-merge route list.
+ *
+ * The domains live inside Life here for the same reason they do on a phone: a dock cannot show
+ * five pillars and five domains at once. Settings and Calendar are reachable from Today and from
+ * Life's School card respectively; the sidebar (from `lg` up) lists everything directly.
+ *
  * Insights is gone as a destination: it merged into Review (collision M7), so "how am I doing"
  * has one answer rather than two competing ones.
  */
 const NAV_ITEMS: NavItem[] = [
   { href: "/today", label: "Today", icon: Sun },
-  { href: "/courses", label: "Courses", icon: BookOpen },
-  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+  { href: "/learn", label: "Learn", icon: GraduationCap },
+  { href: "/life", label: "Life", icon: Compass },
+  { href: "/self", label: "Self", icon: Target },
   { href: "/review", label: "Review", icon: ClipboardCheck },
-  { href: "/settings", label: "Settings", icon: Settings },
 ];
 
 function isActive(pathname: string, href: string): boolean {

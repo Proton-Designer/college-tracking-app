@@ -1,14 +1,12 @@
 import type { SelfView } from "@collegeos/api";
 import { EVIDENCE_KIND_LABELS, MIN_ACTS_TO_JUDGE, type DimensionStanding } from "@collegeos/core";
 import { color, radius, space } from "@collegeos/design/native";
-import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, EmptyState, NavLink, Panel } from "../components/ui";
-import { textStyle } from "../design/typography";
-import { addDimension, loadSelfView } from "../lib/selfActions";
-import { useAuthSession } from "../lib/useAuthSession";
+import { Button, EmptyState, Panel, TabScreenScrollView } from "../../components/ui";
+import { textStyle } from "../../design/typography";
+import { addDimension, loadSelfView } from "../../lib/selfActions";
+import { useAuthSession } from "../../lib/useAuthSession";
 
 /**
  * Desired Self, mobile.
@@ -32,8 +30,6 @@ const SUGGESTED = [
 ];
 
 export default function SelfScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { session } = useAuthSession();
   const userId = session?.user.id ?? null;
 
@@ -166,17 +162,11 @@ export default function SelfScreen() {
   };
 
   return (
-    <ScrollView
-      contentContainerStyle={[
-        styles.screen,
-        { paddingTop: insets.top + space[6], paddingBottom: insets.bottom + space[10] },
-      ]}
-    >
-      <NavLink label="Today" onPress={() => router.replace("/(tabs)/today")} />
+    <TabScreenScrollView>
       <Text style={[textStyle("displayM", color.ink), styles.gapTop]}>Self</Text>
       <Text style={textStyle("bodyS", color.inkMuted)}>Last 90 days</Text>
       <View style={styles.gapTop}>{content()}</View>
-    </ScrollView>
+    </TabScreenScrollView>
   );
 }
 
@@ -263,7 +253,6 @@ function DimensionCard({
 }
 
 const styles = StyleSheet.create({
-  screen: { paddingHorizontal: space[5], gap: space[2] },
   stack: { gap: space[4] },
   row: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: space[4] },
   gapTop: { marginTop: space[4] },
