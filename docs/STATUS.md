@@ -30,7 +30,7 @@ primitives rather than a silo.
 
 ```
 59 migrations (47-59 NOT yet applied to any database) · 96 tables · 0 without RLS
-17 edge functions · web: 28 routes · mobile: 3 tabs + 26 screens
+21 edge functions · web: 27 route groups · mobile: 3 tabs + 26 screens
 ```
 
 | Suite | Result | When |
