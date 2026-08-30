@@ -20,8 +20,8 @@
 
 | # | Do | Must happen |
 |---|---|---|
-| 0.1 | `supabase migration list` | Remote is at 46. Migrations 47–64 are pending. |
-| 0.2 | `supabase db push` | All eighteen apply cleanly, in order, with no manual intervention. |
+| 0.1 | `supabase migration list` | Remote is at 46. Migrations 47–65 are pending. |
+| 0.2 | `supabase db push` | All nineteen apply cleanly, in order, with no manual intervention. |
 | 0.3 | **`npm run db:types:cloud`**, then `npm run verify` | ⚠️ **The single highest-risk step in this plan.** `database.types.ts` was hand-written for 33 tables because this build had no database. A regeneration that changes the file means a transcription error; verify must still exit 0 afterwards. **Any type error here is a real defect, not noise.** |
 | 0.4 | `npm run verify` | Exit 0. Baseline at handover: 598 core + 30 api tests. |
 | 0.5 | `cd supabase/functions && deno test -A` | The `-A` matters — without it 4 tests fail on env/net permissions. That is the flag, not a regression. |
@@ -362,3 +362,36 @@ Validate the **refusals first**; they are the feature.
 7. Confirm `lesson_reviews` still rejects UPDATE and DELETE for both an ordinary caller and
    `service_role`, **independently** — they are two different mechanisms (missing RLS policies vs a
    trigger) and testing one proves nothing about the other.
+
+---
+
+## 17. Card generation and the D45 split
+
+1. **With `ANTHROPIC_API_KEY` set**: ingest a source. A typical lesson yields **four** cards —
+   `free_recall`, `cloze`, `application`, `why`. Every lesson has at least one free-recall and at
+   least one non-recall type.
+2. **The cloze never blanks a stopword**, and never the first or last word. Read ten of them.
+3. **A card never hands over its answer** (anti-leak), and is never so vague it is unanswerable
+   cold in an interleaved session (topicality). Both are required — check a few of each kind.
+4. **With the key unset**: the step **blocks** with an actionable message, burns no attempt, writes
+   **zero** cards, and resumes from the same cursor when a key appears. Confirm it does *not* write
+   the deterministic cloze cards alone — a cloze-only deck is recognition practice and would be
+   indistinguishable from a real one to the person reviewing it.
+5. **With no `VOYAGE_API_KEY`**: cards are still written, and `topicalityUnknown` on the job is
+   non-zero. Confirm the counter exists and is not zero — that number is the only thing separating
+   a keyless book from a verified one in the record.
+6. **`sources.status = 'partial'`** now fires: start a session before ingestion finishes and confirm
+   there are real cards behind it.
+7. **Cost**: read `ingest_jobs.cost_usd` after a real 300-page book. Expect **~$1.49**. If it
+   exceeds $1.50, the lever is Haiku for card writing.
+
+---
+
+## 18. Account deletion — the promise it makes
+
+1. Upload a source PDF, a syllabus, and a screen-time screenshot as a throwaway account.
+2. Delete the account.
+3. **Confirm every bucket is empty for that user**: `syllabi`, `proof`, `avatars`, **`sources`**,
+   **`screen-time`**. The last two were missing from the enumeration and would have survived — this
+   is the check that would have caught it.
+4. Confirm the account export lists files from all five buckets before deletion.

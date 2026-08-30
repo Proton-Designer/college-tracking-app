@@ -21,11 +21,11 @@ touched a database.
 | # | Do | Why / notes |
 |---|---|---|
 | 0.1 | `supabase migration list` | Confirm the last **remote** migration is `46`. Migration **47** (LLM budget upper clamp) was written before this build and is still unapplied — see `docs/PENDING_DB_CHANGES.md`. |
-| 0.2 | `supabase db push` | Applies **47 through 64**: the budget clamp, session type + domain, profile life settings, pgvector, Deen, Fitness, Work + weekly goals, Learn, embeddings usage, Desired Self, allocation check-ins, global distractions, the sources bucket + ingest cron, progressive availability + `card_states`, the vision chain, drift confrontation, Goal Ecology, and screen time. |
+| 0.2 | `supabase db push` | Applies **47 through 65**: the budget clamp, session type + domain, profile life settings, pgvector, Deen, Fitness, Work + weekly goals, Learn, embeddings usage, Desired Self, allocation check-ins, global distractions, the sources bucket + ingest cron, progressive availability + `card_states`, the vision chain, drift confrontation, Goal Ecology, screen time, and the screen-time storage bucket. |
 | 0.3 | **`npm run db:types:cloud`** | ⚠️ **Required, not optional.** `packages/api/src/database.types.ts` was **hand-extended** during this build because `db:types` needs a live database. Every field was cross-checked against its migration by hand, but a real regeneration is the only thing that proves it. Do this before trusting a type. |
 | 0.4 | `npm run verify` | Must exit 0 against the regenerated types. A mismatch here is a hand-transcription error, and this is where it surfaces. |
 | 0.5 | Verify pgvector | Migration 50 enables it. On hosted Supabase this may instead need Dashboard → Database → Extensions, exactly as migration 1 notes for pgtap. |
-| 0.6 | **[Ayman]** First Docker session: `npm run db:reset && npm run db:test` | pgTAP over all 64 migrations. The RLS record for everything since migration 34 is live anon probes plus psql role-simulation — both passed, both weaker than pgTAP. This is the oldest debt in the repo. |
+| 0.6 | **[Ayman]** First Docker session: `npm run db:reset && npm run db:test` | pgTAP over all 65 migrations. The RLS record for everything since migration 34 is live anon probes plus psql role-simulation — both passed, both weaker than pgTAP. This is the oldest debt in the repo. |
 
 ---
 
@@ -92,6 +92,7 @@ exercised for the first time on the day the key arrives.
 |---|---|---|
 | 4.1 | **Raise the monthly ceiling from $5 to $25** (Settings → LLM budget) | Built to $25 expectations; the ceiling was deliberately left at $5 so nothing could spend against an assumption. The DB clamp allows up to $200. |
 | 4.2 | Ingest **three real books** and read `ingest_jobs.cost_usd` on each | The brief's M1 exit test. Target $0.50–$1.50 per 300-page book. **Validate before optimising anything.** |
+| 4.2b | ⚠️ **Watch the per-book cost against the brief's ceiling** | Card generation added one Sonnet call per surviving lesson, taking a 300-page book from ~$1.27 to **~$1.49** at post-2026-09-01 rates — inside the brief's $0.50–$1.50 band with **under 2¢ of headroom**. If a real book confirms it, the lever is Haiku for card writing (~⅓ the cost). Deliberately not taken unilaterally: the card is what the whole retention thesis rests on. |
 | 4.3 | Re-set the ceiling against the real numbers | $25 covers three validation books, then ~8–10 ingestions a month plus grading assists (<$1/mo) and the existing crons, with honest headroom. If a book comes in at $3, the tiering needs work before the ceiling does. |
 | 4.4 | Rate a lesson set | The brief's real bar: at least 8/10 useful, every lesson traceable to its passage. |
 
