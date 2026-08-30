@@ -7,6 +7,7 @@ import { DataExportDeletionSection } from "../components/settings/DataExportDele
 import { IntegrationsSection } from "../components/settings/IntegrationsSection";
 import { KillHabitsSection } from "../components/settings/KillHabitsSection";
 import { LlmBudgetSection } from "../components/settings/LlmBudgetSection";
+import { PrayerSettingsSection } from "../components/settings/PrayerSettingsSection";
 import { ProfileSection } from "../components/settings/ProfileSection";
 import { Aurora, Button, Skeleton } from "../components/ui";
 import { textStyle } from "../design/typography";
@@ -47,6 +48,12 @@ export default function SettingsScreen() {
         <View style={{ gap: space[8] }}>
           <Section title="Profile & timezone">
             <ProfileSection userId={result.data.userId} profile={result.data.profile} />
+          </Section>
+
+          {/* Directly under Profile & timezone: the same class of setting -- the anchors every
+              derived day-shape is computed from. Nothing in Deen works until it is set. */}
+          <Section title="Location & prayer calculation">
+            <PrayerSettingsSection userId={result.data.userId} profile={result.data.profile} />
           </Section>
 
           <Section title="Kill-list habits">

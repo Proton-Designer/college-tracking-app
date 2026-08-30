@@ -5,6 +5,7 @@ import {
   BookOpen,
   CalendarDays,
   ClipboardCheck,
+  Moon,
   Plus,
   Settings,
   Sun,
@@ -58,9 +59,20 @@ const NAV_GROUPS: NavGroup[] = [
     title: "Main",
     items: [
       { href: "/today", label: "Today", icon: Sun },
-      { href: "/courses", label: "Courses", icon: BookOpen, tint: "--color-domain-school" },
       { href: "/calendar", label: "Calendar", icon: CalendarDays },
       { href: "/week", label: "Week", icon: BarChart3 },
+    ],
+  },
+  {
+    // Life is the group the merged IA puts the five domains in. It opens with the two that
+    // are real -- Deen, and School, which is the Courses surface under the name the merged IA
+    // gives it (the destination is unchanged; only the label moved into its domain). Business,
+    // Fitness and Work join on the day their destinations exist, not before: a nav item leading
+    // to a "coming soon" page is scaffolding wearing an empty state's clothes (D40).
+    title: "Life",
+    items: [
+      { href: "/deen", label: "Deen", icon: Moon, tint: "--color-domain-deen" },
+      { href: "/courses", label: "School", icon: BookOpen, tint: "--color-domain-school" },
     ],
   },
   {

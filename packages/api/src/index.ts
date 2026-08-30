@@ -143,7 +143,6 @@ export {
   toggleSunnahSlot,
   toggleAdhkarPeriod,
   logQuranSession,
-  deleteQuranSession,
   setReflectionIntensity,
   updatePrayerSettings,
   loadDeenOverview,

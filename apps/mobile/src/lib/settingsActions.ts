@@ -10,10 +10,12 @@ import {
   setMaxEscalationLevel,
   updateKillHabit,
   updateOwnProfile,
+  updatePrayerSettings,
   type AccountExport,
   type CommitmentLevel,
   type CreateKillHabitInput,
   type OAuthProvider,
+  type PrayerSettingsInput,
   type UpdateKillHabitInput,
 } from "@collegeos/api";
 import { getMobileSupabaseClient } from "./supabase/client";
@@ -29,6 +31,18 @@ export interface ActionResult {
 export async function updateProfileAction(userId: string, input: { timezone: string; sleepBaselineHours: number | null }): Promise<ActionResult> {
   const client = getMobileSupabaseClient();
   const result = await updateOwnProfile(client, userId, { timezone: input.timezone, sleep_baseline_hours: input.sleepBaselineHours });
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true };
+}
+
+/**
+ * Location + prayer calculation (D39: per-user, never a constant). Mirrors web's
+ * `updatePrayerSettingsAction`; the validation itself lives in `@collegeos/api`'s
+ * `updatePrayerSettings` so the two platforms cannot disagree about a legal coordinate.
+ */
+export async function updatePrayerSettingsAction(userId: string, input: PrayerSettingsInput): Promise<ActionResult> {
+  const client = getMobileSupabaseClient();
+  const result = await updatePrayerSettings(client, userId, input);
   if (!result.ok) return { ok: false, error: result.error.message };
   return { ok: true };
 }

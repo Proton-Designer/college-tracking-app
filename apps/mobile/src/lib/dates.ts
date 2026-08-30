@@ -15,3 +15,10 @@ export function daysRemainingLabel(today: LocalDate, localDueDate: LocalDate): s
 export function formatShortDate(localDate: LocalDate): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${localDate}T00:00:00Z`));
 }
+
+/** "5:41 AM" — an ISO instant rendered on the user's own wall clock. Kept in sync with
+ *  apps/web/src/lib/dates.ts's formatClockTime; see its comment for why the zone is applied
+ *  here rather than left to the device. */
+export function formatClockTime(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone }).format(new Date(iso));
+}

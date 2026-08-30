@@ -2,6 +2,7 @@ import { DataExportDeletionSection } from "@/components/settings/DataExportDelet
 import { IntegrationsSection } from "@/components/settings/IntegrationsSection";
 import { KillHabitsSection } from "@/components/settings/KillHabitsSection";
 import { LlmBudgetSection } from "@/components/settings/LlmBudgetSection";
+import { PrayerSettingsSection } from "@/components/settings/PrayerSettingsSection";
 import { ProfileSection } from "@/components/settings/ProfileSection";
 import { Aurora } from "@/components/ui";
 import { loadSettingsData } from "./data";
@@ -31,6 +32,13 @@ export default async function SettingsPage() {
       <section className="flex flex-col gap-3">
         <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Profile &amp; timezone</h2>
         <ProfileSection profile={profile} />
+      </section>
+
+      {/* Directly under Profile & timezone: this is the same class of setting -- the anchors
+          every derived day-shape in Ihsan is computed from. Nothing in Deen works until it is set. */}
+      <section className="flex flex-col gap-3">
+        <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink-muted">Location &amp; prayer calculation</h2>
+        <PrayerSettingsSection profile={profile} />
       </section>
 
       <section className="flex flex-col gap-3">

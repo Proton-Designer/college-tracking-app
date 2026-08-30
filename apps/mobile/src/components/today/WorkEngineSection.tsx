@@ -25,6 +25,11 @@ function formatClock(totalSeconds: number): string {
 
 const QUICK_LINKS = [
   ["Capture", "/capture"],
+  // Deen is a real destination, not a domain hub -- the merged IA puts it inside a Life tab
+  // that does not exist yet, and a tab whose screen is a placeholder is scaffolding wearing an
+  // empty state's clothes (D40, and (tabs)/_layout.tsx's own header rule). It joins the dock on
+  // the day Life ships; until then it is reached from here, the same way Habits and Goals are.
+  ["Deen", "/deen"],
   ["Wall", "/wall"],
   ["Night Plan", "/nightplan"],
   ["Cards", "/cards"],

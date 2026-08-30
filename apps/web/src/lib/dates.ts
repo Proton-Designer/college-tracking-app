@@ -14,3 +14,12 @@ export function daysRemainingLabel(today: LocalDate, localDueDate: LocalDate): s
 export function formatShortDate(localDate: LocalDate): string {
   return new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: "UTC" }).format(new Date(`${localDate}T00:00:00Z`));
 }
+
+/** "5:41 AM" — an ISO instant rendered on the user's own wall clock. Prayer windows come out
+ *  of `packages/core` as instants (never `Date`s, never pre-formatted), so the timezone has to
+ *  be applied here; formatting in the browser's zone would show the wrong time for anyone
+ *  whose profile timezone isn't where their laptop is. Kept in sync with
+ *  apps/mobile/src/lib/dates.ts's formatClockTime. */
+export function formatClockTime(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", timeZone }).format(new Date(iso));
+}

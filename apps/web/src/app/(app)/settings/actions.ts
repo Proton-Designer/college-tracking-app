@@ -13,10 +13,12 @@ import {
   setMaxEscalationLevel,
   updateKillHabit,
   updateOwnProfile,
+  updatePrayerSettings,
   type AccountExport,
   type CommitmentLevel,
   type CreateKillHabitInput,
   type OAuthProvider,
+  type PrayerSettingsInput,
   type UpdateKillHabitInput,
 } from "@collegeos/api";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
@@ -194,5 +196,24 @@ export async function confirmIcsEventAction(
   });
   if (!result.ok) return { ok: false, error: result.error.message };
   revalidatePath("/settings");
+  return { ok: true };
+}
+
+/**
+ * Location + prayer calculation (D39: per-user, never a constant).
+ *
+ * Validation lives in `@collegeos/api`'s `updatePrayerSettings`, not here, so mobile's
+ * settingsActions.ts and this server action cannot disagree about what a legal coordinate is.
+ * Revalidates /deen as well as /settings: the whole Deen page is a function of these four
+ * values, and leaving it cached would show the "no location set" state after one was set.
+ */
+export async function updatePrayerSettingsAction(input: PrayerSettingsInput): Promise<ActionResult> {
+  const caller = await requireUserId();
+  if (!caller.ok) return caller;
+  const client = await getServerSupabaseClient();
+  const result = await updatePrayerSettings(client, caller.userId, input);
+  if (!result.ok) return { ok: false, error: result.error.message };
+  revalidatePath("/settings");
+  revalidatePath("/deen");
   return { ok: true };
 }
