@@ -1,5 +1,18 @@
 # Pending database changes — for the machine that has Supabase credentials
 
+> ## ⚠️ SUPERSEDED for the migration list — see `docs/CONNECTION_CHECKLIST.md` §0
+>
+> This document was written on 2026-08-27 against **migration 47 only**. Since then the Ihsan
+> merge added **48 through 64**, and this file does not describe them. Its "last applied
+> migration is 46" statement is still true; its *pending list* is not.
+>
+> **`docs/CONNECTION_CHECKLIST.md` §0 is the authoritative apply sequence** and covers all
+> eighteen. Everything below stays as the detailed write-up of migration 47 specifically —
+> the budget clamp — which is genuinely useful and is not repeated in the checklist.
+>
+> Left rather than rewritten because a doc row is a claim about the past: this one accurately
+> records what was owed on 2026-08-27, and editing it to look current would destroy that.
+
 > **Read this before running anything.** Work done on 2026-08-27 produced schema and
 > data-layer changes that **could not be applied or verified here**, because this machine
 > has no Supabase credentials and no Docker. Every database-side item is written up below
