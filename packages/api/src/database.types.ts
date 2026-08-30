@@ -1310,6 +1310,7 @@ export type Database = {
           hypothesis: string;
           hypothesized_direction: string | null;
           id: number;
+          lesson_id: number | null;
           insight_id: number | null;
           metric_name: string | null;
           outcome_summary: string | null;
@@ -1326,6 +1327,7 @@ export type Database = {
           hypothesis: string;
           hypothesized_direction?: string | null;
           id?: never;
+          lesson_id?: number | null;
           insight_id?: number | null;
           metric_name?: string | null;
           outcome_summary?: string | null;
@@ -1342,6 +1344,7 @@ export type Database = {
           hypothesis?: string;
           hypothesized_direction?: string | null;
           id?: never;
+          lesson_id?: number | null;
           insight_id?: number | null;
           metric_name?: string | null;
           outcome_summary?: string | null;
@@ -2510,9 +2513,12 @@ export type Database = {
           checkin_window_end: string | null;
           checkin_window_start: string | null;
           created_at: string;
+          daily_new_lesson_limit: number;
+          desired_retention: number;
           display_name: string | null;
           email: string;
           id: string;
+          learn_notification_time: string | null;
           llm_monthly_budget_usd: number;
           location_label: string | null;
           location_lat: number | null;
@@ -2533,9 +2539,12 @@ export type Database = {
           checkin_window_end?: string | null;
           checkin_window_start?: string | null;
           created_at?: string;
+          daily_new_lesson_limit?: number;
+          desired_retention?: number;
           display_name?: string | null;
           email: string;
           id: string;
+          learn_notification_time?: string | null;
           llm_monthly_budget_usd?: number;
           location_label?: string | null;
           location_lat?: number | null;
@@ -2556,9 +2565,12 @@ export type Database = {
           checkin_window_end?: string | null;
           checkin_window_start?: string | null;
           created_at?: string;
+          daily_new_lesson_limit?: number;
+          desired_retention?: number;
           display_name?: string | null;
           email?: string;
           id?: string;
+          learn_notification_time?: string | null;
           llm_monthly_budget_usd?: number;
           location_label?: string | null;
           location_lat?: number | null;
@@ -3525,6 +3537,1391 @@ export type Database = {
           },
         ];
       };
+      allocation_checkins: {
+        Row: {
+          answered_at: string | null;
+          created_at: string;
+          id: number;
+          local_date: string;
+          source: string;
+          updated_at: string;
+          user_id: string;
+          window_end: string;
+          window_start: string;
+        };
+        Insert: {
+          answered_at?: string | null;
+          created_at?: string;
+          id?: never;
+          local_date: string;
+          source?: string;
+          updated_at?: string;
+          user_id: string;
+          window_end: string;
+          window_start: string;
+        };
+        Update: {
+          answered_at?: string | null;
+          created_at?: string;
+          id?: never;
+          local_date?: string;
+          source?: string;
+          updated_at?: string;
+          user_id?: string;
+          window_end?: string;
+          window_start?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "allocation_checkins_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      body_metrics: {
+        Row: {
+          created_at: string;
+          id: number;
+          local_date: string;
+          user_id: string;
+          waist_in: number | null;
+          weight_lb: number | null;
+        };
+        Insert: {
+          created_at?: string;
+          id?: never;
+          local_date: string;
+          user_id: string;
+          waist_in?: number | null;
+          weight_lb?: number | null;
+        };
+        Update: {
+          created_at?: string;
+          id?: never;
+          local_date?: string;
+          user_id?: string;
+          waist_in?: number | null;
+          weight_lb?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "body_metrics_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      checkin_allocations: {
+        Row: {
+          checkin_id: number;
+          created_at: string;
+          domain: Database["public"]["Enums"]["life_domain"];
+          id: number;
+          minutes: number;
+          user_id: string;
+        };
+        Insert: {
+          checkin_id: number;
+          created_at?: string;
+          domain: Database["public"]["Enums"]["life_domain"];
+          id?: never;
+          minutes: number;
+          user_id: string;
+        };
+        Update: {
+          checkin_id?: number;
+          created_at?: string;
+          domain?: Database["public"]["Enums"]["life_domain"];
+          id?: never;
+          minutes?: number;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "checkin_allocations_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "checkin_allocations_checkin_id_fkey";
+            columns: ["checkin_id"];
+            isOneToOne: false;
+            referencedRelation: "allocation_checkins";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      dimension_routes: {
+        Row: {
+          created_at: string;
+          dimension_id: number;
+          id: number;
+          kind: Database["public"]["Enums"]["evidence_kind"];
+          match_value: string | null;
+          user_id: string;
+          weight: number;
+        };
+        Insert: {
+          created_at?: string;
+          dimension_id: number;
+          id?: never;
+          kind: Database["public"]["Enums"]["evidence_kind"];
+          match_value?: string | null;
+          user_id: string;
+          weight?: number;
+        };
+        Update: {
+          created_at?: string;
+          dimension_id?: number;
+          id?: never;
+          kind?: Database["public"]["Enums"]["evidence_kind"];
+          match_value?: string | null;
+          user_id?: string;
+          weight?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "dimension_routes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "dimension_routes_dimension_id_fkey";
+            columns: ["dimension_id"];
+            isOneToOne: false;
+            referencedRelation: "dimensions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      dimensions: {
+        Row: {
+          archived: boolean;
+          ceiling: number | null;
+          created_at: string;
+          definition: string | null;
+          id: number;
+          name: string;
+          parent_id: number | null;
+          sort_order: number;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          archived?: boolean;
+          ceiling?: number | null;
+          created_at?: string;
+          definition?: string | null;
+          id?: never;
+          name: string;
+          parent_id?: number | null;
+          sort_order?: number;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          archived?: boolean;
+          ceiling?: number | null;
+          created_at?: string;
+          definition?: string | null;
+          id?: never;
+          name?: string;
+          parent_id?: number | null;
+          sort_order?: number;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "dimensions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "dimensions_parent_id_fkey";
+            columns: ["parent_id"];
+            isOneToOne: false;
+            referencedRelation: "dimensions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      distraction_triggers: {
+        Row: {
+          archived: boolean;
+          created_at: string;
+          description: string | null;
+          domain: Database["public"]["Enums"]["life_domain"] | null;
+          id: number;
+          name: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          archived?: boolean;
+          created_at?: string;
+          description?: string | null;
+          domain?: Database["public"]["Enums"]["life_domain"] | null;
+          id?: never;
+          name: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          archived?: boolean;
+          created_at?: string;
+          description?: string | null;
+          domain?: Database["public"]["Enums"]["life_domain"] | null;
+          id?: never;
+          name?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "distraction_triggers_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      exercises: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          id: number;
+          name: string;
+          notes: string | null;
+          primary_muscles: Database["public"]["Enums"]["muscle_group"][];
+          secondary_muscles: Database["public"]["Enums"]["muscle_group"][];
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          id?: never;
+          name: string;
+          notes?: string | null;
+          primary_muscles?: Database["public"]["Enums"]["muscle_group"][];
+          secondary_muscles?: Database["public"]["Enums"]["muscle_group"][];
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          id?: never;
+          name?: string;
+          notes?: string | null;
+          primary_muscles?: Database["public"]["Enums"]["muscle_group"][];
+          secondary_muscles?: Database["public"]["Enums"]["muscle_group"][];
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "exercises_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      fitness_benchmarks: {
+        Row: {
+          created_at: string;
+          exercise_id: number;
+          id: number;
+          local_date: string;
+          max_load: number | null;
+          max_reps: number | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          exercise_id: number;
+          id?: never;
+          local_date: string;
+          max_load?: number | null;
+          max_reps?: number | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          exercise_id?: number;
+          id?: never;
+          local_date?: string;
+          max_load?: number | null;
+          max_reps?: number | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "fitness_benchmarks_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "fitness_benchmarks_exercise_id_fkey";
+            columns: ["exercise_id"];
+            isOneToOne: false;
+            referencedRelation: "exercises";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      fitness_cycle_anchor: {
+        Row: {
+          anchor_date: string;
+          created_at: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          anchor_date: string;
+          created_at?: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          anchor_date?: string;
+          created_at?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "fitness_cycle_anchor_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      ingest_jobs: {
+        Row: {
+          attempts: number;
+          cost_usd: number;
+          created_at: string;
+          cursor: Json;
+          heartbeat_at: string;
+          id: number;
+          last_error: string | null;
+          source_id: number;
+          step: Database["public"]["Enums"]["ingest_step"];
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          attempts?: number;
+          cost_usd?: number;
+          created_at?: string;
+          cursor?: Json;
+          heartbeat_at?: string;
+          id?: never;
+          last_error?: string | null;
+          source_id: number;
+          step?: Database["public"]["Enums"]["ingest_step"];
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          attempts?: number;
+          cost_usd?: number;
+          created_at?: string;
+          cursor?: Json;
+          heartbeat_at?: string;
+          id?: never;
+          last_error?: string | null;
+          source_id?: number;
+          step?: Database["public"]["Enums"]["ingest_step"];
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "ingest_jobs_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "ingest_jobs_source_id_fkey";
+            columns: ["source_id"];
+            isOneToOne: false;
+            referencedRelation: "sources";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      learn_sessions: {
+        Row: {
+          cards_reviewed: number;
+          completed_at: string | null;
+          created_at: string;
+          id: number;
+          local_date: string;
+          new_lessons_introduced: number;
+          started_at: string;
+          task_session_id: number | null;
+          user_id: string;
+        };
+        Insert: {
+          cards_reviewed?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          id?: never;
+          local_date: string;
+          new_lessons_introduced?: number;
+          started_at?: string;
+          task_session_id?: number | null;
+          user_id: string;
+        };
+        Update: {
+          cards_reviewed?: number;
+          completed_at?: string | null;
+          created_at?: string;
+          id?: never;
+          local_date?: string;
+          new_lessons_introduced?: number;
+          started_at?: string;
+          task_session_id?: number | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "learn_sessions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "learn_sessions_task_session_id_fkey";
+            columns: ["task_session_id"];
+            isOneToOne: false;
+            referencedRelation: "task_sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lesson_cards: {
+        Row: {
+          active: boolean;
+          answer: string;
+          created_at: string;
+          id: number;
+          lesson_id: number;
+          prompt: string;
+          prompt_type: Database["public"]["Enums"]["lesson_prompt_type"];
+          sort_order: number;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          active?: boolean;
+          answer: string;
+          created_at?: string;
+          id?: never;
+          lesson_id: number;
+          prompt: string;
+          prompt_type: Database["public"]["Enums"]["lesson_prompt_type"];
+          sort_order?: number;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          active?: boolean;
+          answer?: string;
+          created_at?: string;
+          id?: never;
+          lesson_id?: number;
+          prompt?: string;
+          prompt_type?: Database["public"]["Enums"]["lesson_prompt_type"];
+          sort_order?: number;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lesson_cards_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lesson_cards_lesson_id_fkey";
+            columns: ["lesson_id"];
+            isOneToOne: false;
+            referencedRelation: "lessons";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lesson_reviews: {
+        Row: {
+          ai_feedback: string | null;
+          answered_text: string | null;
+          card_id: number;
+          elapsed_ms: number | null;
+          id: number;
+          local_date: string;
+          rating: Database["public"]["Enums"]["fsrs_rating"];
+          reviewed_at: string;
+          session_id: number | null;
+          user_id: string;
+        };
+        Insert: {
+          ai_feedback?: string | null;
+          answered_text?: string | null;
+          card_id: number;
+          elapsed_ms?: number | null;
+          id?: never;
+          local_date: string;
+          rating: Database["public"]["Enums"]["fsrs_rating"];
+          reviewed_at?: string;
+          session_id?: number | null;
+          user_id: string;
+        };
+        Update: {
+          ai_feedback?: string | null;
+          answered_text?: string | null;
+          card_id?: number;
+          elapsed_ms?: number | null;
+          id?: never;
+          local_date?: string;
+          rating?: Database["public"]["Enums"]["fsrs_rating"];
+          reviewed_at?: string;
+          session_id?: number | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lesson_reviews_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lesson_reviews_card_id_fkey";
+            columns: ["card_id"];
+            isOneToOne: false;
+            referencedRelation: "lesson_cards";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      lessons: {
+        Row: {
+          active: boolean;
+          claim_to_task: string | null;
+          core_claim: string;
+          created_at: string;
+          embedding: string | null;
+          evidence_strength: Database["public"]["Enums"]["evidence_strength"] | null;
+          id: number;
+          mechanism: string | null;
+          page_ref: number | null;
+          provenance_quote: string;
+          section_id: number | null;
+          source_id: number;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          active?: boolean;
+          claim_to_task?: string | null;
+          core_claim: string;
+          created_at?: string;
+          embedding?: string | null;
+          evidence_strength?: Database["public"]["Enums"]["evidence_strength"] | null;
+          id?: never;
+          mechanism?: string | null;
+          page_ref?: number | null;
+          provenance_quote: string;
+          section_id?: number | null;
+          source_id: number;
+          title: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          active?: boolean;
+          claim_to_task?: string | null;
+          core_claim?: string;
+          created_at?: string;
+          embedding?: string | null;
+          evidence_strength?: Database["public"]["Enums"]["evidence_strength"] | null;
+          id?: never;
+          mechanism?: string | null;
+          page_ref?: number | null;
+          provenance_quote?: string;
+          section_id?: number | null;
+          source_id?: number;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "lessons_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lessons_source_id_fkey";
+            columns: ["source_id"];
+            isOneToOne: false;
+            referencedRelation: "sources";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "lessons_section_id_fkey";
+            columns: ["section_id"];
+            isOneToOne: false;
+            referencedRelation: "source_sections";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      plan_session_exercises: {
+        Row: {
+          created_at: string;
+          exercise_id: number;
+          id: number;
+          plan_session_id: number;
+          sort_order: number;
+          target_load: number | null;
+          target_reps_high: number | null;
+          target_reps_low: number | null;
+          target_sets: number | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          exercise_id: number;
+          id?: never;
+          plan_session_id: number;
+          sort_order?: number;
+          target_load?: number | null;
+          target_reps_high?: number | null;
+          target_reps_low?: number | null;
+          target_sets?: number | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          exercise_id?: number;
+          id?: never;
+          plan_session_id?: number;
+          sort_order?: number;
+          target_load?: number | null;
+          target_reps_high?: number | null;
+          target_reps_low?: number | null;
+          target_sets?: number | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "plan_session_exercises_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "plan_session_exercises_plan_session_id_fkey";
+            columns: ["plan_session_id"];
+            isOneToOne: false;
+            referencedRelation: "plan_sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "plan_session_exercises_exercise_id_fkey";
+            columns: ["exercise_id"];
+            isOneToOne: false;
+            referencedRelation: "exercises";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      plan_sessions: {
+        Row: {
+          created_at: string;
+          duration_minutes: number | null;
+          id: number;
+          name: string;
+          plan_id: number;
+          schedule_days: number[];
+          sort_order: number;
+          start_time: string | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          duration_minutes?: number | null;
+          id?: never;
+          name: string;
+          plan_id: number;
+          schedule_days?: number[];
+          sort_order?: number;
+          start_time?: string | null;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          duration_minutes?: number | null;
+          id?: never;
+          name?: string;
+          plan_id?: number;
+          schedule_days?: number[];
+          sort_order?: number;
+          start_time?: string | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "plan_sessions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "plan_sessions_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: false;
+            referencedRelation: "workout_plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      session_sets: {
+        Row: {
+          created_at: string;
+          exercise_id: number;
+          id: number;
+          load: number | null;
+          reps: number | null;
+          sort_order: number;
+          user_id: string;
+          workout_session_id: number;
+        };
+        Insert: {
+          created_at?: string;
+          exercise_id: number;
+          id?: never;
+          load?: number | null;
+          reps?: number | null;
+          sort_order?: number;
+          user_id: string;
+          workout_session_id: number;
+        };
+        Update: {
+          created_at?: string;
+          exercise_id?: number;
+          id?: never;
+          load?: number | null;
+          reps?: number | null;
+          sort_order?: number;
+          user_id?: string;
+          workout_session_id?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "session_sets_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "session_sets_workout_session_id_fkey";
+            columns: ["workout_session_id"];
+            isOneToOne: false;
+            referencedRelation: "workout_sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "session_sets_exercise_id_fkey";
+            columns: ["exercise_id"];
+            isOneToOne: false;
+            referencedRelation: "exercises";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      source_chunks: {
+        Row: {
+          created_at: string;
+          embedding: string | null;
+          id: number;
+          page_end: number | null;
+          page_start: number | null;
+          section_id: number | null;
+          sort_order: number;
+          source_id: number;
+          text: string;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          embedding?: string | null;
+          id?: never;
+          page_end?: number | null;
+          page_start?: number | null;
+          section_id?: number | null;
+          sort_order?: number;
+          source_id: number;
+          text: string;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          embedding?: string | null;
+          id?: never;
+          page_end?: number | null;
+          page_start?: number | null;
+          section_id?: number | null;
+          sort_order?: number;
+          source_id?: number;
+          text?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "source_chunks_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "source_chunks_source_id_fkey";
+            columns: ["source_id"];
+            isOneToOne: false;
+            referencedRelation: "sources";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "source_chunks_section_id_fkey";
+            columns: ["section_id"];
+            isOneToOne: false;
+            referencedRelation: "source_sections";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      source_sections: {
+        Row: {
+          created_at: string;
+          id: number;
+          page_end: number | null;
+          page_start: number | null;
+          sort_order: number;
+          source_id: number;
+          title: string | null;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          id?: never;
+          page_end?: number | null;
+          page_start?: number | null;
+          sort_order?: number;
+          source_id: number;
+          title?: string | null;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          id?: never;
+          page_end?: number | null;
+          page_start?: number | null;
+          sort_order?: number;
+          source_id?: number;
+          title?: string | null;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "source_sections_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "source_sections_source_id_fkey";
+            columns: ["source_id"];
+            isOneToOne: false;
+            referencedRelation: "sources";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      sources: {
+        Row: {
+          author: string | null;
+          created_at: string;
+          id: number;
+          kind: Database["public"]["Enums"]["source_kind"];
+          lesson_count: number;
+          page_count: number | null;
+          status: Database["public"]["Enums"]["source_status"];
+          storage_path: string | null;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          author?: string | null;
+          created_at?: string;
+          id?: never;
+          kind?: Database["public"]["Enums"]["source_kind"];
+          lesson_count?: number;
+          page_count?: number | null;
+          status?: Database["public"]["Enums"]["source_status"];
+          storage_path?: string | null;
+          title: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          author?: string | null;
+          created_at?: string;
+          id?: never;
+          kind?: Database["public"]["Enums"]["source_kind"];
+          lesson_count?: number;
+          page_count?: number | null;
+          status?: Database["public"]["Enums"]["source_status"];
+          storage_path?: string | null;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "sources_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      trigger_action_plans: {
+        Row: {
+          body: string;
+          created_at: string;
+          id: number;
+          supersede_reason: string | null;
+          superseded_at: string | null;
+          trigger_id: number;
+          user_id: string;
+          version: number;
+        };
+        Insert: {
+          body: string;
+          created_at?: string;
+          id?: never;
+          supersede_reason?: string | null;
+          superseded_at?: string | null;
+          trigger_id: number;
+          user_id: string;
+          version?: number;
+        };
+        Update: {
+          body?: string;
+          created_at?: string;
+          id?: never;
+          supersede_reason?: string | null;
+          superseded_at?: string | null;
+          trigger_id?: number;
+          user_id?: string;
+          version?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "trigger_action_plans_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "trigger_action_plans_trigger_id_fkey";
+            columns: ["trigger_id"];
+            isOneToOne: false;
+            referencedRelation: "distraction_triggers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      trigger_plan_outcomes: {
+        Row: {
+          created_at: string;
+          followed: boolean | null;
+          id: number;
+          local_date: string;
+          plan_id: number;
+          user_id: string;
+        };
+        Insert: {
+          created_at?: string;
+          followed?: boolean | null;
+          id?: never;
+          local_date: string;
+          plan_id: number;
+          user_id: string;
+        };
+        Update: {
+          created_at?: string;
+          followed?: boolean | null;
+          id?: never;
+          local_date?: string;
+          plan_id?: number;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "trigger_plan_outcomes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "trigger_plan_outcomes_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: false;
+            referencedRelation: "trigger_action_plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      weekly_goals: {
+        Row: {
+          completed_at: string | null;
+          created_at: string;
+          domain: Database["public"]["Enums"]["life_domain"];
+          goal_id: number | null;
+          headline: string;
+          id: number;
+          milestones: string | null;
+          updated_at: string;
+          user_id: string;
+          week_start_date: string;
+        };
+        Insert: {
+          completed_at?: string | null;
+          created_at?: string;
+          domain: Database["public"]["Enums"]["life_domain"];
+          goal_id?: number | null;
+          headline: string;
+          id?: never;
+          milestones?: string | null;
+          updated_at?: string;
+          user_id: string;
+          week_start_date: string;
+        };
+        Update: {
+          completed_at?: string | null;
+          created_at?: string;
+          domain?: Database["public"]["Enums"]["life_domain"];
+          goal_id?: number | null;
+          headline?: string;
+          id?: never;
+          milestones?: string | null;
+          updated_at?: string;
+          user_id?: string;
+          week_start_date?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "weekly_goals_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "weekly_goals_goal_id_fkey";
+            columns: ["goal_id"];
+            isOneToOne: false;
+            referencedRelation: "goals";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      work_shifts: {
+        Row: {
+          created_at: string;
+          end_time: string;
+          id: number;
+          label: string | null;
+          local_date: string | null;
+          start_time: string;
+          updated_at: string;
+          user_id: string;
+          weekday: number | null;
+        };
+        Insert: {
+          created_at?: string;
+          end_time: string;
+          id?: never;
+          label?: string | null;
+          local_date?: string | null;
+          start_time: string;
+          updated_at?: string;
+          user_id: string;
+          weekday?: number | null;
+        };
+        Update: {
+          created_at?: string;
+          end_time?: string;
+          id?: never;
+          label?: string | null;
+          local_date?: string | null;
+          start_time?: string;
+          updated_at?: string;
+          user_id?: string;
+          weekday?: number | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "work_shifts_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      work_target_tasks: {
+        Row: {
+          blocked_reason: string | null;
+          completed_at: string | null;
+          created_at: string;
+          deadline: string | null;
+          id: number;
+          sort_order: number;
+          status: Database["public"]["Enums"]["work_target_status"];
+          target_id: number;
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          blocked_reason?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          deadline?: string | null;
+          id?: never;
+          sort_order?: number;
+          status?: Database["public"]["Enums"]["work_target_status"];
+          target_id: number;
+          title: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          blocked_reason?: string | null;
+          completed_at?: string | null;
+          created_at?: string;
+          deadline?: string | null;
+          id?: never;
+          sort_order?: number;
+          status?: Database["public"]["Enums"]["work_target_status"];
+          target_id?: number;
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "work_target_tasks_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "work_target_tasks_target_id_fkey";
+            columns: ["target_id"];
+            isOneToOne: false;
+            referencedRelation: "work_targets";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      work_targets: {
+        Row: {
+          completed_at: string | null;
+          created_at: string;
+          deadline: string | null;
+          id: number;
+          sort_order: number;
+          status: Database["public"]["Enums"]["work_target_status"];
+          title: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          completed_at?: string | null;
+          created_at?: string;
+          deadline?: string | null;
+          id?: never;
+          sort_order?: number;
+          status?: Database["public"]["Enums"]["work_target_status"];
+          title: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          completed_at?: string | null;
+          created_at?: string;
+          deadline?: string | null;
+          id?: never;
+          sort_order?: number;
+          status?: Database["public"]["Enums"]["work_target_status"];
+          title?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "work_targets_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      workout_plans: {
+        Row: {
+          active: boolean;
+          created_at: string;
+          description: string | null;
+          id: number;
+          name: string;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          active?: boolean;
+          created_at?: string;
+          description?: string | null;
+          id?: never;
+          name: string;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          active?: boolean;
+          created_at?: string;
+          description?: string | null;
+          id?: never;
+          name?: string;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "workout_plans_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      workout_sessions: {
+        Row: {
+          confirmed_at: string | null;
+          created_at: string;
+          id: number;
+          local_date: string;
+          notes: string | null;
+          plan_session_id: number | null;
+          task_session_id: number | null;
+          updated_at: string;
+          user_id: string;
+        };
+        Insert: {
+          confirmed_at?: string | null;
+          created_at?: string;
+          id?: never;
+          local_date: string;
+          notes?: string | null;
+          plan_session_id?: number | null;
+          task_session_id?: number | null;
+          updated_at?: string;
+          user_id: string;
+        };
+        Update: {
+          confirmed_at?: string | null;
+          created_at?: string;
+          id?: never;
+          local_date?: string;
+          notes?: string | null;
+          plan_session_id?: number | null;
+          task_session_id?: number | null;
+          updated_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "workout_sessions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workout_sessions_plan_session_id_fkey";
+            columns: ["plan_session_id"];
+            isOneToOne: false;
+            referencedRelation: "plan_sessions";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "workout_sessions_task_session_id_fkey";
+            columns: ["task_session_id"];
+            isOneToOne: false;
+            referencedRelation: "task_sessions";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -3566,6 +4963,46 @@ export type Database = {
     };
     Enums: {
       card_type: "goal" | "motivation" | "thought_habit" | "trait" | "tenx";
+      evidence_kind:
+        | "session"
+        | "habit_log"
+        | "prayer"
+        | "quran_session"
+        | "workout_set"
+        | "body_metric"
+        | "lesson_review"
+        | "milestone"
+        | "experiment";
+      evidence_strength: "author_anecdote" | "single_study" | "strong_research";
+      fsrs_rating: "again" | "hard" | "good" | "easy";
+      ingest_step:
+        | "queued"
+        | "extracting_text"
+        | "parsing_structure"
+        | "chunking"
+        | "embedding"
+        | "extracting_lessons"
+        | "merging"
+        | "done"
+        | "failed";
+      lesson_prompt_type: "free_recall" | "application" | "cloze" | "why";
+      muscle_group:
+        | "chest"
+        | "back_lats"
+        | "back_mid"
+        | "front_delt"
+        | "side_delt"
+        | "rear_delt"
+        | "biceps"
+        | "triceps"
+        | "quads"
+        | "hamstrings"
+        | "glutes"
+        | "calves"
+        | "core";
+      source_kind: "pdf" | "epub" | "article" | "video" | "course";
+      source_status: "uploaded" | "processing" | "ready" | "failed";
+      work_target_status: "active" | "blocked" | "done" | "dropped";
       commitment_level:
         | "l0_reminder"
         | "l1_stronger_notification"
