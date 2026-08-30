@@ -9,6 +9,7 @@
 // page to the extraction model and `loadPageTexts` can never return a real chunk.
 
 import type {
+  ActiveLessonRow,
   CandidateLessonRow,
   ChunkRow,
   IngestJobRow,
@@ -16,6 +17,7 @@ import type {
   JobPatch,
   NewCandidateLesson,
   NewChunk,
+  NewLessonCard,
   NewSection,
   PageTextRow,
   SectionRow,
@@ -33,6 +35,7 @@ const NON_TERMINAL_STEPS = [
   "embedding",
   "extracting_lessons",
   "merging",
+  "generating_cards",
 ];
 
 // deno-lint-ignore no-explicit-any
@@ -364,6 +367,57 @@ export function createSupabaseIngestRepo(client: AnySupabaseClient): IngestRepo 
       // UPDATE, not DELETE. A review of a card belonging to a lesson that loses a dedup contest
       // has to stay referentially intact; migration 60's trigger suspends the cards.
       const { error } = await client.from("lessons").update({ status: "archived" }).in("id", ids);
+      if (error) throw new Error(error.message);
+    },
+
+    async loadActiveLessonsAfter(sourceId, afterLessonId, limit) {
+      const { data, error } = await client
+        .from("lessons")
+        .select("id, title, core_claim, mechanism, claim_to_task, provenance_quote")
+        .eq("source_id", sourceId)
+        .eq("status", "active")
+        .gt("id", afterLessonId)
+        .order("id", { ascending: true })
+        .limit(limit);
+      if (error) throw new Error(error.message);
+      // deno-lint-ignore no-explicit-any
+      return (data ?? []).map((row: any) => ({
+        id: row.id,
+        title: row.title,
+        coreClaim: row.core_claim,
+        mechanism: row.mechanism,
+        claimToTask: row.claim_to_task,
+        provenanceQuote: row.provenance_quote,
+      } satisfies ActiveLessonRow));
+    },
+
+    async countActiveLessons(sourceId) {
+      const { count, error } = await client
+        .from("lessons")
+        .select("id", { count: "exact", head: true })
+        .eq("source_id", sourceId)
+        .eq("status", "active");
+      if (error) throw new Error(error.message);
+      return count ?? 0;
+    },
+
+    async insertCards(userId, lessonId, rows: NewLessonCard[]) {
+      if (rows.length === 0) return;
+      const { error } = await client.from("lesson_cards").insert(
+        rows.map((row) => ({
+          user_id: userId,
+          lesson_id: lessonId,
+          prompt_type: row.promptType,
+          prompt: row.prompt,
+          answer: row.answer,
+          sort_order: row.sortOrder,
+          // `active` and `suspended_at` are left to their defaults deliberately. Migration 60 is
+          // explicit that they have separate owners: `active` is the USER retiring a card and
+          // `suspended_at` is the SYSTEM withdrawing one. Ingestion is neither, so it states
+          // neither — writing `suspended_at: null` here would be this code claiming a decision it
+          // has not made.
+        })),
+      );
       if (error) throw new Error(error.message);
     },
 

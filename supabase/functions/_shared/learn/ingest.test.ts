@@ -1,5 +1,6 @@
 import { assertEquals, assertStringIncludes } from "jsr:@std/assert@1";
 import { advanceIngestJob, redriveStalledJobs, type IngestDeps } from "./ingest.ts";
+import { CARD_LESSONS_PER_INVOCATION } from "./types.ts";
 import { createMemoryRepo, type MemoryRepo } from "./__fixtures__/memoryRepo.ts";
 import { createDeterministicEmbeddingsProvider } from "../embeddings/__fixtures__/fixtureEmbeddingsProvider.ts";
 import type { GatewayDeps } from "../llm/gateway.ts";
@@ -17,12 +18,98 @@ interface RoutingOptions {
    *  verbatim slice. Override to simulate a hallucinated citation. */
   quoteFor?: (chunkText: string) => string;
   lessonsPerChunk?: number;
+  /**
+   * Emit lexically DISTINCT lessons instead of the same one repeatedly.
+   *
+   * The default extractor returns near-identical text on every call, which is fine for testing
+   * the provenance gate and is fatal for anything downstream of the merge: near-identical claims
+   * land in ONE similarity cluster, one survivor is promoted, and a book ends with a single
+   * active lesson. Every test about carding a real library needs a library, so this returns
+   * claims built from disjoint vocabulary.
+   */
+  distinctLessons?: boolean;
+  /** How the card writer answers. Default: cards anchored to whichever claim it was handed. */
+  cardsFail?: "leak" | "vague";
+}
+
+/**
+ * 45 disjoint content words — fifteen lessons of three each, and nothing shared between any two
+ * triples. Two claims built from different triples share only the template's own two words, which
+ * puts them at 0.25 Jaccard: comfortably under LEXICAL_DUPLICATE_THRESHOLD, so they cluster
+ * separately, while two lessons built from the SAME triple score 1.0 and correctly merge.
+ */
+const TOPIC_BANK = [
+  "friction", "rehearsal", "deadlines", "feedback", "attention", "sleeping",
+  "ownership", "tempo", "constraints", "rituals", "silence", "drafts",
+  "meetings", "budgets", "inventory", "calendars", "mentors", "alliances",
+  "prototypes", "checklists", "boundaries", "invoices", "backlog", "referrals",
+  "margins", "cadence", "artifacts", "interviews", "retention", "onboarding",
+  "salary", "portfolio", "roadmap", "latency", "throughput", "briefings",
+  "escalation", "forecasts", "hiring", "contracts", "warranty", "packaging",
+  "logistics", "telemetry", "dashboards",
+];
+const DISTINCT_LESSON_COUNT = TOPIC_BANK.length / 3;
+
+function distinctLessonAt(index: number): { title: string; coreClaim: string } {
+  const slot = index % DISTINCT_LESSON_COUNT;
+  const [a, b, c] = TOPIC_BANK.slice(slot * 3, slot * 3 + 3);
+  return { title: `Guard the ${a}`, coreClaim: `Guard your ${a}; ${b} follows ${c}.` };
+}
+
+const GUARD_CLAIM = /^Guard your (\w+); (\w+) follows (\w+)\.$/;
+
+/**
+ * Cards derived from the claim the writer was actually handed, so they sit inside THE BAND for
+ * whichever lesson this is: each prompt reuses that claim's own topic words (clearing the
+ * topicality floor) and shares not one content word with its own answer (clearing anti-leak's
+ * ceiling). A fixture that ignored the claim would only pass while topicality was unchecked.
+ */
+function cardsForClaim(coreClaim: string) {
+  const guard = GUARD_CLAIM.exec(coreClaim);
+  if (guard) {
+    const [, a, b, c] = guard;
+    return [
+      {
+        promptType: "free_recall",
+        prompt: `Between ${a}, ${b} and ${c}, which one do you guard first?`,
+        answer: "Protect the earliest of the three; the rest settle themselves once it holds.",
+      },
+      {
+        promptType: "application",
+        prompt: `You have one hour: do you guard ${a}, ${b} or ${c}?`,
+        answer: "Whichever one the other two depend on; the rest can wait until tomorrow.",
+      },
+      {
+        promptType: "why",
+        prompt: `Why does guarding ${a} matter more than chasing ${b} or ${c}?`,
+        answer: "Because the other two are downstream of it, and fixing them leaves the source untouched.",
+      },
+    ];
+  }
+  return [
+    {
+      promptType: "free_recall",
+      prompt: "In a study session, does deliberate rehearsal or passive review do more for memory?",
+      answer: "Pulling the idea back out of your head builds a stronger trace than seeing it again on the page.",
+    },
+    {
+      promptType: "application",
+      prompt: "Twenty minutes, one chapter, passive review or deliberate rehearsal?",
+      answer: "Spend the block writing down what you remember, then check the page for what you missed.",
+    },
+    {
+      promptType: "why",
+      prompt: "Why does deliberate rehearsal beat passive review for memory?",
+      answer: "Every act of pulling something back from your head is itself a learning event; looking at the page is not.",
+    },
+  ];
 }
 
 function createRoutingProvider(options: RoutingOptions = {}): LlmProvider & { seen: () => LlmToolCallRequest[] } {
   const seen: LlmToolCallRequest[] = [];
   const quoteFor = options.quoteFor ?? ((text: string) => text.slice(0, 120));
   const lessonsPerChunk = options.lessonsPerChunk ?? 1;
+  let lessonSeq = 0;
 
   return {
     seen: () => seen,
@@ -46,15 +133,64 @@ function createRoutingProvider(options: RoutingOptions = {}): LlmProvider & { se
         // selection-not-transformation failure `passesClaimNotQuote` exists to catch -- so the
         // gates rejected every synthetic lesson and the pipeline tests went red. The gates were
         // right; the fixture was lying about what a model returns.
-        const lessons = Array.from({ length: lessonsPerChunk }, (_, i) => ({
-          title: `Rehearse the idea instead of rereading it (${i})`,
-          coreClaim: `Deliberate rehearsal beats passive review because retrieval strengthens memory (${i}).`,
-          mechanism: null,
-          claimToTask: "Try it once this week.",
-          evidenceStrength: "single_study",
-          provenanceQuote: quoteFor(request.userContent),
-        }));
+        const lessons = Array.from({ length: lessonsPerChunk }, (_, i) => {
+          const shape = options.distinctLessons
+            ? distinctLessonAt(lessonSeq++)
+            : {
+              title: `Rehearse the idea instead of rereading it (${i})`,
+              coreClaim: `Deliberate rehearsal beats passive review because retrieval strengthens memory (${i}).`,
+            };
+          return {
+            ...shape,
+            mechanism: null,
+            claimToTask: "Try it once this week.",
+            evidenceStrength: "single_study",
+            provenanceQuote: quoteFor(request.userContent),
+          };
+        });
         return Promise.resolve({ toolInput: { lessons }, usage, latencyMs: 5 });
+      }
+
+      // Cards that actually survive the write-time gates, for the same reason the extraction
+      // fixture above had to: a fixture whose output production would reject is not modelling
+      // production. These sit inside THE BAND deliberately — each prompt reuses the claim's own
+      // topic words (so topicality clears its floor) while sharing not one content word with its
+      // own answer (so anti-leak clears its ceiling). `cloze` is absent because the model is not
+      // permitted to write one; the deterministic rule adds the fourth card.
+      if (request.callType === "lesson_card_generation") {
+        const { coreClaim } = JSON.parse(request.userContent) as { coreClaim: string };
+        if (options.cardsFail === "leak") {
+          // Every prompt is its own answer with a question mark on it — the failure ULM measured
+          // its keyless card writer at, reproduced deliberately.
+          return Promise.resolve({
+            toolInput: {
+              cards: [
+                { promptType: "free_recall", prompt: `${coreClaim.replace(/\.$/, "")}?`, answer: coreClaim },
+                { promptType: "application", prompt: `${coreClaim.replace(/\.$/, "")}?`, answer: coreClaim },
+                { promptType: "why", prompt: `${coreClaim.replace(/\.$/, "")}?`, answer: coreClaim },
+              ],
+            },
+            usage,
+            latencyMs: 5,
+          });
+        }
+        if (options.cardsFail === "vague") {
+          return Promise.resolve({
+            toolInput: {
+              cards: [
+                {
+                  promptType: "free_recall",
+                  prompt: "What is the main idea of the lesson?",
+                  answer: "It changes how you spend the next hour, and the one after that.",
+                },
+                ...cardsForClaim(coreClaim).slice(1),
+              ],
+            },
+            usage,
+            latencyMs: 5,
+          });
+        }
+        return Promise.resolve({ toolInput: { cards: cardsForClaim(coreClaim) }, usage, latencyMs: 5 });
       }
 
       if (request.callType === "lesson_merge") {
@@ -616,7 +752,10 @@ Deno.test("merging: losers are ARCHIVED, never deleted, and their cards are susp
 
   await advanceIngestJob(deps, 1);
 
-  assertEquals(repo.state.jobs.get(1)!.step, "done");
+  // `merging` hands off to `generating_cards` rather than finishing: the source is not 'ready'
+  // until its surviving lessons have cards, which is what makes 'partial' reachable at all.
+  assertEquals(repo.state.jobs.get(1)!.step, "generating_cards");
+  assertEquals(repo.state.sources.get(10)!.status, "processing", "a lesson set with no cards is not a ready source");
   assertEquals(repo.state.lessons.length, before, "not one lesson row was deleted");
   const archived = repo.state.lessons.filter((l) => l.status === "archived");
   const active = repo.state.lessons.filter((l) => l.status === "active");
@@ -637,3 +776,204 @@ Deno.test("merging: losers are ARCHIVED, never deleted, and their cards are susp
   );
 });
 
+
+// ============================================================================
+// generating_cards — the step that makes a session possible
+// ============================================================================
+
+/** Drives to a named step, then stops. */
+async function driveToStep(deps: IngestDeps, step: string, jobId = 1) {
+  let guard = 0;
+  while (repoStep(deps, jobId) !== step && guard++ < 400) {
+    const outcome = await advanceIngestJob(deps, jobId);
+    if (outcome.kind !== "advanced") break;
+  }
+}
+
+function repoStep(deps: IngestDeps, jobId: number): string | undefined {
+  return (deps.repo as MemoryRepo).state.jobs.get(jobId)?.step;
+}
+
+Deno.test("generating_cards: the full pipeline now ends with a REVIEWABLE library, not just lessons", async () => {
+  const repo = createMemoryRepo();
+  const deps = makeDeps(repo, {}, 12);
+
+  const steps = await driveToCompletion(deps);
+
+  assertEquals(steps[steps.length - 1], "done");
+  assertEquals(steps.includes("generating_cards"), true, "the new step really ran");
+  assertEquals(repo.state.sources.get(10)!.status, "ready");
+
+  const active = repo.state.lessons.filter((l) => l.status === "active");
+  assertEquals(active.length > 0, true);
+  for (const lesson of active) {
+    const cards = repo.cardsFor(lesson.id);
+    // 2-4 cards, mixed, with the generation effect always represented.
+    assertEquals(cards.length >= 2 && cards.length <= 4, true, `${lesson.id} got ${cards.length} cards`);
+    assertEquals(cards.some((c) => c.promptType === "free_recall"), true, "every deck carries a free_recall card");
+    assertEquals(cards.some((c) => c.promptType !== "free_recall"), true, "and at least one other type");
+    assertEquals(cards.map((c) => c.sortOrder), cards.map((_, i) => i), "sort_order is dense and stable");
+    for (const card of cards) {
+      assertEquals(card.prompt.trim().length > 0, true);
+      assertEquals(card.answer.trim().length > 0, true);
+      assertEquals(card.userId, "user-1", "every card carries the JOB's owner");
+    }
+  }
+
+  // A typical lesson gets all four: three written by the model, one derived by the cloze rule.
+  assertEquals(repo.cardsFor(active[0]!.id).map((c) => c.promptType), ["free_recall", "cloze", "application", "why"]);
+});
+
+Deno.test("generating_cards: cards are written ONLY for lessons the merge promoted", async () => {
+  const repo = createMemoryRepo();
+  const provider = createRoutingProvider({ lessonsPerChunk: 2 });
+  const narrowing: typeof provider = {
+    seen: provider.seen,
+    call(request) {
+      if (request.callType !== "lesson_merge") return provider.call(request);
+      const payload = JSON.parse(request.userContent) as { candidates: Array<{ id: number }> };
+      return Promise.resolve({
+        toolInput: { keep: payload.candidates.slice(0, 1).map((c, i) => ({ id: c.id, rank: i + 1 })) },
+        usage: { inputTokens: 10, outputTokens: 10, cacheReadTokens: 0, cacheWriteTokens: 0 },
+        latencyMs: 1,
+      });
+    },
+  };
+  const deps = makeDeps(repo, { gateway: makeGateway(narrowing, []) }, 12);
+  await driveToCompletion(deps);
+
+  const archived = repo.state.lessons.filter((l) => l.status === "archived");
+  assertEquals(archived.length > 0, true, "the fixture needs archived losers to make the point");
+  for (const lesson of archived) {
+    assertEquals(repo.cardsFor(lesson.id).length, 0, "a card here would be suspended the moment it was written");
+  }
+  assertEquals(repo.state.cards.length > 0, true);
+});
+
+Deno.test("generating_cards: one invocation cards a SLICE and checkpoints, never the whole book", async () => {
+  // 150 pages of distinct lessons -> 15 surviving lessons, which is three slices of five.
+  const repo = createMemoryRepo();
+  const deps = makeDeps(repo, { gateway: makeGateway(createRoutingProvider({ distinctLessons: true }), []) }, 150);
+  await driveToStep(deps, "generating_cards");
+
+  const active = repo.state.lessons.filter((l) => l.status === "active");
+  assertEquals(active.length > CARD_LESSONS_PER_INVOCATION, true, `${active.length} lessons — a slice must not finish them`);
+  assertEquals(repo.state.cards.length, 0, "no card is written until the step itself runs");
+
+  await advanceIngestJob(deps, 1);
+  const afterOne = repo.state.jobs.get(1)!;
+  assertEquals(afterOne.step, "generating_cards", "the step stays put; the cursor moves");
+  assertEquals(afterOne.cursor.lessonsCarded, CARD_LESSONS_PER_INVOCATION);
+  assertEquals(afterOne.progressCurrent, CARD_LESSONS_PER_INVOCATION);
+  assertEquals(afterOne.progressTotal, active.length, "the denominator is surviving lessons, this step's own unit");
+
+  // The next invocation resumes from the cursor rather than re-carding the first five.
+  const cardedFirst = new Set(repo.state.cards.map((c) => c.lessonId));
+  await advanceIngestJob(deps, 1);
+  assertEquals(repo.state.jobs.get(1)!.cursor.lessonsCarded, CARD_LESSONS_PER_INVOCATION * 2);
+  for (const lessonId of cardedFirst) {
+    assertEquals(repo.cardsFor(lessonId).length, 4, "a lesson carded by an earlier slice is never carded twice");
+  }
+});
+
+Deno.test("progressive availability: the latch fires FOR REAL now, between two card slices", async () => {
+  // The whole point of the step. No card is added by hand anywhere in this test: 150 pages ->
+  // targetLessonCount 20 -> computePartialThreshold 10, and slices of five cross that on the
+  // second one.
+  const repo = createMemoryRepo();
+  const deps = makeDeps(repo, { gateway: makeGateway(createRoutingProvider({ distinctLessons: true }), []) }, 150);
+  await driveToStep(deps, "generating_cards");
+
+  assertEquals(repo.state.sources.get(10)!.status, "processing", "lessons without cards are not a session");
+
+  await advanceIngestJob(deps, 1);
+  assertEquals(repo.state.sources.get(10)!.status, "processing", "five carded lessons is below the gate");
+
+  const second = await advanceIngestJob(deps, 1);
+  assertEquals(repo.state.sources.get(10)!.status, "partial", "ten carded lessons opens the offer");
+  if (second.kind === "advanced") assertStringIncludes(second.note ?? "", "source now partial");
+
+  // And it is a one-way latch on the way to 'ready' — never back to 'processing'.
+  await driveToCompletion(deps);
+  assertEquals(repo.state.jobs.get(1)!.step, "done");
+  assertEquals(repo.state.sources.get(10)!.status, "ready");
+});
+
+Deno.test("generating_cards: no Anthropic key BLOCKS — it does not ship a cloze-only deck", async () => {
+  // D45's refusal at the point it actually bites: a key that vanished after extraction finished.
+  const repo = createMemoryRepo();
+  const configured = makeDeps(repo, {}, 12);
+  await driveToStep(configured, "generating_cards");
+
+  const keyless = makeDeps(repo, { gateway: null }, 12);
+  const blocked = await advanceIngestJob(keyless, 1);
+
+  assertEquals(blocked.kind, "blocked");
+  assertEquals(repo.state.cards.length, 0, "not one recognition-only card was written");
+  assertEquals(repo.state.jobs.get(1)!.step, "generating_cards", "the job waits where it is");
+  assertEquals(repo.state.jobs.get(1)!.attempts, 0, "a server misconfiguration is not the job's fault");
+  assertStringIncludes(repo.state.jobs.get(1)!.lastError ?? "", "Anthropic API key");
+  assertEquals(repo.state.sources.get(10)!.status, "processing", "and the source is never advertised as ready");
+
+  // The moment a key exists, the SAME job resumes from the same cursor.
+  const resumed = await advanceIngestJob(configured, 1);
+  assertEquals(resumed.kind, "advanced");
+  assertEquals(repo.state.cards.length > 0, true);
+});
+
+Deno.test("generating_cards: the invariant counters reach the job, so a keyless run is distinguishable", async () => {
+  const withoutVectors = createMemoryRepo();
+  await driveToCompletion(makeDeps(withoutVectors, { embeddings: null }, 12));
+
+  const cursor = withoutVectors.state.jobs.get(1)!.cursor;
+  const counters = cursor.invariants as Record<string, number>;
+  assertEquals(cursor.topicalityChecked, false, "the record says the semantic gate did not run");
+  assertEquals(counters.topicalityUnknown > 0, true, "unknown is COUNTED, never folded into passed");
+  assertEquals(counters.topicalityFailedDropped, 0);
+  assertEquals(Number(cursor.cardsWritten) > 0, true);
+
+  const withVectors = createMemoryRepo();
+  await driveToCompletion(makeDeps(withVectors, { embeddings: createDeterministicEmbeddingsProvider() }, 12));
+  const checkedCursor = withVectors.state.jobs.get(1)!.cursor;
+  assertEquals(checkedCursor.topicalityChecked, true);
+  assertEquals((checkedCursor.invariants as Record<string, number>).topicalityUnknown, 0);
+  // The same pipeline, the same cards — only the strength of the evidence about them differs.
+  assertEquals(Number(checkedCursor.cardsWritten), Number(cursor.cardsWritten));
+});
+
+Deno.test("generating_cards: a model whose every prompt leaks fails the source honestly", async () => {
+  const repo = createMemoryRepo();
+  const deps = makeDeps(repo, { gateway: makeGateway(createRoutingProvider({ cardsFail: "leak" }), []) }, 12);
+
+  const steps = await driveToCompletion(deps);
+
+  assertEquals(steps[steps.length - 1], "failed");
+  assertEquals(repo.state.cards.length, 0, "a card that hands over its answer is never stored");
+  assertEquals(repo.state.sources.get(10)!.status, "failed");
+  assertStringIncludes(repo.state.jobs.get(1)!.lastError ?? "", "nothing to review");
+  // The lessons themselves are untouched — they are grounded and real; only the cards failed.
+  assertEquals(repo.state.lessons.some((l) => l.status === "active"), true);
+});
+
+Deno.test("generating_cards: an unanswerable prompt is caught by TOPICALITY, not by anti-leak", async () => {
+  // The band, at the pipeline level. "What is the main idea of the lesson?" leaks nothing, so
+  // anti-leak passes it; with vectors present the free_recall card is dropped and the lesson is
+  // left without a deck rather than given a useless one.
+  const repo = createMemoryRepo();
+  const deps = makeDeps(
+    repo,
+    {
+      gateway: makeGateway(createRoutingProvider({ cardsFail: "vague" }), []),
+      embeddings: createDeterministicEmbeddingsProvider(),
+    },
+    12,
+  );
+
+  const steps = await driveToCompletion(deps);
+
+  assertEquals(steps[steps.length - 1], "failed", "no free_recall survivor means no deck, for any lesson");
+  const counters = repo.state.jobs.get(1)!.cursor.invariants as Record<string, number>;
+  assertEquals(counters.topicalityFailedDropped > 0, true);
+  assertEquals(counters.antiLeakDropped, 0, "anti-leak passed it — which is exactly why the second gate exists");
+  assertEquals(repo.state.cards.length, 0);
+});

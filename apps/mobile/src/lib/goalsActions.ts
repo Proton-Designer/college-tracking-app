@@ -1,14 +1,21 @@
 import {
+  clearGoalPairMark,
+  clearGoalPriorityScores,
   createGoal,
   getOwnProfile,
   getUserLocalToday,
   listGoalsWithMilestones,
+  loadGoalEcology,
+  markGoalPair,
   monthOf,
   retireGoal,
+  setGoalPriorityScores,
   setMilestone,
   setMilestoneDone,
+  type GoalEcologyView,
   type GoalWithMilestone,
 } from "@collegeos/api";
+import type { GoalRelationship } from "@collegeos/core";
 import { getMobileSupabaseClient } from "./supabase/client";
 
 export type WarMapEntry = GoalWithMilestone;
@@ -89,4 +96,68 @@ export async function loadMilestonesForDump(
       .filter((e) => e.milestone != null && !e.milestone.done)
       .map((e) => ({ text: `${e.goal.title}: ${e.milestone!.title}` })),
   };
+}
+
+// ---------------------------------------------------------------------------
+// Goal Ecology (D49)
+// ---------------------------------------------------------------------------
+
+/** The pairs, the summary and the composites, all decided in `packages/core` — the same call
+ *  web's `/goals` makes, so the two platforms cannot disagree about whether a pair is examined. */
+export async function loadEcology(
+  userId: string,
+): Promise<{ ok: true; data: GoalEcologyView } | { ok: false; error: string }> {
+  const result = await loadGoalEcology(getMobileSupabaseClient(), userId);
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true, data: result.data };
+}
+
+/** Marks one pair. There is no companion action that acts ON a competing pair — no "resolve",
+ *  no "eliminate". The app surfaces the tension; the trade-off stays the user's. */
+export async function markPair(
+  userId: string,
+  input: { goalAId: number; goalBId: number; relationship: GoalRelationship; note?: string | null },
+): Promise<GoalsActionResult> {
+  const result = await markGoalPair(getMobileSupabaseClient(), userId, input);
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true };
+}
+
+/** Back to UNMARKED, not to neutral (D49). Unmarked is the question going back to being unasked,
+ *  and the examined share falls with it. */
+export async function unmarkPair(
+  userId: string,
+  goalAId: number,
+  goalBId: number,
+): Promise<GoalsActionResult> {
+  const result = await clearGoalPairMark(getMobileSupabaseClient(), userId, goalAId, goalBId);
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true };
+}
+
+/** All four Priority Matrix scores at once. `scoredOn` is the user's LOCAL today. */
+export async function savePriorityScores(
+  userId: string,
+  input: {
+    goalId: number;
+    visionAlignment: number;
+    leverage: number;
+    compoundBenefit: number;
+    opportunityCost: number;
+  },
+): Promise<GoalsActionResult> {
+  const profileResult = await getOwnProfile(getMobileSupabaseClient());
+  if (!profileResult.ok) return { ok: false, error: profileResult.error.message };
+  const scoredOn = getUserLocalToday(profileResult.data.timezone, new Date());
+
+  const result = await setGoalPriorityScores(getMobileSupabaseClient(), userId, { ...input, scoredOn });
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true };
+}
+
+/** Clears a goal's scores — optional has to include un-doing it. */
+export async function clearPriorityScores(userId: string, goalId: number): Promise<GoalsActionResult> {
+  const result = await clearGoalPriorityScores(getMobileSupabaseClient(), userId, goalId);
+  if (!result.ok) return { ok: false, error: result.error.message };
+  return { ok: true };
 }

@@ -118,9 +118,7 @@ export {
 } from "./data/self";
 export type { DimensionRow, DimensionRouteRow, SelfView, CreateDimensionInput } from "./data/self";
 export {
-  getActiveVision,
   saveVision,
-  retireVision,
   saveBeachhead,
   saveMission,
   saveMom,
@@ -132,7 +130,6 @@ export {
   loadVisionChain,
   VISION_MANDATES,
   VISION_MANDATE_LABELS,
-  DEFAULT_DRIFT_WINDOW_DAYS,
 } from "./data/vision";
 export type {
   VisionRow,
@@ -545,3 +542,52 @@ export type {
   FitnessHubStatus,
   WorkHubStatus,
 } from "./data/life";
+
+// P8 — Goal Ecology (D49). An unmarked pair has no row and is never "neutral"; the Priority
+// Matrix is optional and stores no total. Both rules live in the module's own header.
+export {
+  GOAL_RELATIONSHIPS,
+  listGoalRelationships,
+  listGoalPriorityScores,
+  markGoalPair,
+  clearGoalPairMark,
+  setGoalPriorityScores,
+  clearGoalPriorityScores,
+  loadGoalEcology,
+} from "./data/ecology";
+export type {
+  GoalRelationshipRow,
+  GoalPriorityScoreRow,
+  MarkGoalPairInput,
+  SetGoalPriorityScoresInput,
+  GoalEcologyView,
+} from "./data/ecology";
+
+// P10 — weekly screen time (D51). A missed week is a gap, not a broken streak; nothing reaches
+// screen_time_weeks without an explicit confirmation, and an unread value is a field the user
+// fills rather than an invented number.
+export {
+  SCREEN_TIME_BUCKET,
+  SCREEN_TIME_SERIES_WEEKS,
+  buildScreenTimeStoragePath,
+  createScreenTimeUpload,
+  getScreenTimeUpload,
+  triggerScreenTimeParse,
+  listScreenTimeExtractions,
+  confirmScreenTimeWeek,
+  listScreenTimeWeeks,
+  loadScreenTimeSeries,
+  loadScreenTimeStep,
+} from "./data/screenTime";
+export type {
+  ScreenTimeUploadRow,
+  ScreenTimeExtractionRow,
+  ScreenTimeWeekRow,
+  CreateScreenTimeUploadInput,
+  ScreenTimeFieldInput,
+  UnresolvedScreenTimeField,
+  ConfirmScreenTimeWeekInput,
+  ConfirmScreenTimeWeekResult,
+  ScreenTimeSeries,
+  ScreenTimeStepView,
+} from "./data/screenTime";

@@ -3,10 +3,14 @@ import { useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { GoalEcologyView } from "@collegeos/api";
 import { Aurora, Button, Input, Panel } from "../components/ui";
+import { GoalEcology } from "../components/goals/GoalEcology";
+import { PriorityMatrix } from "../components/goals/PriorityMatrix";
 import { textStyle } from "../design/typography";
 import {
   addGoal,
+  loadEcology,
   loadWarMap,
   retireGoalAction,
   setMilestoneAction,
@@ -27,6 +31,7 @@ export default function GoalsScreen() {
   const userId = authSession?.user.id ?? null;
 
   const [entries, setEntries] = useState<WarMapEntry[]>([]);
+  const [ecology, setEcology] = useState<GoalEcologyView | null>(null);
   const [month, setMonth] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -39,13 +44,17 @@ export default function GoalsScreen() {
 
   const refresh = useCallback(async () => {
     if (userId == null) return;
-    const result = await loadWarMap(userId);
+    // Both reads in parallel: the ecology is a second view of the same five goals and must not
+    // add a serial round trip to the War Map's own load. A failed ecology read drops that
+    // section rather than the screen -- the War Map is still worth reading without it.
+    const [result, ecologyResult] = await Promise.all([loadWarMap(userId), loadEcology(userId)]);
     if (result.ok) {
       setEntries(result.data.entries);
       setMonth(result.data.month);
     } else {
       setError(result.error);
     }
+    setEcology(ecologyResult.ok ? ecologyResult.data : null);
     setLoading(false);
   }, [userId]);
 
@@ -94,6 +103,8 @@ export default function GoalsScreen() {
     },
     [userId, refresh],
   );
+
+  const scoredByGoal = new Map((ecology?.scored ?? []).map((entry) => [entry.goal.id, entry]));
 
   const onRetire = useCallback(
     async (goalId: number) => {
@@ -193,6 +204,17 @@ export default function GoalsScreen() {
                   </View>
                 </View>
               )}
+
+              {/* D49's optional gate, on the goal it belongs to. An unscored goal shows no
+                  composite -- see PriorityMatrix's own header. */}
+              {userId != null ? (
+                <PriorityMatrix
+                  userId={userId}
+                  goalId={goal.id}
+                  scored={scoredByGoal.get(goal.id)}
+                  onChanged={refresh}
+                />
+              ) : null}
             </Panel>
           ))
         )}
@@ -232,6 +254,17 @@ export default function GoalsScreen() {
             Add a goal
           </Button>
         ) : null}
+
+        {/* D49 -- how these goals interact. Same hairline-and-eyebrow device the Review screen
+            uses to separate two halves of one surface: the goals, then the pairs between them. */}
+        {ecology != null ? (
+          <View style={styles.ecologyGroup}>
+            <Text style={textStyle("label", color.ink)}>HOW THESE GOALS INTERACT</Text>
+            {userId != null ? (
+              <GoalEcology userId={userId} view={ecology} onChanged={refresh} />
+            ) : null}
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -243,6 +276,13 @@ const styles = StyleSheet.create({
   spacedTop: { marginTop: space[2] },
   goalHeader: { flexDirection: "row", alignItems: "flex-start", gap: space[3] },
   goalTitleBlock: { flex: 1, gap: space[1] },
+  ecologyGroup: {
+    marginTop: space[4],
+    gap: space[5],
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: color.hairline,
+    paddingTop: space[6],
+  },
   milestoneRow: {
     marginTop: space[3],
     borderWidth: 1,

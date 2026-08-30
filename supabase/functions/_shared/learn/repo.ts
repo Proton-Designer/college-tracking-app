@@ -21,6 +21,10 @@ export type IngestStep =
   | "embedding"
   | "extracting_lessons"
   | "merging"
+  /** One slice of surviving lessons per invocation gets its cards written. Migration 54's
+   *  enum comment has the full reasoning for why this is a step rather than the tail of
+   *  `merging`. */
+  | "generating_cards"
   | "done"
   | "failed";
 
@@ -68,6 +72,34 @@ export interface CandidateLessonRow {
   coreClaim: string;
   pageRef: number | null;
   embedding: number[] | null;
+}
+
+/**
+ * A promoted lesson, as the card-generation step needs it.
+ *
+ * Wider than `CandidateLessonRow` on purpose, and every extra field earns its place: `mechanism`
+ * and `claimToTask` are what a `why` and an `application` card are written FROM, and
+ * `provenanceQuote` is what makes a `free_recall` answer answerable from the source rather than
+ * from the model's memory. The card writer never sees the chunk text — it works from the lesson,
+ * which has already been through the provenance gate.
+ */
+export interface ActiveLessonRow {
+  id: number;
+  title: string;
+  coreClaim: string;
+  mechanism: string | null;
+  claimToTask: string | null;
+  provenanceQuote: string;
+}
+
+export type LessonPromptType = "free_recall" | "application" | "cloze" | "why";
+
+/** One `lesson_cards` row, after every write-time gate has already accepted it. */
+export interface NewLessonCard {
+  promptType: LessonPromptType;
+  prompt: string;
+  answer: string;
+  sortOrder: number;
 }
 
 export interface NewChunk {
@@ -178,6 +210,23 @@ export interface IngestRepo {
    * comment has the full reasoning, and migration 60's trigger suspends their cards.
    */
   archiveLessons(ids: number[]): Promise<void>;
+
+  /**
+   * Promoted ('active') lessons for one source, id-ordered, id > `afterLessonId`.
+   *
+   * Keyed by id rather than by offset for the same reason `loadChunksAfter` is: a cursor that
+   * counts rows can skip one the moment anything else touches the set, and the merge pass is
+   * still archiving losers while this step runs.
+   *
+   * ARCHIVED LESSONS ARE EXCLUDED, which is the point of running after the merge: a card
+   * written for an archived lesson would be suspended by migration 60's trigger the instant it
+   * was inserted, so paying a model to write it is pure waste.
+   */
+  loadActiveLessonsAfter(sourceId: number, afterLessonId: number, limit: number): Promise<ActiveLessonRow[]>;
+  /** How many of this source's lessons are 'active' — the denominator for `generating_cards`. */
+  countActiveLessons(sourceId: number): Promise<number>;
+  /** Writes one lesson's cards. Everything here has already passed the write-time gates. */
+  insertCards(userId: string, lessonId: number, rows: NewLessonCard[]): Promise<void>;
 
   /** `profiles.llm_monthly_budget_usd` — the gateway's ceiling for this user. */
   loadBudgetCeilingUsd(userId: string): Promise<number>;

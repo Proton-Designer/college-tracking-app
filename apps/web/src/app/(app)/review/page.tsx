@@ -9,6 +9,7 @@ import { InsightsList } from "@/components/insights/InsightsList";
 import { PlanningExecutionQuadrant } from "@/components/insights/PlanningExecutionQuadrant";
 import { Aurora, PageHeader, Panel } from "@/components/ui";
 import { ReviewForm } from "@/components/review/ReviewForm";
+import { ScreenTimeStep } from "@/components/review/ScreenTimeStep";
 import { loadInsightsData } from "../insights/data";
 import { loadReviewData } from "./data";
 
@@ -159,6 +160,18 @@ export default async function ReviewPage() {
           )}
         </div>
       </SurfaceGroup>
+
+      {/* D51 — the week's screen time, alongside the Hours and Signal:Noise the rest of the
+          weekly picture is made of. Placed AFTER tonight's review on purpose: tonight's five
+          minutes must never be blocked behind a screenshot, and the offer below is an invitation
+          rather than a step you have to clear. It drops entirely if its read failed. */}
+      {reviewResult.ok && reviewResult.data.screenTime ? (
+        <SurfaceGroup title="Screen time" context="This week">
+          <div className="flex w-full max-w-report flex-col gap-6">
+            <ScreenTimeStep view={reviewResult.data.screenTime} />
+          </div>
+        </SurfaceGroup>
+      ) : null}
 
       <SurfaceGroup title="Patterns" context="Last 30 days">
         {!insightsResult.ok ? (

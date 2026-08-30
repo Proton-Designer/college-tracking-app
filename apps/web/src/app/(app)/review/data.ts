@@ -6,12 +6,15 @@ import {
   getReviewForDate,
   getUserLocalToday,
   listTasksForDate,
+  loadScreenTimeStep,
   loadVisionChain,
   type DailyPredictionRow,
   type DailyReview,
   type NightReviewDraft,
+  type ScreenTimeStepView,
   type Task,
 } from "@collegeos/api";
+import { startOfWeek } from "@collegeos/core";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
 export interface ReviewData {
@@ -38,6 +41,10 @@ export interface ReviewData {
    *  (D48). The link to that ritual appears only then -- a permanent entry point to a quarterly
    *  ceremony is how a ceremony becomes furniture. */
   momReviewDue: boolean;
+  /** The week's screen-time step (D51) — the invitation, any staged reading, and the confirmed
+   *  series. Null when the read failed: the step drops rather than blanking the review, the same
+   *  degradation `momReviewDue` takes. */
+  screenTime: ScreenTimeStepView | null;
 }
 
 export type ReviewLoadResult = { ok: true; data: ReviewData } | { ok: false; error: string };
@@ -54,13 +61,18 @@ export async function loadReviewData(): Promise<ReviewLoadResult> {
 
   const today = getUserLocalToday(profileResult.data.timezone, new Date());
 
-  const [tasksResult, reviewResult, draftResult, predictionResult, chainResult] = await Promise.all([
-    listTasksForDate(client, today),
-    getReviewForDate(client, today),
-    getNightReviewDraft(client, user.id, today),
-    getPredictionForDate(client, user.id, today),
-    loadVisionChain(client, user.id, { today }),
-  ]);
+  // The Sunday-anchored week the user is standing in, from their own timezone — never UTC's (B4).
+  const weekStart = startOfWeek(today);
+
+  const [tasksResult, reviewResult, draftResult, predictionResult, chainResult, screenTimeResult] =
+    await Promise.all([
+      listTasksForDate(client, today),
+      getReviewForDate(client, today),
+      getNightReviewDraft(client, user.id, today),
+      getPredictionForDate(client, user.id, today),
+      loadVisionChain(client, user.id, { today }),
+      loadScreenTimeStep(client, user.id, weekStart),
+    ]);
   if (!tasksResult.ok) return { ok: false, error: tasksResult.error.message };
   if (!reviewResult.ok) return { ok: false, error: reviewResult.error.message };
   if (!draftResult.ok) return { ok: false, error: draftResult.error.message };
@@ -82,6 +94,7 @@ export async function loadReviewData(): Promise<ReviewLoadResult> {
       // not be blocked by a quarterly ritual's query, and a missing link is a smaller failure
       // than a blank page.
       momReviewDue: chainResult.ok && chainResult.data.reviewDue,
+      screenTime: screenTimeResult.ok ? screenTimeResult.data : null,
     },
   };
 }

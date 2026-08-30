@@ -20,10 +20,14 @@
 // two absences are deliberately NOT symmetric:
 //   * No VOYAGE_API_KEY is D41: ingestion completes, embeddings stay null, the merge pass
 //     clusters lexically, and the job records why. Nothing fails.
-//   * No ANTHROPIC_API_KEY BLOCKS at `extracting_lessons`: the pipeline runs everything up
-//     to it for real (download, page-range extraction, structure, chunking, embedding),
-//     records an honest reason on the job, and resumes from the same cursor the moment a
-//     key is supplied. It is not marked failed, because nothing about the job is wrong.
+//   * No ANTHROPIC_API_KEY BLOCKS at `extracting_lessons`, and again at `generating_cards`
+//     if a key is removed after extraction finished: the pipeline runs everything up to
+//     each of them for real (download, page-range extraction, structure, chunking,
+//     embedding), records an honest reason on the job, and resumes from the same cursor the
+//     moment a key is supplied. It is not marked failed, because nothing about the job is
+//     wrong. The second block is D45's card half refusing rather than shipping a deck of
+//     nothing but deterministic fill-in-the-blank cards, which is recognition practice
+//     indistinguishable from the real thing until months of it have taught nobody anything.
 
 import { createClient } from "npm:@supabase/supabase-js@2";
 import { z } from "zod";

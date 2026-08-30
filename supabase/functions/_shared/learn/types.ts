@@ -41,6 +41,21 @@ export const TRIAGE_BATCH_SIZE = 8;
  *  1 + TRIAGE_BATCH_SIZE model calls. */
 export const EXTRACT_CHUNKS_PER_INVOCATION = TRIAGE_BATCH_SIZE;
 
+/** Lessons carded per `generating_cards` invocation. Card writing is ONE model call per
+ *  lesson, so this number IS the invocation's model-call ceiling — the same shape as the
+ *  bound above, one step later. Five keeps a 60-lesson book (the cap) to twelve
+ *  invocations while each one stays far inside an Edge Function's wall clock. The cursor
+ *  is checkpointed after EVERY lesson rather than once per slice, so an invocation killed
+ *  mid-flight costs at most one lesson's cards, not five. */
+export const CARD_LESSONS_PER_INVOCATION = 5;
+
+/** Cards per lesson, both ends enforced by deterministic code after the gates have run.
+ *  The floor is not a target to pad toward: a lesson that cannot produce two cards that
+ *  survive the gates gets NONE, because one card is not retrieval practice over a
+ *  lesson, it is a single question about it. */
+export const MIN_CARDS_PER_LESSON = 2;
+export const MAX_CARDS_PER_LESSON = 4;
+
 // The lesson-count targets used to live here as a second copy. They are pure arithmetic over a
 // page count, so law 2 puts them in packages/core (`learn/ingestionTargets.ts`) and this file
 // re-exports them — one definition, one test suite, mirrored into Deno by
@@ -200,6 +215,59 @@ export const EXTRACTION_TOOL_SCHEMA: Record<string, unknown> = {
     },
   },
   required: ["lessons"],
+  additionalProperties: false,
+};
+
+// ============================================================================
+// Card generation — the three prompt types a model writes
+// ============================================================================
+
+/**
+ * `cloze` IS DELIBERATELY ABSENT from what the model may return, and its absence is the
+ * D45 split expressed in the contract rather than in a comment.
+ *
+ * Cloze cards are built deterministically from the lesson's own core claim, with a key or
+ * without one, so there is no state of the world in which asking a model for one is
+ * correct. Leaving `cloze` out of the enum means a model that emits one is rejected by the
+ * Zod gate rather than quietly overwriting the deterministic card — which is the same
+ * reason the merge schema accepts ids and never lesson text.
+ */
+export const MODEL_WRITTEN_PROMPT_TYPES = ["free_recall", "application", "why"] as const;
+export type ModelWrittenPromptType = (typeof MODEL_WRITTEN_PROMPT_TYPES)[number];
+
+/** Every value of migration 54's `lesson_prompt_type`. */
+export const ALL_PROMPT_TYPES = ["free_recall", "application", "cloze", "why"] as const;
+export type LessonPromptType = (typeof ALL_PROMPT_TYPES)[number];
+
+export const CardGenerationResultSchema = z.object({
+  cards: z.array(
+    z.object({
+      promptType: z.enum(MODEL_WRITTEN_PROMPT_TYPES),
+      prompt: z.string().min(1),
+      answer: z.string().min(1),
+    }),
+  ),
+});
+export type CardGenerationResult = z.infer<typeof CardGenerationResultSchema>;
+
+export const CARD_GENERATION_TOOL_SCHEMA: Record<string, unknown> = {
+  type: "object",
+  properties: {
+    cards: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          promptType: { enum: [...MODEL_WRITTEN_PROMPT_TYPES] },
+          prompt: { type: "string", minLength: 1 },
+          answer: { type: "string", minLength: 1 },
+        },
+        required: ["promptType", "prompt", "answer"],
+        additionalProperties: false,
+      },
+    },
+  },
+  required: ["cards"],
   additionalProperties: false,
 };
 

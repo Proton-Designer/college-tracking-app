@@ -3,15 +3,22 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { MAX_ACTIVE_GOALS, type GoalWithMilestone } from "@collegeos/api";
+import type { ScoredGoal } from "@collegeos/core";
 import { Button, Checkbox, EmptyState, Input, Panel } from "@/components/ui";
+import { PriorityMatrix } from "@/components/goals/PriorityMatrix";
 import { addGoalAction, retireGoalAction, setMilestoneAction, toggleMilestoneDoneAction } from "@/app/(app)/goals/goalsActions";
 
 export interface GoalsClientProps {
   initialEntries: GoalWithMilestone[];
   month: string;
+  /** One entry per goal, `composite: null` where nobody has scored it (D49). Computed in core and
+   *  passed straight through — this component never derives a composite of its own. */
+  scored: ScoredGoal[];
+  /** The user's LOCAL today, for `scored_on`. */
+  today: string;
 }
 
-export function GoalsClient({ initialEntries, month }: GoalsClientProps) {
+export function GoalsClient({ initialEntries, month, scored, today }: GoalsClientProps) {
   const router = useRouter();
   const [error, setError] = useState<string | undefined>(undefined);
   const [isPending, startTransition] = useTransition();
@@ -20,6 +27,7 @@ export function GoalsClient({ initialEntries, month }: GoalsClientProps) {
   const [number, setNumber] = useState("");
   const [reason, setReason] = useState("");
   const [milestoneDrafts, setMilestoneDrafts] = useState<Record<number, string>>({});
+  const scoredByGoal = new Map(scored.map((s) => [s.goal.id, s]));
 
   function handleAdd() {
     setError(undefined);
@@ -144,6 +152,10 @@ export function GoalsClient({ initialEntries, month }: GoalsClientProps) {
                   </div>
                 </div>
               )}
+
+              {/* D49's optional gate, on the goal it belongs to. Collapsed by default, and an
+                  unscored goal shows no composite at all -- see PriorityMatrix's own header. */}
+              <PriorityMatrix goalId={goal.id} scored={scoredByGoal.get(goal.id)} today={today} />
             </Panel>
           ))}
         </div>

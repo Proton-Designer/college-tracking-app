@@ -6,12 +6,15 @@ import {
   getReviewForDate,
   getUserLocalToday,
   listTasksForDate,
+  loadScreenTimeStep,
   loadVisionChain,
   type DailyPredictionRow,
   type DailyReview,
   type NightReviewDraft,
+  type ScreenTimeStepView,
   type Task,
 } from "@collegeos/api";
+import { startOfWeek } from "@collegeos/core";
 import { useCallback, useEffect, useState } from "react";
 import { getMobileSupabaseClient } from "./supabase/client";
 import { useAuthSession } from "./useAuthSession";
@@ -27,6 +30,9 @@ export interface ReviewData {
    *  (D48). The link to that ritual appears only then -- a permanent entry point to a quarterly
    *  ceremony is how a ceremony becomes furniture. */
   momReviewDue: boolean;
+  /** The week's screen-time step (D51). Null when the read failed — the step drops rather than
+   *  blanking the review, the same degradation `momReviewDue` takes. */
+  screenTime: ScreenTimeStepView | null;
 }
 
 export type ReviewFetchState =
@@ -52,13 +58,16 @@ export function useReviewData() {
         return;
       }
       const today = getUserLocalToday(profileResult.data.timezone, new Date());
+      // The Sunday-anchored week the user is standing in, from their own timezone -- never UTC's.
+      const weekStart = startOfWeek(today);
       Promise.all([
         listTasksForDate(client, today),
         getReviewForDate(client, today),
         getNightReviewDraft(client, userId, today),
         getPredictionForDate(client, userId, today),
         loadVisionChain(client, userId, { today }),
-      ]).then(([tasksResult, reviewResult, draftResult, predictionResult, chainResult]) => {
+        loadScreenTimeStep(client, userId, weekStart),
+      ]).then(([tasksResult, reviewResult, draftResult, predictionResult, chainResult, screenTimeResult]) => {
         if (cancelled) return;
         if (!tasksResult.ok) {
           setFetchState({ status: "error", error: tasksResult.error.message });
@@ -89,6 +98,7 @@ export function useReviewData() {
             // A failed chain read degrades to "not due" rather than to an error: tonight's
             // review must not be blocked by a quarterly ritual's query.
             momReviewDue: chainResult.ok && chainResult.data.reviewDue,
+            screenTime: screenTimeResult.ok ? screenTimeResult.data : null,
           },
         });
       });

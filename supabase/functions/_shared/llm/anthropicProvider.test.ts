@@ -207,3 +207,60 @@ Deno.test("anthropicProvider: a non-2xx response throws with the status code vis
     restore();
   }
 });
+
+Deno.test("anthropicProvider: a text-only call still sends `content` as a plain string (no call site changed shape)", async () => {
+  let capturedBody: Record<string, unknown> | undefined;
+  const restore = stubFetch((_input, init) => {
+    capturedBody = JSON.parse(init!.body as string);
+    return Promise.resolve(new Response(JSON.stringify(GOLDEN_TOOL_USE_RESPONSE), { status: 200 }));
+  });
+  try {
+    const provider = createAnthropicProvider("sk-ant-fake-key-for-contract-test");
+    await provider.call({
+      callType: "syllabus_extraction",
+      model: "claude-haiku-4-5",
+      systemPrompt: "extract deadlines",
+      userContent: "the syllabus text",
+      toolName: "emit_syllabus_extraction",
+      toolInputSchema: {},
+      maxTokens: 500,
+    });
+
+    assertEquals(capturedBody?.messages, [{ role: "user", content: "the syllabus text" }]);
+  } finally {
+    restore();
+  }
+});
+
+Deno.test("anthropicProvider: images become real image content blocks, ahead of the instruction text", async () => {
+  let capturedBody: Record<string, unknown> | undefined;
+  const restore = stubFetch((_input, init) => {
+    capturedBody = JSON.parse(init!.body as string);
+    return Promise.resolve(new Response(JSON.stringify(GOLDEN_TOOL_USE_RESPONSE), { status: 200 }));
+  });
+  try {
+    const provider = createAnthropicProvider("sk-ant-fake-key-for-contract-test");
+    await provider.call({
+      callType: "screen_time_parse",
+      model: "claude-haiku-4-5",
+      systemPrompt: "read the screenshot",
+      userContent: "Read this iOS Screen Time screenshot.",
+      images: [{ mediaType: "image/png", dataBase64: "aGVsbG8=" }],
+      toolName: "emit_screen_time_reading",
+      toolInputSchema: {},
+      maxTokens: 500,
+    });
+
+    assertEquals(capturedBody?.messages, [
+      {
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: "image/png", data: "aGVsbG8=" } },
+          { type: "text", text: "Read this iOS Screen Time screenshot." },
+        ],
+      },
+    ]);
+  } finally {
+    restore();
+  }
+});

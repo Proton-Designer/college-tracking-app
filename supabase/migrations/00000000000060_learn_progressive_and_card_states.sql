@@ -79,7 +79,8 @@ create trigger lessons_suspend_cards_on_archive
 -- table.
 --
 -- Scoped to the CURRENT step's own natural unit of work (pages during extracting_text, chunks
--- during embedding and extracting_lessons, candidates during merging), reset at each step
+-- during embedding and extracting_lessons, candidates during merging, surviving lessons during
+-- generating_cards -- which is the step ULM's own 13-minute silent window above was in), reset at each step
 -- transition rather than accumulated across steps. Nullable because they are meaningless outside
 -- an active step: 'queued', 'done' and 'failed' carry no denominator, and inventing one would be
 -- the same lie as a progress bar that reaches 90% and waits.

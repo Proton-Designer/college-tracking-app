@@ -513,6 +513,13 @@ import_map = "./functions/deno.json"
 verify_jwt = false
 import_map = "./functions/deno.json"
 
+# Reads one weekly Screen Time screenshot and STAGES what it read (D51). Same trust model
+# as syllabus-extract: a real logged-in caller acting on their own data. It never writes
+# screen_time_weeks -- that table's only writer is an explicit user confirmation.
+[functions.screen-time-parse]
+verify_jwt = true
+import_map = "./functions/deno.json"
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.

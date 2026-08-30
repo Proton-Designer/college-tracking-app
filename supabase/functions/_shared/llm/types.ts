@@ -29,9 +29,21 @@ export type LlmCallType =
   // The whole-book merge/dedupe/rank pass. Receives the candidate list plus the
   // similarity clusters -- never the full text -- and returns the ranked final set.
   | "lesson_merge"
+  // One call per SURVIVING lesson, writing its free-recall, application and why cards.
+  // Cloze cards are deterministic and cost nothing, so they are not billed here (D45's
+  // split). Separated from `lesson_extraction` in the ledger because the two answer
+  // different questions of the cost model -- extraction scales with the book's LENGTH and
+  // this scales with its distilled lesson COUNT, and a single line item would hide which
+  // of the two moved.
+  | "lesson_card_generation"
   // Voyage embedding of chunks/lessons. Not an Anthropic generation call, so it does not
   // pass through callLlm; it shares this vocabulary because it shares the ledger.
-  | "lesson_embedding";
+  | "lesson_embedding"
+  // --- Weekly screen time (D51) ---
+  // Reads the numbers off an iOS Screen Time screenshot. The only VISION call in the
+  // inventory: the input is an image, not text. It stages what it read and flags what it
+  // could not; it never writes the confirmed table and never invents a number.
+  | "screen_time_parse";
 
 /** Non-Anthropic models that nevertheless bill to the same ledger. Kept separate from
  *  LlmModel so no call site can accidentally hand an embedding model to callLlm, whose
@@ -58,6 +70,21 @@ export interface SystemPromptBlock {
   cacheable: boolean;
 }
 
+/**
+ * One image attached to a call, already base64-encoded.
+ *
+ * Kept as an explicit, narrow type rather than a pass-through of Anthropic's content-block shape:
+ * the gateway's contract is "a forced tool call over some input", and the provider is the only
+ * place that should know what an Anthropic content block looks like. `mediaType` is restricted to
+ * the two formats the storage buckets actually accept, so a caller cannot hand the API a format it
+ * will reject at request time.
+ */
+export interface LlmImage {
+  mediaType: "image/png" | "image/jpeg";
+  /** Raw base64, no `data:` prefix — the API takes the payload, not a data URI. */
+  dataBase64: string;
+}
+
 /** A single forced tool-use call — the only shape of request this gateway makes. */
 export interface LlmToolCallRequest {
   callType: LlmCallType;
@@ -68,6 +95,10 @@ export interface LlmToolCallRequest {
    *  prompt; only `cacheable` blocks get a cache_control breakpoint. */
   systemPrompt: string | SystemPromptBlock[];
   userContent: string;
+  /** Images to send alongside `userContent`, for the one call type whose input is a picture
+   *  (screen_time_parse). Absent for every text call, and when absent the request body is byte-for
+   *  -byte what it was before vision existed — no existing call site changes shape. */
+  images?: LlmImage[];
   toolName: string;
   /** JSON Schema for the forced tool. This is a strong prior on the response shape —
    *  never the actual gate. The Zod schema passed to `callLlm` is the gate. */

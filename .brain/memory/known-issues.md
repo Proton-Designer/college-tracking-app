@@ -34,10 +34,29 @@ first real book measures directly as extraction calls ÷ chunk count.
 D28. One session table, two metrics. A five-minute retention session that inflated Day Won would
 silently redefine every baseline the user calibrated against deep work.
 
-### Extraction refuses rather than degrading when there is no model key
+### Extraction and card generation refuse rather than degrading when there is no model key
 D45. The keyless heuristic path measured 3/10 on a real book in ULM: selection where the product
 requires transformation. Refusing beats shipping lessons nobody can stand behind. Triage, merge
 clustering and cloze cards *do* keep a heuristic floor — the split is deliberate, not partial work.
+
+`generating_cards` blocks for the same reason, and the tempting "fix" is specific enough to name:
+cloze cards ARE deterministic, so a keyless run could write them and call the book done. Do not.
+A deck of nothing but fill-in-the-blank cards is recognition practice, and it is indistinguishable
+from a good deck to the person reviewing it — the failure is invisible at the moment it happens
+and only legible months later.
+
+### A card whose topicality could not be checked is counted as `unknown`, never as a pass
+D41 + ULM ADR-011. With no `VOYAGE_API_KEY` the topicality gate cannot run, so the card is still
+written (a second vendor's credential is not a hard dependency of the Learn pillar) but the job
+records `topicalityChecked: false` and increments `topicalityUnknown`. Collapsing that into the
+pass count would make a keyless book look exactly as verified as a keyed one in the only record
+anybody reads.
+
+### A lesson that produced no usable card stays `active` rather than being archived
+It simply never enters a queue. Archiving it would be a quality judgement on the *lesson* made by a
+failure of the *card writer*, and it would take a real, grounded, readable lesson out of the
+library. A source where NO lesson produced a card fails outright instead — that is a failed
+ingestion the user must see, not an empty library they will assume is a bug.
 
 ### A dimension with fewer than three acts shows no number at all
 D40. Not a loading state. Reporting the decay model's neutral starting value as a measurement would

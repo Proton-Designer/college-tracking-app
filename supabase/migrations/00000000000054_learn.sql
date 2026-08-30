@@ -22,6 +22,10 @@
 --
 --   * `source_status` gains 'partial'.
 --   * `lessons.active` (boolean) becomes `lessons.status` (`lesson_status` enum).
+--   * `ingest_step` gains 'generating_cards', between 'merging' and 'done'. Same reason as
+--     the two above and the same precedent: the pipeline extracted lessons and then stopped,
+--     so `lesson_cards` was never written by anything and `source_status = 'partial'` -- which
+--     fires on CARDED lessons -- could never be reached. See the enum's own comment below.
 --
 -- Everything else from the port -- `lesson_cards.suspended_at`, the archive trigger,
 -- `ingest_jobs` item-level progress, `card_states`, `submit_learn_review` -- is additive and
@@ -356,6 +360,27 @@ create type public.ingest_step as enum (
   'embedding',
   'extracting_lessons',
   'merging',
+  -- ADDED IN PLACE, and this file's header says why that is legal here: migration 54 is applied
+  -- nowhere, and Postgres forbids using a value added by `alter type ... add value` in the same
+  -- transaction that adds it -- so a later migration introducing this one word would have to be
+  -- a migration entirely of its own, exactly as migration 60's header records ULM having to do
+  -- twice. Declaring it at creation costs nothing.
+  --
+  -- WHY IT IS A STEP OF ITS OWN and not the tail of `merging`: generating cards is one model
+  -- call PER SURVIVING LESSON -- tens of calls for a book -- and the one rule of this state
+  -- machine is that no single invocation runs long. It advances a SLICE of lessons per
+  -- invocation with a checkpointed cursor, exactly like `extracting_text` and
+  -- `extracting_lessons` do.
+  --
+  -- WHY IT SITS AFTER `merging`: cards are generated only for lessons that survived the dedup
+  -- contest and were promoted to 'active'. Generating them before would pay for cards attached
+  -- to lessons about to be archived -- cards migration 60's trigger would immediately suspend,
+  -- and which nobody could ever be shown.
+  --
+  -- WHAT IT UNBLOCKS: `source_status = 'partial'` (ULM ADR-010) is evaluated on lessons that
+  -- have SERVABLE CARDS. Until something wrote `lesson_cards`, that latch could never fire and
+  -- a finished ingestion produced a library with nothing to review.
+  'generating_cards',
   'done',
   'failed'
 );

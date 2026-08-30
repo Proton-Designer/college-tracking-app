@@ -28,7 +28,17 @@
 import type { CandidateLesson } from "./types.ts";
 import { normalizeForQuoteMatch } from "./provenance.ts";
 
-const STOPWORDS = new Set([
+/**
+ * EXPORTED, and it matters that there is exactly one of these.
+ *
+ * Anti-leak measures overlap over CONTENT words — it ignores every word in this set. So a cloze
+ * card that blanked a stopword would be invisible to anti-leak (overlap 0, a trivial pass) while
+ * asking the reader to recall the word "the". A gate passing for a degenerate reason is not a
+ * gate, which is this file's standing lesson. `cardGeneration.ts` filters its cloze candidates
+ * against THIS set, so the word anti-leak refuses to score is the word the cloze rule refuses to
+ * blank, by construction rather than by two lists agreeing today.
+ */
+export const STOPWORDS = new Set([
   "the", "a", "an", "and", "or", "but", "of", "to", "in", "on", "at", "for",
   "with", "by", "from", "as", "is", "are", "was", "were", "be", "been", "being",
   "this", "that", "these", "those", "it", "its", "you", "your", "we", "our",

@@ -1,6 +1,13 @@
 import Link from "next/link";
-import { getOwnProfile, getUserLocalToday, listGoalsWithMilestones, monthOf } from "@collegeos/api";
+import {
+  getOwnProfile,
+  getUserLocalToday,
+  listGoalsWithMilestones,
+  loadGoalEcology,
+  monthOf,
+} from "@collegeos/api";
 import { Aurora, PageHeader } from "@/components/ui";
+import { GoalEcology } from "@/components/goals/GoalEcology";
 import { GoalsClient } from "@/components/goals/GoalsClient";
 import { getServerSupabaseClient } from "@/lib/supabase/server";
 
@@ -38,8 +45,14 @@ export default async function GoalsPage() {
     );
   }
 
-  const month = monthOf(getUserLocalToday(profileResult.data.timezone, new Date()));
-  const goalsResult = await listGoalsWithMilestones(client, user.id, month);
+  const today = getUserLocalToday(profileResult.data.timezone, new Date());
+  const month = monthOf(today);
+  // Both reads in parallel. Ecology is a second view of the same five goals, and it must not add
+  // a serial round trip to the War Map's own load.
+  const [goalsResult, ecologyResult] = await Promise.all([
+    listGoalsWithMilestones(client, user.id, month),
+    loadGoalEcology(client, user.id),
+  ]);
   if (!goalsResult.ok) {
     return (
       <main className="mx-auto flex w-full max-w-app flex-1 flex-col items-start gap-3 px-8 py-12">
@@ -59,7 +72,25 @@ export default async function GoalsPage() {
         title="War Map"
         context={`One milestone each, for ${month}`}
       />
-      <GoalsClient initialEntries={goalsResult.data} month={month} />
+      <GoalsClient
+        initialEntries={goalsResult.data}
+        month={month}
+        scored={ecologyResult.ok ? ecologyResult.data.scored : []}
+        today={today}
+      />
+
+      {/* D49. A hairline-and-eyebrow group, the same device /review uses to separate two halves of
+          one page: the goals themselves, then how they interact. A failed ecology read drops this
+          section rather than the page — the War Map is still worth reading without it. */}
+      {ecologyResult.ok ? (
+        <section className="flex flex-col gap-6 border-t border-hairline pt-8">
+          <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <h2 className="font-mono text-label uppercase tracking-[0.1em] text-ink">How these goals interact</h2>
+            <p className="font-mono text-label uppercase tracking-[0.1em] text-ink-faint">Every pair</p>
+          </div>
+          <GoalEcology view={ecologyResult.data} />
+        </section>
+      ) : null}
     </main>
   );
 }

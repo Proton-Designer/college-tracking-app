@@ -52,3 +52,38 @@ Deno.test("estimateInvocationCount: a 300-page book is tens of invocations, neve
   assertEquals(invocations > 20, true, `${invocations} — a book really is many small invocations`);
   assertEquals(invocations < 100, true, `${invocations} — but not one per page`);
 });
+
+Deno.test("estimateIngestionCostUsd: card generation is ONE call per surviving lesson, not per card", () => {
+  const breakdown = estimateIngestionCostUsd(AFTER_RATE_CHANGE);
+  // 300 pages -> targetLessonCount 33. The three model-written cards come out of one call, and
+  // the fourth (cloze) is deterministic and appears in this model nowhere at all, because it
+  // costs nothing. That is D45's split, visible in the economics rather than only in a comment.
+  assertEquals(breakdown.cardGenerationCalls, 33);
+  assertEquals(breakdown.cardGenerationUsd > 0, true);
+  assertEquals(breakdown.extractionUsd > breakdown.cardGenerationUsd, true, "extraction still dominates");
+});
+
+Deno.test("estimateIngestionCostUsd: card generation scales with LESSONS, not with pages", () => {
+  // Every other term scales with the book's length; this one scales with its distilled output,
+  // and the lesson cap is what makes a very long book stop getting more expensive to card.
+  const short = estimateIngestionCostUsd(AFTER_RATE_CHANGE, { pageCount: 100 });
+  const long = estimateIngestionCostUsd(AFTER_RATE_CHANGE, { pageCount: 900 });
+
+  assertEquals(short.cardGenerationCalls, 20, "the lesson FLOOR binds on a short book");
+  assertEquals(long.cardGenerationCalls, 60, "and the CAP binds on a long one");
+  assertEquals(long.extractionUsd / short.extractionUsd > 5, true, "extraction grew ninefold-ish");
+  assertEquals(long.cardGenerationUsd / short.cardGenerationUsd, 3, "carding grew only threefold");
+});
+
+Deno.test("estimateIngestionCostUsd: carding a 300-page book leaves little headroom under the target", () => {
+  // Recorded as a number rather than left to be discovered when this assertion goes red. Adding
+  // the card step moved a 300-page book from ~$1.27 to ~$1.49 at post-2026-09-01 Sonnet rates —
+  // still inside the brief's $0.50–$1.50 band, but with under two cents of it left. The lever if
+  // a real book confirms this is the card model: Haiku instead of Sonnet for card writing costs
+  // about a third as much, and card writing from an already-distilled lesson is a far easier task
+  // than extraction from raw prose. That is a decision for measured data, not for this file.
+  const breakdown = estimateIngestionCostUsd(AFTER_RATE_CHANGE);
+  const headroom = 1.5 - breakdown.totalUsd;
+  assertEquals(headroom > 0, true, `over the target by $${-headroom}`);
+  assertEquals(headroom < 0.05, true, `headroom is $${headroom} — if this ever grows, say why`);
+});

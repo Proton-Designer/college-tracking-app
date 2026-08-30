@@ -12,6 +12,7 @@ import { InsightsList } from "../../components/insights/InsightsList";
 import { PlanningExecutionQuadrant } from "../../components/insights/PlanningExecutionQuadrant";
 import { Aurora, Button, NavLink, PageHeader, Panel, Skeleton, TabScreenScrollView } from "../../components/ui";
 import { ReviewForm } from "../../components/review/ReviewForm";
+import { ScreenTimeStep } from "../../components/review/ScreenTimeStep";
 import { textStyle } from "../../design/typography";
 import { useAuthSession } from "../../lib/useAuthSession";
 import { useInsightsData } from "../../lib/useInsightsData";
@@ -100,6 +101,20 @@ export default function ReviewScreen() {
             )
           ) : null}
         </SurfaceGroup>
+
+        {/* D51 -- the week's screen time, alongside the Hours and Signal:Noise the rest of the
+            weekly picture is made of. AFTER tonight's review on purpose: tonight's five minutes
+            must never be blocked behind a screenshot, and the offer is an invitation rather than a
+            step to clear. It drops entirely if its read failed. */}
+        {review.status === "ready" && review.data.screenTime && session?.user.id ? (
+          <SurfaceGroup title="Screen time" context="This week">
+            <ScreenTimeStep
+              userId={session.user.id}
+              view={review.data.screenTime}
+              onChanged={review.refetch}
+            />
+          </SurfaceGroup>
+        ) : null}
 
         <SurfaceGroup title="Patterns" context="Last 30 days">
           {insights.status === "loading" ? (

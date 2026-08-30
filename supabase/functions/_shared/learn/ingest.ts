@@ -33,6 +33,14 @@
 // referentially intact. Migration 54's `lesson_status` enum separates the two, so nothing
 // here deletes any more.
 //
+// WHERE CARDS ARE WRITTEN, and why last. `generating_cards` runs AFTER `merging`, over the
+// lessons the merge pass promoted to 'active'. Carding candidates first would pay a model to
+// write cards for lessons a dedup contest is about to archive — cards migration 60's trigger
+// suspends the instant they are inserted. It is a step of its own rather than the tail of
+// `merging` because it is one model call PER LESSON, tens of them for a book, and the one rule
+// below forbids a single invocation from running that long. See cardGeneration.ts for the D45
+// split that governs what a model writes and what a rule writes.
+//
 // PROGRESSIVE AVAILABILITY (ULM ADR-010, addendum §1.1). Provisional lessons are readable
 // the moment their chunk clears the provenance gate, and the source flips to 'partial' as
 // soon as `computePartialThreshold` of its lessons have servable cards — usable before
@@ -49,13 +57,16 @@ import type { EmbeddingsProvider } from "../embeddings/types.ts";
 import { computeEmbeddingsCostUsd } from "../embeddings/costs.ts";
 import type { GatewayDeps } from "../llm/gateway.ts";
 import type { UsageLogEntry } from "../llm/types.ts";
+import { generateCardsForLesson } from "./cardGeneration.ts";
 import { chunkPages } from "./chunking.ts";
+import { newInvariantCounters, type InvariantCounters } from "./invariants.ts";
 import { extractLessonsFromChunk, triageChunks, type ChunkForModel } from "./lessonExtraction.ts";
 import { buildClusterPlan, mergeAndRank, type MergeCandidate } from "./merge.ts";
 import { extractPdfPageRange } from "./pdfPages.ts";
 import type { IngestJobRow, IngestRepo, IngestStep, NewCandidateLesson, NewChunk } from "./repo.ts";
 import { detectSections, sectionForPage, type DetectedSection } from "./structure.ts";
 import {
+  CARD_LESSONS_PER_INVOCATION,
   CHUNK_WINDOW_PAGES,
   EMBED_BATCH_SIZE,
   EXTRACT_CHUNKS_PER_INVOCATION,
@@ -108,6 +119,25 @@ function bool(cursor: Record<string, unknown>, key: string, fallback: boolean): 
   return typeof value === "boolean" ? value : fallback;
 }
 
+/**
+ * The invariant counters, carried across invocations in the cursor.
+ *
+ * Read field-by-field off a fresh zeroed object rather than cast: a job checkpointed before a
+ * counter existed must resume with that counter at 0, not `undefined`, or the first `++` produces
+ * NaN and the whole record silently stops meaning anything.
+ */
+function readCounters(cursor: Record<string, unknown>): InvariantCounters {
+  const stored = cursor.invariants;
+  const counters = newInvariantCounters();
+  if (stored == null || typeof stored !== "object") return counters;
+  const source = stored as Record<string, unknown>;
+  for (const key of Object.keys(counters) as Array<keyof InvariantCounters>) {
+    const value = source[key];
+    if (typeof value === "number" && Number.isFinite(value)) counters[key] = value;
+  }
+  return counters;
+}
+
 // ============================================================================
 // Entry points
 // ============================================================================
@@ -154,7 +184,8 @@ export async function redriveStalledJobs(
  * cards — ULM ADR-010, the single best idea in that repo: it DISSOLVES the wait instead of
  * optimising it.
  *
- * Called after every extraction slice, and it is a one-way latch: a source that has already
+ * Called after every extraction slice AND after every card-generation slice, and it is a one-way
+ * latch: a source that has already
  * reached 'partial' (or 'ready', or 'failed') is left alone. Re-evaluating a source out of
  * 'partial' would take a "start learning now" button away from someone mid-session because
  * a later chunk happened to produce nothing.
@@ -162,8 +193,11 @@ export async function redriveStalledJobs(
  * The threshold SCALES with the source (see `computePartialThreshold`). A fixed one is why
  * ULM's own short books, including its onboarding sample, could never reach this state.
  *
- * Note what has to be true for this to ever fire: some lesson must have a card. Nothing in
- * this pipeline generates cards yet — see the note in `stepMerging`.
+ * What has to be true for this to fire is that some lesson has a SERVABLE card, which is why the
+ * latch was inert until `generating_cards` existed: the pipeline ended at `merging` and nothing
+ * wrote `lesson_cards`, so `countLessonsWithCards` was structurally zero for every source ever
+ * ingested. It now fires between two card slices, which is the entire mechanism — the source
+ * becomes usable partway through card generation rather than at the end of it.
  */
 async function maybeMarkPartial(deps: IngestDeps, job: IngestJobRow): Promise<boolean> {
   const source = await deps.repo.loadSource(job.sourceId);
@@ -234,6 +268,8 @@ function runStep(deps: IngestDeps, job: IngestJobRow): Promise<AdvanceOutcome> {
       return stepExtractingLessons(deps, job);
     case "merging":
       return stepMerging(deps, job);
+    case "generating_cards":
+      return stepGeneratingCards(deps, job);
     default:
       return Promise.resolve({ kind: "done" });
   }
@@ -729,13 +765,14 @@ async function stepMerging(deps: IngestDeps, job: IngestJobRow): Promise<Advance
   if (selection.keepIds.length > 0) await deps.repo.promoteLessons(selection.keepIds);
   if (selection.dropIds.length > 0) await deps.repo.archiveLessons(selection.dropIds);
 
-  await deps.repo.saveSource(job.sourceId, { status: "ready", lessonCount: selection.keepIds.length });
+  // `lesson_count` is settled here because the active set is settled here. The source's STATUS is
+  // NOT: it stays 'processing' until cards exist. Flipping to 'ready' at the end of the merge —
+  // which is what this step used to do — advertised a finished library that no session could draw
+  // a single card from, and it also closed the door on 'partial' forever, since that latch only
+  // considers a source still in 'processing'.
+  await deps.repo.saveSource(job.sourceId, { lessonCount: selection.keepIds.length });
   await deps.repo.saveJob(job.id, {
-    step: "done",
-    // Progress cleared: 'done' has no unit of work left to count, and 400-of-400 frozen on a
-    // finished job reads as a stall to anyone who does not know the step machine.
-    progressCurrent: null,
-    progressTotal: null,
+    step: "generating_cards",
     cursor: {
       lessons: selection.keepIds.length,
       dropped: selection.dropIds.length,
@@ -744,11 +781,188 @@ async function stepMerging(deps: IngestDeps, job: IngestJobRow): Promise<Advance
       embeddingsSkippedReason: job.cursor.embeddingsSkippedReason ?? null,
       mergeDegraded: selection.degraded,
       mergeDegradedReason: selection.reason,
+      // Card generation's own cursor, starting fresh.
+      afterLessonId: 0,
+      lessonsCarded: 0,
+      lessonsWithoutCards: 0,
+      cardsWritten: 0,
+      invariants: newInvariantCounters(),
+      topicalityChecked: null,
     },
     attempts: 0,
     lastError: null,
     addCostUsd: selection.costUsd,
+    // Surviving LESSONS are the unit now — the counter is reset at the transition like every
+    // other step's, because a denominator of candidates would count rows this step never touches.
+    progressCurrent: 0,
+    progressTotal: selection.keepIds.length,
   });
 
-  return { kind: "advanced", step: "done", moreWork: false, note: `${selection.keepIds.length} lessons (${plan.metric})` };
+  return {
+    kind: "advanced",
+    step: "generating_cards",
+    moreWork: true,
+    note: `${selection.keepIds.length} lessons (${plan.metric})`,
+  };
+}
+
+/**
+ * THE STEP THAT MAKES A SESSION POSSIBLE.
+ *
+ * One slice of surviving lessons per invocation, one model call per lesson, checkpointed after
+ * EVERY lesson rather than once per slice. The finer checkpoint is not gold-plating: `insertCards`
+ * is not idempotent, so a slice-level cursor would mean an invocation killed after its third
+ * lesson re-cards the first two on resume and the reader meets the same question twice. Per-lesson
+ * it costs one small job write and the worst case shrinks to one lesson's cards.
+ *
+ * It is also the step ULM's own timed run sat silently inside for the last thirteen minutes of a
+ * fifty-seven minute ingestion, which is why the progress counters advance within the slice too.
+ */
+async function stepGeneratingCards(deps: IngestDeps, job: IngestJobRow): Promise<AdvanceOutcome> {
+  if (deps.gateway == null) {
+    // D45's REFUSAL, and it is the same shape as extraction's block for the same reason: a missing
+    // server credential is not this job's defect, so it burns no attempt and the job resumes from
+    // its own cursor the moment an operator supplies the key.
+    //
+    // What it refuses is worth stating, because the tempting alternative looks harmless: cloze
+    // cards are deterministic and could be written right now with no key at all. A deck of nothing
+    // but fill-in-the-blank cards is recognition practice, and it is INDISTINGUISHABLE from a good
+    // deck to the person using it — they would review it for months before noticing they had
+    // learned nothing. Blocking is visible today; that is the whole argument.
+    const reason = "Card generation is not configured on this server (no Anthropic API key). " +
+      "Cloze cards are deterministic, but free-recall, application and why cards are not, and a " +
+      "deck of fill-in-the-blank cards alone is recognition practice rather than retrieval practice.";
+    await deps.repo.saveJob(job.id, { lastError: reason });
+    return { kind: "blocked", step: "generating_cards", reason };
+  }
+
+  const counters = readCounters(job.cursor);
+  let afterLessonId = num(job.cursor, "afterLessonId", 0);
+  let lessonsCarded = num(job.cursor, "lessonsCarded", 0);
+  let lessonsWithoutCards = num(job.cursor, "lessonsWithoutCards", 0);
+  let cardsWritten = num(job.cursor, "cardsWritten", 0);
+  let topicalityChecked = typeof job.cursor.topicalityChecked === "boolean" ? job.cursor.topicalityChecked : null;
+
+  /** Everything the merge pass recorded, carried through to the terminal cursor unchanged. */
+  const carried = {
+    lessons: num(job.cursor, "lessons", 0),
+    dropped: num(job.cursor, "dropped", 0),
+    similarityMetric: job.cursor.similarityMetric ?? null,
+    embeddingsSkipped: bool(job.cursor, "embeddingsSkipped", false),
+    embeddingsSkippedReason: job.cursor.embeddingsSkippedReason ?? null,
+    mergeDegraded: bool(job.cursor, "mergeDegraded", false),
+    mergeDegradedReason: job.cursor.mergeDegradedReason ?? null,
+  };
+
+  const progressTotal = await deps.repo.countActiveLessons(job.sourceId);
+
+  const cardCursor = () => ({
+    ...carried,
+    afterLessonId,
+    lessonsCarded,
+    lessonsWithoutCards,
+    cardsWritten,
+    invariants: { ...counters },
+    topicalityChecked,
+  });
+
+  const lessons = await deps.repo.loadActiveLessonsAfter(job.sourceId, afterLessonId, CARD_LESSONS_PER_INVOCATION);
+
+  if (lessons.length === 0) {
+    if (cardsWritten === 0) {
+      // The same honesty rule `merging` applies to a book that grounded nothing, one step later: a
+      // library of lessons with not one reviewable card is a failed ingestion the user must see,
+      // never a 'ready' source they will assume the app is broken for showing empty.
+      return await failNow(
+        deps,
+        job,
+        "No card survived the quality gates for any lesson in this source — there is nothing to review.",
+      );
+    }
+
+    await deps.repo.saveSource(job.sourceId, { status: "ready" });
+    await deps.repo.saveJob(job.id, {
+      step: "done",
+      // Progress cleared: 'done' has no unit of work left to count, and 60-of-60 frozen on a
+      // finished job reads as a stall to anyone who does not know the step machine.
+      progressCurrent: null,
+      progressTotal: null,
+      cursor: cardCursor(),
+      attempts: 0,
+      lastError: null,
+    });
+    return {
+      kind: "advanced",
+      step: "done",
+      moreWork: false,
+      note: `${cardsWritten} cards on ${lessonsCarded} lessons`,
+    };
+  }
+
+  const budgetCeilingUsd = await deps.repo.loadBudgetCeilingUsd(job.userId);
+  let costUsd = 0;
+
+  for (const lesson of lessons) {
+    const outcome = await generateCardsForLesson(deps.gateway, {
+      userId: job.userId,
+      budgetCeilingUsd,
+      lesson,
+      embeddings: deps.embeddings,
+      counters,
+    });
+
+    if (outcome.kind === "budgetExceeded") {
+      // Not retryable this month, and the same call `extracting_lessons` makes: continuing would
+      // leave a deck that is complete for the first forty lessons and empty for the rest, presented
+      // as a finished book.
+      return await failNow(deps, job, "Monthly LLM budget exceeded during card generation.");
+    }
+    if (outcome.kind === "failed") {
+      // Whatever this slice already wrote is durable and its cursor already reflects it, so the
+      // retry resumes at the lesson that failed rather than re-carding the ones that did not.
+      await deps.repo.saveJob(job.id, { cursor: cardCursor(), addCostUsd: costUsd });
+      return await recordFailure(deps, job, `card_generation_failed: ${outcome.reason}`);
+    }
+
+    costUsd += outcome.costUsd;
+    // `false` is sticky: one slice that could not check topicality means the BOOK's cards were
+    // not uniformly checked, and the record has to say the weaker of the two things.
+    topicalityChecked = topicalityChecked === false ? false : outcome.topicalityChecked;
+
+    if (outcome.cards.length > 0) {
+      await deps.repo.insertCards(job.userId, lesson.id, outcome.cards);
+      lessonsCarded++;
+      cardsWritten += outcome.cards.length;
+    } else {
+      // A lesson nothing usable could be written for stays ACTIVE and simply never enters a
+      // queue. Archiving it would be a quality judgement on the lesson made by a failure of the
+      // card writer, and it would take a real, grounded, readable lesson out of the library.
+      lessonsWithoutCards++;
+    }
+
+    afterLessonId = lesson.id;
+
+    await deps.repo.saveJob(job.id, {
+      cursor: cardCursor(),
+      attempts: 0,
+      lastError: null,
+      addCostUsd: costUsd,
+      progressCurrent: lessonsCarded + lessonsWithoutCards,
+      progressTotal,
+    });
+    costUsd = 0; // already accumulated onto the job; never added twice
+  }
+
+  // The progressive-availability latch, after the checkpoint: the slice's cards are durable before
+  // the source is advertised as usable, so a crash here costs an announcement, never a card.
+  const nowPartial = await maybeMarkPartial(deps, job);
+
+  return {
+    kind: "advanced",
+    step: "generating_cards",
+    moreWork: true,
+    note: `${cardsWritten} cards on ${lessonsCarded} lessons${
+      lessonsWithoutCards > 0 ? `, ${lessonsWithoutCards} lessons produced none` : ""
+    }${nowPartial ? ", source now partial" : ""}`,
+  };
 }

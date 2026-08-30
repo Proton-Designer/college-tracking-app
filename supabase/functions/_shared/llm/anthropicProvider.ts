@@ -4,7 +4,7 @@
 // actual network behavior must get a live smoke test the first time a real key exists
 // (see docs/SUPABASE_SETUP.md's Anthropic section).
 
-import type { LlmModel, LlmProvider, LlmProviderResult, LlmToolCallRequest, LlmUsage } from "./types.ts";
+import type { LlmImage, LlmModel, LlmProvider, LlmProviderResult, LlmToolCallRequest, LlmUsage } from "./types.ts";
 
 const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -33,6 +33,28 @@ function buildSystemParam(systemPrompt: LlmToolCallRequest["systemPrompt"]): str
     text: block.text,
     ...(block.cacheable ? { cache_control: { type: "ephemeral" as const } } : {}),
   }));
+}
+
+type AnthropicUserContent =
+  | { type: "text"; text: string }
+  | { type: "image"; source: { type: "base64"; media_type: LlmImage["mediaType"]; data: string } };
+
+/**
+ * A text-only call sends `content` as a plain string — exactly the body every existing call site
+ * has always produced, so adding vision changes nothing about them. Images turn it into a content
+ * array, with the pictures FIRST and the instruction text last: Anthropic's own guidance for
+ * vision prompts, and the ordering that keeps the instruction closest to the answer.
+ */
+function buildUserContent(request: LlmToolCallRequest): string | AnthropicUserContent[] {
+  const images = request.images ?? [];
+  if (images.length === 0) return request.userContent;
+  return [
+    ...images.map((image) => ({
+      type: "image" as const,
+      source: { type: "base64" as const, media_type: image.mediaType, data: image.dataBase64 },
+    })),
+    { type: "text" as const, text: request.userContent },
+  ];
 }
 
 interface AnthropicResponse {
@@ -79,7 +101,7 @@ export function createAnthropicProvider(apiKey: string): LlmProvider {
           model: MODEL_IDS[request.model],
           max_tokens: request.maxTokens,
           system: buildSystemParam(request.systemPrompt),
-          messages: [{ role: "user", content: request.userContent }],
+          messages: [{ role: "user", content: buildUserContent(request) }],
           tools: [
             {
               name: request.toolName,

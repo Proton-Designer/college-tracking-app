@@ -7,13 +7,16 @@
 // testing. This is how it gets tested.
 
 import type {
+  ActiveLessonRow,
   CandidateLessonRow,
   ChunkRow,
   IngestJobRow,
   IngestRepo,
   JobPatch,
+  LessonPromptType,
   NewCandidateLesson,
   NewChunk,
+  NewLessonCard,
   NewSection,
   PageTextRow,
   SectionRow,
@@ -41,11 +44,16 @@ interface StoredLesson extends NewCandidateLesson {
   status: "provisional" | "active" | "archived";
 }
 
-/** Just enough of `lesson_cards` for the progressive-availability gate to be a real query. */
+/** `lesson_cards`, enough of it that both the progressive-availability gate and the card
+ *  generation step are real queries against real rows. */
 interface StoredCard {
   id: number;
   userId: string;
   lessonId: number;
+  promptType: LessonPromptType;
+  prompt: string;
+  answer: string;
+  sortOrder: number;
   active: boolean;
   suspendedAt: Date | null;
 }
@@ -82,13 +90,16 @@ export interface MemoryRepo extends IngestRepo {
   /** Staging page rows — negative sort_order. */
   pageRows(): StoredChunk[];
   /**
-   * Adds a card to a lesson, the way the (not yet built) card-generation step would.
+   * Adds a card to a lesson by hand — a test's way of setting up a precondition without driving
+   * the whole card-generation step. `insertCards` is the path the pipeline itself uses.
    *
    * Migration 60's `lesson_cards_seed_card_state` trigger would also create a `card_states` row
    * here; the ingestion driver never reads that table, so the fake does not model it. The D47
    * oracle in packages/api is where card state gets exercised.
    */
   addCard(lessonId: number, options?: { active?: boolean; suspendedAt?: Date | null }): number;
+  /** Every card written for one lesson, in stored sort order. */
+  cardsFor(lessonId: number): StoredCard[];
 }
 
 export function createMemoryRepo(options: {
@@ -164,10 +175,18 @@ export function createMemoryRepo(options: {
         id,
         userId: lesson.userId,
         lessonId,
+        promptType: "free_recall",
+        prompt: `Placeholder prompt ${id}?`,
+        answer: `Placeholder answer ${id}.`,
+        sortOrder: 0,
         active: options.active ?? true,
         suspendedAt: options.suspendedAt ?? null,
       });
       return id;
+    },
+
+    cardsFor(lessonId) {
+      return state.cards.filter((c) => c.lessonId === lessonId).sort((a, b) => a.sortOrder - b.sortOrder);
     },
 
     loadJob(id) {
@@ -370,6 +389,52 @@ export function createMemoryRepo(options: {
         for (const card of state.cards) {
           if (card.lessonId === lesson.id && card.suspendedAt == null) card.suspendedAt = new Date();
         }
+      }
+      return Promise.resolve();
+    },
+
+    loadActiveLessonsAfter(source, afterLessonId, limit) {
+      const rows: ActiveLessonRow[] = state.lessons
+        .filter((l) => l.sourceId === source && l.status === "active" && l.id > afterLessonId)
+        .sort((a, b) => a.id - b.id)
+        .slice(0, limit)
+        .map((l) => ({
+          id: l.id,
+          title: l.title,
+          coreClaim: l.coreClaim,
+          mechanism: l.mechanism,
+          claimToTask: l.claimToTask,
+          provenanceQuote: l.provenanceQuote,
+        }));
+      return Promise.resolve(rows);
+    },
+
+    countActiveLessons(source) {
+      return Promise.resolve(state.lessons.filter((l) => l.sourceId === source && l.status === "active").length);
+    },
+
+    insertCards(owner: string, lessonId: number, rows: NewLessonCard[]) {
+      requireOwner(owner);
+      const lesson = state.lessons.find((l) => l.id === lessonId);
+      // `lesson_cards.lesson_id` is a NOT NULL foreign key; a fake that accepted an orphan card
+      // would hide the bug rather than the constraint catching it.
+      if (!lesson) throw new Error(`lesson_cards_lesson_id_fkey violated: no lesson ${lessonId}`);
+      for (const row of rows) {
+        // The schema's not-blank constraints, reproduced for the same reason.
+        if (row.prompt.trim().length === 0) throw new Error("lesson_cards_prompt_not_blank violated");
+        if (row.answer.trim().length === 0) throw new Error("lesson_cards_answer_not_blank violated");
+        state.cards.push({
+          id: nextCardId++,
+          userId: owner,
+          lessonId,
+          promptType: row.promptType,
+          prompt: row.prompt,
+          answer: row.answer,
+          sortOrder: row.sortOrder,
+          // Column defaults, not values ingestion chose — see supabaseRepo's note on why.
+          active: true,
+          suspendedAt: null,
+        });
       }
       return Promise.resolve();
     },

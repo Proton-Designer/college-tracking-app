@@ -11,7 +11,12 @@
 import { computeCostUsd } from "../llm/costs.ts";
 import { computeEmbeddingsCostUsd } from "../embeddings/costs.ts";
 import type { EmbeddingsModel } from "../embeddings/types.ts";
-import { EXTRACT_CHUNKS_PER_INVOCATION, TRIAGE_BATCH_SIZE, targetLessonCount } from "./types.ts";
+import {
+  CARD_LESSONS_PER_INVOCATION,
+  EXTRACT_CHUNKS_PER_INVOCATION,
+  TRIAGE_BATCH_SIZE,
+  targetLessonCount,
+} from "./types.ts";
 
 export interface IngestionCostAssumptions {
   pageCount: number;
@@ -29,6 +34,12 @@ export interface IngestionCostAssumptions {
   extractionOutputTokens: number;
   /** Candidate lessons produced per passing chunk. */
   candidatesPerPassingChunk: number;
+  /** Input tokens per card-generation call: the ~2,000-character system prompt (~500 tokens)
+   *  plus the lesson's own JSON envelope. Bounded by the LESSON, never by the book — which is
+   *  what makes this term scale with the distilled output rather than the input. */
+  cardInputTokens: number;
+  /** Output tokens per card-generation call. Three cards of a prompt plus a short answer. */
+  cardOutputTokens: number;
   embeddingsAvailable: boolean;
   embeddingsModel: EmbeddingsModel;
 }
@@ -40,6 +51,8 @@ export const DEFAULT_ASSUMPTIONS: IngestionCostAssumptions = {
   triagePassRate: 0.6,
   extractionOutputTokens: 500,
   candidatesPerPassingChunk: 1.5,
+  cardInputTokens: 650,
+  cardOutputTokens: 300,
   embeddingsAvailable: false,
   embeddingsModel: "voyage-3.5-lite",
 };
@@ -51,6 +64,10 @@ export interface IngestionCostBreakdown {
   triageUsd: number;
   extractionUsd: number;
   mergeUsd: number;
+  /** One call per SURVIVING lesson. Cloze cards are deterministic and appear nowhere here,
+   *  because they cost nothing -- D45's split, visible in the economics. */
+  cardGenerationCalls: number;
+  cardGenerationUsd: number;
   embeddingsUsd: number;
   totalUsd: number;
 }
@@ -110,6 +127,26 @@ export function estimateIngestionCostUsd(
     now,
   );
 
+  // Card generation: one Sonnet call per lesson that SURVIVED the merge, which is the
+  // deterministic target count and not the candidate count -- carding losers is the waste the
+  // step order exists to avoid.
+  //
+  // This term scales with the book's DISTILLED OUTPUT while every term above it scales with the
+  // book's LENGTH, so a long book that yields few lessons and a short dense one that yields many
+  // move different halves of this total. That is the whole reason it is a separate line item and
+  // a separate `call_type` in the ledger rather than folded into extraction.
+  const cardGenerationCalls = targetLessonCount(a.pageCount);
+  const cardGenerationUsd = computeCostUsd(
+    "claude-sonnet-5",
+    {
+      inputTokens: cardGenerationCalls * a.cardInputTokens,
+      outputTokens: cardGenerationCalls * a.cardOutputTokens,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    },
+    now,
+  );
+
   // Embeddings: every chunk once, plus every candidate lesson once. Rounding error next
   // to the model calls — which is exactly why the D41 no-key path costs nothing to run
   // and the key costs almost nothing to switch on.
@@ -117,8 +154,20 @@ export function estimateIngestionCostUsd(
     ? computeEmbeddingsCostUsd(a.embeddingsModel, tokens(totalChars) + candidates * 60)
     : 0;
 
-  const totalUsd = Math.round((triageUsd + extractionUsd + mergeUsd + embeddingsUsd) * 1e6) / 1e6;
-  return { chunks, triageCalls, extractionCalls, triageUsd, extractionUsd, mergeUsd, embeddingsUsd, totalUsd };
+  const totalUsd = Math.round((triageUsd + extractionUsd + mergeUsd + cardGenerationUsd + embeddingsUsd) * 1e6) /
+    1e6;
+  return {
+    chunks,
+    triageCalls,
+    extractionCalls,
+    triageUsd,
+    extractionUsd,
+    mergeUsd,
+    cardGenerationCalls,
+    cardGenerationUsd,
+    embeddingsUsd,
+    totalUsd,
+  };
 }
 
 /** Invocations the state machine needs for one book — the other half of the economics,
@@ -131,5 +180,9 @@ export function estimateInvocationCount(assumptions: Partial<IngestionCostAssump
   const chunkWindows = Math.ceil(a.pageCount / 50);
   const embedBatches = a.embeddingsAvailable ? Math.ceil(chunks / 64) : 1;
   const extractionInvocations = Math.ceil(chunks / EXTRACT_CHUNKS_PER_INVOCATION);
-  return 1 + textSlices + structureWindows + chunkWindows + embedBatches + extractionInvocations + 1;
+  // `generating_cards` walks the surviving lessons a slice at a time, plus the one invocation
+  // that finds nothing left to card and moves the job to 'done'.
+  const cardInvocations = Math.ceil(targetLessonCount(a.pageCount) / CARD_LESSONS_PER_INVOCATION) + 1;
+  return 1 + textSlices + structureWindows + chunkWindows + embedBatches + extractionInvocations + 1 +
+    cardInvocations;
 }
