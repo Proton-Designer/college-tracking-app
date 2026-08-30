@@ -18,6 +18,18 @@ Nothing below works until this is done, and it needs a machine with the Supabase
 **This machine has neither Docker nor Supabase credentials**, so no migration in this build has ever
 touched a database.
 
+> ## ✅ Stage 0 is DONE (2026-08-30)
+>
+> Migrations 48–65 are **applied** to `jcikqbxwjmdduwprixpy`, and the types are **regenerated**.
+> The regeneration found two real transcription errors, which is what it was for — a phantom
+> `sunnah_slot` on `task_sessions` and a missing `llm_usage_log.provider`. Both are fixed; all
+> gates pass against the regenerated file; the live database reports **108 tables, 0 without RLS**.
+>
+> The remote was at **47**, not 46 — migration 47 had already been applied at some point, so the
+> earlier "47 is pending" note in this file and in `PENDING_DB_CHANGES.md` was wrong.
+>
+> Kept below as the record of what was done and how to redo it on a fresh project.
+
 | # | Do | Why / notes |
 |---|---|---|
 | 0.1 | `supabase migration list` | Confirm the last **remote** migration is `46`. Migration **47** (LLM budget upper clamp) was written before this build and is still unapplied — see `docs/PENDING_DB_CHANGES.md`. |

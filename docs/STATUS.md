@@ -33,7 +33,7 @@ primitives rather than a silo.
 ## Measured state
 
 ```
-65 migrations (47-65 NOT yet applied to any database) · 108 tables · 0 without RLS
+65 migrations, ALL APPLIED to jcikqbxwjmdduwprixpy · 108 tables · 0 without RLS (verified live)
 23 edge functions · web: 32 route groups · mobile: 5 tabs + 28 screens
 ```
 
@@ -43,15 +43,17 @@ primitives rather than a silo.
 | Deno (`deno test -A`) | **PASS — 323**, twice consecutively per D14 (was 133 before the merge) | 2026-08-30 |
 | `next build` | clean, every route | 2026-08-30 |
 | RLS audit, migrations 51–58 | every new table: enable + force + owner-scoped policy (34 policies) | 2026-08-30 |
-| pgTAP · E2E · api integration · live DB | **NOT RUN** — needs Docker / credentials | — |
+| Schema applied + types regenerated | **DONE** — 48–65 pushed; `db:types:cloud` found 2 real transcription errors, both fixed | 2026-08-30 |
+| RLS on the live database | **108 tables, 0 without RLS, 0 without force** — queried, not inferred from migrations | 2026-08-30 |
+| pgTAP · E2E · api integration | **NOT RUN** — needs Docker | — |
 
 ---
 
 ## Blocked on a person, not on code
 
-1. **Apply migrations 47–59** and **regenerate `database.types.ts`** (`db:types:cloud`).
-   ⚠️ That file was hand-written for 33 tables during this build; the regeneration is the only
-   thing that proves it. Connection checklist §0.
+1. ~~Apply migrations and regenerate types~~ — **DONE 2026-08-30.** The regeneration earned its
+   place: it caught a phantom `sunnah_slot` column on `task_sessions` and a missing
+   `llm_usage_log.provider`, neither of which any gate could see.
 2. **Settings, per user** — prayer location and method, baselines, signal domains, Learn limits.
    Until then every affected surface shows an honest empty state rather than a number.
 3. **Canvas connect** (still owed from the previous handover, ~10 minutes).
